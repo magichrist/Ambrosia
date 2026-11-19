@@ -10,14 +10,17 @@ from datetime import datetime
 from typing import cast
 
 from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
-from ambrosia.domain.errors import NotFoundError
+from ambrosia.application._base import _BaseService
+from ambrosia.domain.errors import NotFoundError, ValidationError
 from ambrosia.domain.models import Scope
-from ambrosia.domain.protocols import (
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     EngagementRepository as EngagementRepositoryProtocol,
+)
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     ScopeRepository as ScopeRepositoryProtocol,
 )
-from ambrosia.application._base import _BaseService
 
 
 class ScopeDTO(BaseModel):
@@ -41,15 +44,23 @@ class ScopeDTO(BaseModel):
 class ScopeService(_BaseService):
     def show(self, engagement_id: str) -> ScopeDTO:
         with self._session() as session:
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol",  # noqa: TC001
+                self._repo("scope_repo", session),
+            )
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",  # noqa: TC001
+                self._repo("engagement_repo", session),
             )
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
             scope = scope_repo.get_for_engagement(engagement_id)
             if scope is None:
-                raise NotFoundError(f"no scope defined for engagement {engagement_id!r}")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"no scope defined for engagement {engagement_id!r}"
+                )
             return self._dto(scope)
 
     def update(
@@ -74,12 +85,18 @@ class ScopeService(_BaseService):
         resulting scope is invalid (for example, include/exclude overlap).
         """
         with self._session() as session:
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol",  # noqa: TC001
+                self._repo("scope_repo", session),
+            )
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",  # noqa: TC001
+                self._repo("engagement_repo", session),
             )
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
 
             scope = scope_repo.get_for_engagement(engagement_id)
             if scope is None:
@@ -109,9 +126,15 @@ class ScopeService(_BaseService):
             if require_approval_for is not None:
                 update_data["require_approval_for"] = set(require_approval_for)
 
-            # model_copy re-runs Pydantic validation (e.g. include/exclude
-            # overlap) before anything is persisted.
-            scope = scope.model_copy(update=update_data)
+            # Re-construct via the model so Pydantic re-runs validation (e.g.
+            # the include/exclude overlap check), which model_copy(update=...)
+            # does not repeat in this Pydantic version.
+            try:
+                scope = Scope(**{**scope.model_dump(), **update_data})
+            except PydanticValidationError as exc:
+                raise ValidationError(  # noqa: TRY003 - operator-facing message
+                    str(exc)
+                ) from exc
             scope_repo.update(scope)
             return self._dto(scope)
 
