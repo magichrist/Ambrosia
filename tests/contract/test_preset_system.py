@@ -10,10 +10,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from ambrosia.domain.action import ActionDefinition, ExecutorReference
 from ambrosia.domain.errors import ParseError
 from ambrosia.domain.models import Artifact
-from ambrosia.presets import PresetLoader, InputRequest, SecretHandle
+from ambrosia.presets import InputRequest, PresetLoader, SecretHandle
 from ambrosia.registry import Registry
 
 BUILTIN_PRESET = Path(__file__).resolve().parents[2] / "builtin_presets" / "network.basic-discovery.yaml"
@@ -132,12 +134,8 @@ def test_sample_preset_missing_input_surfaces_typed_request() -> None:
 
 def test_invalid_yaml_rejected() -> None:
     loader = PresetLoader(_registry())
-    try:
+    with pytest.raises(ParseError):
         loader.load_text("api_version: [unclosed\n")
-    except ParseError:
-        pass
-    else:  # pragma: no cover - failure path
-        raise AssertionError("expected invalid YAML to be rejected")
 
 
 def test_python_object_tag_cannot_load() -> None:
@@ -149,9 +147,5 @@ def test_python_object_tag_cannot_load() -> None:
         "metadata: !!python/object/apply:os.system [echo pwned]\n"
         "steps: []\n"
     )
-    try:
+    with pytest.raises(Exception):  # noqa: B017 - asserting any load failure
         loader.load_text(document)
-    except Exception:  # noqa: BLE001 - asserting any load failure
-        pass
-    else:  # pragma: no cover - failure path
-        raise AssertionError("expected python object tag to be rejected")
