@@ -1,0 +1,48 @@
+api_version: ambrosia/v1
+kind: preset
+metadata:
+  id: network.basic-discovery
+  name: Basic Service Discovery
+  version: 1.0.0
+  description: Discover services on an explicitly scoped target (read-only).
+  author: ambrosia
+  tags: [discovery, network, read-only]
+
+phase_refs:
+  - network.discovery
+
+inputs:
+  target:
+    type: target.host
+    required: true
+    source: context_or_user
+  ports:
+    type: string
+    required: false
+    default: "80,443,445,3389"
+
+steps:
+  - id: discover
+    type: action
+    action: network.nmap.service_discovery
+    inputs:
+      target: "{{ inputs.target }}"
+      ports: "{{ inputs.ports }}"
+    outputs:
+      services: { source: "{{ steps.discover.outputs.services }}" }
+    on_failure: stop
+  - id: suggest_smb
+    type: condition
+    when:
+      kind: artifact_exists
+      artifact_type: network.service
+      where:
+        service: smb
+    then:
+      - publish_smb
+  - id: publish_smb
+    type: output
+    outputs:
+      next_actions: { source: "{{ steps.suggest_smb.outputs.result }}" }
+
+outputs: {}

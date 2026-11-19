@@ -1,0 +1,82 @@
+api_version: ambrosia/v1
+kind: pack
+metadata:
+  id: test-pack
+  name: Test Pack
+  version: 1.0.0
+  description: A test pack for registry and matcher tests
+actions:
+  - id: test.scan.host
+    version: 1.0.0
+    name: Host Scan
+    description: Scan a host for services.
+    category: discovery
+    tags: [discovery, network]
+    platforms: [linux]
+    phase_refs: [network.discovery]
+    required_artifacts:
+      - type: network.host
+        same_target: true
+    input_schema:
+      type: object
+      properties:
+        target:
+          type: string
+          description: Target host to scan.
+        ports:
+          type: string
+          description: Port list.
+      required: [target]
+    output_artifact_types: [network.service]
+    executor:
+      kind: process
+      executable: nmap
+    dependencies:
+      - name: nmap
+        version: "7.90"
+    effects: [network_observe]
+    risk: low
+    scope_fields: [target]
+    approval_required: false
+    timeout_seconds: 60
+    max_output_bytes: 2000000
+    parser_refs: [nmap_xml]
+  - id: test.read.config
+    version: 1.0.0
+    name: Read Config
+    description: Read local configuration.
+    category: inventory
+    tags: [inventory, read-only]
+    platforms: []
+    input_schema:
+      type: object
+      properties: {}
+      required: []
+    executor:
+      kind: native
+    effects: [local_read]
+    risk: info
+    scope_fields: []
+    approval_required: false
+    timeout_seconds: 10
+  - id: test.modify.file
+    version: 1.0.0
+    name: Modify File
+    description: Modify a local file (requires approval).
+    category: inventory
+    tags: [inventory]
+    platforms: [linux]
+    input_schema:
+      type: object
+      properties:
+        path:
+          type: string
+      required: [path]
+    executor:
+      kind: process
+      executable: sed
+    effects: [local_write]
+    risk: moderate
+    scope_fields: []
+    approval_required: true
+    timeout_seconds: 30

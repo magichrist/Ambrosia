@@ -1,0 +1,14 @@
+textual<1,>=0.86
+typer[all]<1,>=0.12
+pydantic<3,>=2.10
+pydantic-settings<3,>=2.4
+sqlalchemy<3,>=2.0
+alembic<2,>=1.13
+pyyaml<8,>=6
+
+[dev]
+pytest<10,>=8
+pytest-asyncio<1,>=0.24
+hypothesis<7,>=6.100
+mypy<2,>=1.13
+ruff<1,>=0.8

@@ -1,0 +1,246 @@
+{
+  "$defs": {
+    "OutputBinding": {
+      "additionalProperties": false,
+      "description": "Publish a named preset output from existing context/artifacts/step output.",
+      "properties": {
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "OutputBinding",
+      "type": "object"
+    },
+    "PresetInput": {
+      "additionalProperties": false,
+      "description": "A declared preset input.",
+      "properties": {
+        "type": {
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "source": {
+          "default": "context_or_user",
+          "enum": [
+            "context_or_user",
+            "user",
+            "context"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "PresetInput",
+      "type": "object"
+    },
+    "PresetMetadata": {
+      "additionalProperties": false,
+      "description": "Preset metadata.",
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "description"
+      ],
+      "title": "PresetMetadata",
+      "type": "object"
+    },
+    "PresetStep": {
+      "additionalProperties": false,
+      "description": "A single step within a preset.",
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "default": "action",
+          "enum": [
+            "action",
+            "condition",
+            "approval",
+            "output"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Needs",
+          "type": "array"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "outputs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/OutputBinding"
+          },
+          "title": "Outputs",
+          "type": "object"
+        },
+        "on_failure": {
+          "default": "stop",
+          "enum": [
+            "stop",
+            "continue"
+          ],
+          "title": "On Failure",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "PresetStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "An ambrosia/v1 preset document.",
+  "properties": {
+    "api_version": {
+      "const": "ambrosia/v1",
+      "default": "ambrosia/v1",
+      "title": "Api Version",
+      "type": "string"
+    },
+    "kind": {
+      "const": "preset",
+      "default": "preset",
+      "title": "Kind",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/PresetMetadata"
+    },
+    "phase_refs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Phase Refs",
+      "type": "array"
+    },
+    "inputs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/PresetInput"
+      },
+      "title": "Inputs",
+      "type": "object"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/PresetStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "outputs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/OutputBinding"
+      },
+      "title": "Outputs",
+      "type": "object"
+    }
+  },
+  "required": [
+    "metadata"
+  ],
+  "title": "PresetDefinition",
+  "type": "object"
+}
