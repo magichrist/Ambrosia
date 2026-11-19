@@ -21,16 +21,16 @@ from ambrosia.presets.resolution import ResolutionContext, Resolver, check_type
 
 
 def _context(**overrides: object) -> ResolutionContext:
-    data = dict(
-        inputs={},
-        context={},
-        target={},
-        artifacts={},
-        step_outputs={},
-        preset={},
-        declared_inputs={},
-        input_type_hints={},
-    )
+    data = {
+        "inputs": {},
+        "context": {},
+        "target": {},
+        "artifacts": {},
+        "step_outputs": {},
+        "preset": {},
+        "declared_inputs": {},
+        "input_type_hints": {},
+    }
     data.update(overrides)
     return ResolutionContext(**data)  # type: ignore[arg-type]
 
