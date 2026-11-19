@@ -7,7 +7,7 @@ time. Every execution path produces at least one decision record.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
 
 def _utc_now_naive() -> datetime:
@@ -57,7 +57,7 @@ class PolicyDecisionRecord:
     execution_id: str
     decisions: tuple[PolicyDecision, ...] = field(default_factory=tuple)
 
-    def add(self, decision: PolicyDecision) -> "PolicyDecisionRecord":
+    def add(self, decision: PolicyDecision) -> PolicyDecisionRecord:
         """Return a new record with ``decision`` appended (immutable)."""
         return PolicyDecisionRecord(
             execution_id=self.execution_id,
