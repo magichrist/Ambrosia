@@ -41,7 +41,25 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "S", "B", "C4", "UP", "PTH", "TCH", "TID", "FLY", "ANN", "ARG", "RET", "TRY"]
-ignore = ["E501", "B008", "ANN401", "ARG001", "ARG002", "ARG003", "RET504", "TRY300"]
+ignore = ["E501", "B008", "ANN401", "ARG001", "ARG002", "ARG003", "RET504", "TRY300", "TRY003"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest relies on plain asserts, fixtures may use fake secrets/temp paths, and
+# test helpers don't need the production-level typing/lint strictness.
+"tests/**" = [
+    "S101",    # use of assert
+    "S105",    # hardcoded password string (fake credentials in fixtures)
+    "S106",    # hardcoded password function arg
+    "S108",    # hardcoded temp file (test fixtures)
+    "ANN001",  # missing type annotation for function argument
+    "ANN002",  # missing type annotation for *args
+    "ANN003",  # missing type annotation for **kwargs
+    "ANN201",  # missing return type annotation for public function
+    "ANN202",  # missing return type annotation for private function
+    "ANN205",  # missing return type annotation for static method
+    "ARG004",  # unused static method argument (fake signatures)
+    "B017",    # assertRaises(Exception)
+]
 
 [tool.ruff.format]
 quote-style = "double"
