@@ -42,6 +42,9 @@ class ExecutionRepository(Protocol):
     def update(self, execution: ExecutionRecord) -> None: ...  # pragma: no cover
     def list_for_engagement(self, engagement_id: str) -> list[ExecutionRecord]: ...  # pragma: no cover
     def get(self, execution_id: str) -> ExecutionRecord | None: ...  # pragma: no cover
+    def add_event(
+        self, execution_id: str, kind: str, payload: dict[str, object], sequence: int
+    ) -> None: ...  # pragma: no cover
 
 
 @runtime_checkable
