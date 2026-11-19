@@ -8,22 +8,33 @@ pure matcher, so the CLI and the TUI see identical results.
 from __future__ import annotations
 
 import shutil
+from contextlib import AbstractContextManager, nullcontext
+from dataclasses import replace
 from typing import TYPE_CHECKING, cast
 
 from pydantic import BaseModel
 
-from ambrosia.domain.errors import NotFoundError
-from ambrosia.domain.protocols import (
-    ArtifactRepository as ArtifactRepositoryProtocol,
-    EngagementRepository as EngagementRepositoryProtocol,
-    ScopeRepository as ScopeRepositoryProtocol,
-)
 from ambrosia.application._base import _BaseService
-from ambrosia.registry import Registry
-from ambrosia.registry.models import ContextSnapshot, PolicySnapshot
+from ambrosia.domain.errors import NotFoundError
+from ambrosia.registry.models import (  # noqa: TC001 - constructed at runtime below
+    ContextSnapshot,
+    PolicySnapshot,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ambrosia.domain.action import ActionDefinition
+    from ambrosia.domain.protocols import (
+        ArtifactRepository as ArtifactRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        EngagementRepository as EngagementRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        ScopeRepository as ScopeRepositoryProtocol,
+    )
+    from ambrosia.registry import Registry
 
 
 class ActionDTO(BaseModel):
@@ -68,8 +79,21 @@ class ActionCheckDTO(BaseModel):
 
 
 class ActionService(_BaseService):
-    def __init__(self, *, registry: Registry, **kwargs: object) -> None:
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        *,
+        registry: Registry,
+        session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
+        engagement_repo: object = None,
+        scope_repo: object = None,
+        artifact_repo: object = None,
+    ) -> None:
+        super().__init__(
+            session_scope=session_scope,
+            engagement_repo=engagement_repo,
+            scope_repo=scope_repo,
+            artifact_repo=artifact_repo,
+        )
         self._registry = registry
 
     def list(
@@ -87,7 +111,9 @@ class ActionService(_BaseService):
     def info(self, action_id: str) -> ActionDTO:
         definition = self._registry.get(action_id)
         if definition is None:
-            raise NotFoundError(f"action {action_id!r} is not registered")
+            raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                f"action {action_id!r} is not registered"
+            )
         return self._dto(definition)
 
     def check(
@@ -103,14 +129,18 @@ class ActionService(_BaseService):
         Blocked/policy results are returned (not raised) so the caller decides
         how to present them; use :meth:`assert_allowed` for run paths.
         """
-        snapshot = self._context_snapshot(engagement_id)
+        snapshot = self._context_snapshot(engagement_id, target_address)
         available_tools = self._available_tools(action_id)
         policy = self._policy_snapshot(engagement_id)
 
         from ambrosia.registry import AvailabilityMatcher
 
         matcher = AvailabilityMatcher(self._registry)
-        availability = matcher.evaluate(action_id, snapshot, policy)
+        availability = matcher.evaluate(
+            action_id,
+            replace(snapshot, available_tools=available_tools),
+            policy,
+        )
         return ActionCheckDTO(
             action_id=availability.action_id,
             status=availability.status,
@@ -139,14 +169,14 @@ class ActionService(_BaseService):
             session_scope=self._session_scope,
             registry=self._registry,
             engagement_repository=cast(
-                EngagementRepositoryProtocol,
+                "EngagementRepositoryProtocol",
                 self._repos.get("engagement_repo"),
             ),
             scope_repository=cast(
-                ScopeRepositoryProtocol, self._repos.get("scope_repo")
+                "ScopeRepositoryProtocol", self._repos.get("scope_repo")
             ),
             artifact_repository=cast(
-                ArtifactRepositoryProtocol, self._repos.get("artifact_repo")
+                "ArtifactRepositoryProtocol", self._repos.get("artifact_repo")
             ),
         )
         gateway.check_action(
@@ -158,19 +188,27 @@ class ActionService(_BaseService):
 
     # ------------------------------------------------------------------ internals
 
-    def _context_snapshot(self, engagement_id: str) -> ContextSnapshot:
-        from ambrosia.registry.models import ContextSnapshot
-
+    def _context_snapshot(
+        self,
+        engagement_id: str,
+        target_address: str | None = None,
+    ) -> ContextSnapshot:
         with self._session() as session:
             artifact_repo = cast(
-                ArtifactRepositoryProtocol, self._repo("artifact_repo", session)
+                "ArtifactRepositoryProtocol",
+                self._repo("artifact_repo", session),
             )
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
+            )
             artifacts = tuple(artifact_repo.list_for_engagement(engagement_id))
             scope = scope_repo.get_for_engagement(engagement_id)
+        selected_target: dict[str, object] | None = None
+        if target_address is not None:
+            selected_target = {"address": target_address}
         return ContextSnapshot(
             engagement_id=engagement_id,
-            selected_target=None,
+            selected_target=selected_target,
             scope_targets=tuple(
                 (scope.include_hosts or [])
                 + (scope.include_cidrs or [])
@@ -185,10 +223,10 @@ class ActionService(_BaseService):
         )
 
     def _policy_snapshot(self, engagement_id: str) -> PolicySnapshot:
-        from ambrosia.registry.models import PolicySnapshot
-
         with self._session() as session:
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
+            )
             scope = scope_repo.get_for_engagement(engagement_id)
         if scope is None:
             from ambrosia.domain.models import Scope
