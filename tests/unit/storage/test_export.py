@@ -11,7 +11,6 @@ import pytest
 from ambrosia.domain.errors import NotFoundError
 from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord, Scope
 from ambrosia.storage import (
-    ApprovalRecordRepository,
     ArtifactRepository,
     BackupHooks,
     EngagementRepository,
@@ -30,7 +29,7 @@ def test_export_bundle_contains_no_secret_values(tmp_path) -> None:
     db_config = StorageConfig(
         db_url=f"sqlite:///{tmp_path / 'exp.db'}", workspace_root=tmp_path
     )
-    store = EvidenceStore(tmp_path / "evidence")
+    EvidenceStore(tmp_path / "evidence")
     storage = Storage(config=db_config)
 
     with storage.session() as session:

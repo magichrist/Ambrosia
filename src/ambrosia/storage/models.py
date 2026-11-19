@@ -11,9 +11,8 @@ storage-specific repository methods; they are not ORM instances.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
-from datetime import datetime
-from typing import Any
 
 from sqlalchemy import (
     DateTime,
@@ -28,6 +27,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ambrosia.storage.base import Base, JSONType, utc_now
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 def _new_id() -> str:
@@ -56,27 +58,27 @@ class EngagementORM(Base):
         ForeignKey("scopes.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    scope: Mapped["ScopeORM | None"] = relationship(
+    scope: Mapped[ScopeORM | None] = relationship(
         "ScopeORM",
         uselist=False,
         primaryjoin="foreign(EngagementORM.scope_id)==ScopeORM.id",
     )
-    artifacts: Mapped[list["ArtifactORM"]] = relationship(
+    artifacts: Mapped[list[ArtifactORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
-    executions: Mapped[list["ExecutionORM"]] = relationship(
+    executions: Mapped[list[ExecutionORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
-    targets: Mapped[list["TargetORM"]] = relationship(
+    targets: Mapped[list[TargetORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
-    findings: Mapped[list["FindingORM"]] = relationship(
+    findings: Mapped[list[FindingORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
-    approvals: Mapped[list["ApprovalRecordORM"]] = relationship(
+    approvals: Mapped[list[ApprovalRecordORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
-    evidence: Mapped[list["EvidenceMetadataORM"]] = relationship(
+    evidence: Mapped[list[EvidenceMetadataORM]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan"
     )
 
@@ -119,7 +121,7 @@ class ScopeORM(Base):
         JSONType, default=list, nullable=False
     )
 
-    engagement: Mapped["EngagementORM"] = relationship(
+    engagement: Mapped[EngagementORM] = relationship(
         "EngagementORM",
         primaryjoin="foreign(ScopeORM.engagement_id)==EngagementORM.id",
     )
@@ -150,7 +152,7 @@ class TargetORM(Base):
         Index("ix_targets_engagement_active", "engagement_id", "is_active"),
     )
 
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="targets")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="targets")
 
 
 class ArtifactORM(Base):
@@ -195,10 +197,10 @@ class ArtifactORM(Base):
         JSONType, default=dict, nullable=False, name="metadata"
     )
 
-    execution: Mapped["ExecutionORM | None"] = relationship(
+    execution: Mapped[ExecutionORM | None] = relationship(
         back_populates="artifacts", foreign_keys=[source_execution_id]
     )
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="artifacts")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="artifacts")
 
 
 class ExecutionORM(Base):
@@ -237,15 +239,15 @@ class ExecutionORM(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     initiated_by: Mapped[str] = mapped_column(String, nullable=False, default="operator")
 
-    events: Mapped[list["ExecutionEventORM"]] = relationship(
+    events: Mapped[list[ExecutionEventORM]] = relationship(
         back_populates="execution",
         cascade="all, delete-orphan",
         order_by="ExecutionEventORM.sequence",
     )
-    artifacts: Mapped[list["ArtifactORM"]] = relationship(
+    artifacts: Mapped[list[ArtifactORM]] = relationship(
         back_populates="execution", foreign_keys=[ArtifactORM.source_execution_id]
     )
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="executions")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="executions")
 
 
 class ExecutionEventORM(Base):
@@ -270,7 +272,7 @@ class ExecutionEventORM(Base):
         Index("ix_execution_events_execution_seq", "execution_id", "sequence"),
     )
 
-    execution: Mapped["ExecutionORM"] = relationship(back_populates="events")
+    execution: Mapped[ExecutionORM] = relationship(back_populates="events")
 
 
 class FindingORM(Base):
@@ -297,7 +299,7 @@ class FindingORM(Base):
         DateTime(timezone=True), nullable=False
     )
 
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="findings")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="findings")
 
 
 class ApprovalRecordORM(Base):
@@ -323,7 +325,7 @@ class ApprovalRecordORM(Base):
         DateTime(timezone=True), nullable=False
     )
 
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="approvals")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="approvals")
 
 
 class EvidenceMetadataORM(Base):
@@ -350,7 +352,7 @@ class EvidenceMetadataORM(Base):
         DateTime(timezone=True), nullable=False
     )
 
-    engagement: Mapped["EngagementORM"] = relationship(back_populates="evidence")
+    engagement: Mapped[EngagementORM] = relationship(back_populates="evidence")
 
 
 @dataclass(frozen=True)

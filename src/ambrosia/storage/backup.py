@@ -11,12 +11,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ambrosia.domain.errors import NotFoundError
 from ambrosia.storage.base import from_storage_dt
@@ -30,7 +29,12 @@ from ambrosia.storage.repositories import (
     ScopeRepository,
     TargetRepository,
 )
-from ambrosia.storage.session import Storage
+
+if TYPE_CHECKING:
+    import os
+    from collections.abc import Callable
+
+    from ambrosia.storage.session import Storage
 
 
 @dataclass(frozen=True)
@@ -135,9 +139,7 @@ def export_engagement_bundle(
         ],
         "artifacts": [artifact.model_dump() for artifact in artifacts],
         "executions": [execution.model_dump() for execution in executions],
-        "execution_events": {
-            execution_id: events for execution_id, events in events_by_execution.items()
-        },
+        "execution_events": dict(events_by_execution.items()),
         "findings": [
             {
                 "id": f.id,
@@ -193,7 +195,7 @@ def export_engagement_bundle(
     manifest = ExportManifest(
         engagement_id=engagement_id,
         bundle_path=str(bundle_path),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         artifact_count=len(artifacts),
         execution_count=len(executions),
         finding_count=len(findings),

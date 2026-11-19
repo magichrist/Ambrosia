@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Vertical
 from textual.widgets import Button, Label, ListItem, ListView, Static
 
-from ambrosia.application.preset_service import PresetDTO
-from ambrosia.tui.services import TUIServiceAdapter
 from ambrosia.tui.views.base import BaseView
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from ambrosia.application.preset_service import PresetDTO
+    from ambrosia.tui.services import TUIServiceAdapter
 
 
 class PresetBrowserView(BaseView):

@@ -58,7 +58,7 @@ def test_register_builtins_does_not_execute() -> None:
     executed = []
 
     class CaptureHandler:
-        async def execute(self, request, context):
+        async def execute(self, request, context) -> None:
             executed.append(request.action_id)
 
     registry = Registry()

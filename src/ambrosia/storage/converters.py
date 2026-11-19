@@ -7,8 +7,7 @@ storage package.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from ambrosia.domain.models import (
     Artifact,
@@ -32,6 +31,9 @@ from ambrosia.storage.models import (
     TargetORM,
     TargetRecord,
 )
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 _EngagementStatus = Literal["active", "paused", "archived"]
 _ArtifactSourceKind = Literal["action", "preset", "operator", "import"]

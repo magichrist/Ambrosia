@@ -25,37 +25,37 @@ from ambrosia.registry import Registry
 
 
 def _scope(**overrides) -> Scope:
-    data = dict(
-        id="scope-1",
-        engagement_id="eng-1",
-        include_hosts=["10.0.0.1"],
-        include_cidrs=["10.0.0.0/24"],
-        include_domains=["example.com"],
-        exclude_hosts=["10.0.0.99"],
-        exclude_cidrs=[],
-        allowed_ports=[80, 443],
-        max_concurrency=2,
-        allowed_effects={"local_read", "network_observe"},
-        require_approval_for={"local_write", "remote_change"},
-    )
+    data = {
+        "id": "scope-1",
+        "engagement_id": "eng-1",
+        "include_hosts": ["10.0.0.1"],
+        "include_cidrs": ["10.0.0.0/24"],
+        "include_domains": ["example.com"],
+        "exclude_hosts": ["10.0.0.99"],
+        "exclude_cidrs": [],
+        "allowed_ports": [80, 443],
+        "max_concurrency": 2,
+        "allowed_effects": {"local_read", "network_observe"},
+        "require_approval_for": {"local_write", "remote_change"},
+    }
     data.update(overrides)
     return Scope(**data)
 
 
 def _action(**overrides) -> ActionDefinition:
-    data = dict(
-        id="test.action",
-        version="1.0.0",
-        name="Test",
-        description="A test action.",
-        category="test",
-        executor=ExecutorReference(kind="process", executable="fake-tool"),
-        effects=["local_read"],
-        scope_fields=["target"],
-        approval_required=False,
-        timeout_seconds=10,
-        max_output_bytes=2_000_000,
-    )
+    data = {
+        "id": "test.action",
+        "version": "1.0.0",
+        "name": "Test",
+        "description": "A test action.",
+        "category": "test",
+        "executor": ExecutorReference(kind="process", executable="fake-tool"),
+        "effects": ["local_read"],
+        "scope_fields": ["target"],
+        "approval_required": False,
+        "timeout_seconds": 10,
+        "max_output_bytes": 2_000_000,
+    }
     data.update(overrides)
     return ActionDefinition(**data)
 
@@ -96,14 +96,14 @@ async def test_argv_is_separate_arguments_not_a_shell_string(monkeypatch) -> Non
     captured: list[list[str]] = []
 
     class _EmptyStream:
-        async def read(self, n=4096):
+        async def read(self, n=4096) -> bytes:
             return b""
 
     class FakeProc:
         pid = 1
         returncode = None
 
-        async def wait(self):
+        async def wait(self) -> int:
             self.returncode = 0
             return 0
 
@@ -136,14 +136,14 @@ async def test_shell_metacharacters_are_data_not_interpreted(monkeypatch) -> Non
     captured: list[list[str]] = []
 
     class _EmptyStream:
-        async def read(self, n=4096):
+        async def read(self, n=4096) -> bytes:
             return b""
 
     class FakeProc:
         pid = 1
         returncode = None
 
-        async def wait(self):
+        async def wait(self) -> int:
             self.returncode = 0
             return 0
 
@@ -176,7 +176,7 @@ async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
     terminated = False
 
     class _BlockingStream:
-        async def read(self, n=4096):
+        async def read(self, n=4096) -> bytes:
             await asyncio.sleep(3600)
             return b""
 
@@ -184,15 +184,15 @@ async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
         pid = 1
         returncode = None
 
-        def terminate(self):
+        def terminate(self) -> None:
             nonlocal terminated
             terminated = True
 
-        def kill(self):
+        def kill(self) -> None:
             nonlocal terminated
             terminated = True
 
-        async def wait(self):
+        async def wait(self) -> int:
             self.returncode = -1
             return -1
 
@@ -228,7 +228,7 @@ async def test_output_cap_works(monkeypatch) -> None:
     big = b"x" * 10000
 
     class _ChunkedStream:
-        def __init__(self, data):
+        def __init__(self, data) -> None:
             self._data = data
 
         async def read(self, n=4096):
@@ -237,20 +237,20 @@ async def test_output_cap_works(monkeypatch) -> None:
             return chunk
 
     class _EmptyStream:
-        async def read(self, n=4096):
+        async def read(self, n=4096) -> bytes:
             return b""
 
     class FakeProc:
         pid = 1
         returncode = None
 
-        def terminate(self):
+        def terminate(self) -> None:
             pass
 
-        def kill(self):
+        def kill(self) -> None:
             pass
 
-        async def wait(self):
+        async def wait(self) -> int:
             self.returncode = 0
             return 0
 
@@ -286,7 +286,7 @@ async def test_secret_redaction_stdout_stderr(monkeypatch) -> None:
     redacted_texts: list[str] = []
 
     class _SingleRead:
-        def __init__(self, data):
+        def __init__(self, data) -> None:
             self._data = data
 
         async def read(self, n=4096):
@@ -298,13 +298,13 @@ async def test_secret_redaction_stdout_stderr(monkeypatch) -> None:
         pid = 1
         returncode = None
 
-        def terminate(self):
+        def terminate(self) -> None:
             pass
 
-        def kill(self):
+        def kill(self) -> None:
             pass
 
-        async def wait(self):
+        async def wait(self) -> int:
             self.returncode = 0
             return 0
 
@@ -443,7 +443,7 @@ async def test_concurrent_job_limit() -> None:
     )
 
     ids = []
-    for i in range(3):
+    for _i in range(3):
         eid = await engine.create_job(
             engagement_id="eng-1",
             action_id="test.action",

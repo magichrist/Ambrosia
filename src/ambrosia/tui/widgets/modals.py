@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Horizontal, Vertical
-from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+    from textual.events import Key
 
 
 class ConfirmDialog(ModalScreen[bool]):
@@ -146,7 +150,7 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
             self.dismiss(None)
             return
         values: dict[str, str] = {}
-        for name, _label, required in self._fields:
+        for name, _label, _required in self._fields:
             widget = self.query_one(f"#input-{name}", Input)
             values[name] = widget.value
         self.dismiss(values)

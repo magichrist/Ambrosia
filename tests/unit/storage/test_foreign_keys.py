@@ -7,11 +7,10 @@ from datetime import datetime
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord
+from ambrosia.domain.models import Artifact, ExecutionRecord
 from ambrosia.storage import Storage, StorageConfig
 from ambrosia.storage.base import to_storage_dt
 from ambrosia.storage.models import (
-    ApprovalRecordORM,
     ArtifactORM,
     EngagementORM,
     ExecutionEventORM,
@@ -99,8 +98,8 @@ def test_approval_requires_valid_engagement(tmp_path) -> None:
 
 
 def test_evidence_requires_valid_engagement(tmp_path) -> None:
-    from ambrosia.storage.repositories import EvidenceRepository
     from ambrosia.storage.evidence import EvidenceStore
+    from ambrosia.storage.repositories import EvidenceRepository
 
     storage = Storage(config=_config(tmp_path, "fk_ev.db"))
     store = EvidenceStore(tmp_path / "evidence")

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from textual.widget import Widget
 
-from ambrosia.tui.services import TUIServiceAdapter
+if TYPE_CHECKING:
+    from ambrosia.tui.services import TUIServiceAdapter
 
 
 class BaseView(Widget):

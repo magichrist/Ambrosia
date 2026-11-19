@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
-from ambrosia.tui.services import TUIServiceAdapter
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from ambrosia.tui.services import TUIServiceAdapter
 
 
 class ActivityPanel(VerticalScroll):

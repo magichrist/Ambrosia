@@ -5,8 +5,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-import pytest
-
 from ambrosia.domain.models import Engagement, ExecutionRecord
 from ambrosia.storage import (
     EngagementRepository,

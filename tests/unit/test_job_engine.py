@@ -7,49 +7,47 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from tests.conftest import FakeExecutionRepository
 
 from ambrosia.domain.action import ActionDefinition, ExecutorReference
-from ambrosia.domain.models import ExecutionRecord, Scope
-from ambrosia.domain.protocols import ActionExecutionContext
+from ambrosia.domain.models import Scope
 from ambrosia.engine import JobEngine, valid_transition
 from ambrosia.executors import FakeExecutor
 from ambrosia.policy import PolicyEngine
 
-from tests.conftest import FakeExecutionRepository
-
 
 def _scope(**overrides) -> Scope:
-    data = dict(
-        id="scope-1",
-        engagement_id="eng-1",
-        include_hosts=["10.0.0.1"],
-        include_cidrs=["10.0.0.0/24"],
-        include_domains=["example.com"],
-        exclude_hosts=["10.0.0.99"],
-        exclude_cidrs=[],
-        allowed_ports=[80, 443],
-        max_concurrency=2,
-        allowed_effects={"local_read", "network_observe"},
-        require_approval_for={"local_write", "remote_change"},
-    )
+    data = {
+        "id": "scope-1",
+        "engagement_id": "eng-1",
+        "include_hosts": ["10.0.0.1"],
+        "include_cidrs": ["10.0.0.0/24"],
+        "include_domains": ["example.com"],
+        "exclude_hosts": ["10.0.0.99"],
+        "exclude_cidrs": [],
+        "allowed_ports": [80, 443],
+        "max_concurrency": 2,
+        "allowed_effects": {"local_read", "network_observe"},
+        "require_approval_for": {"local_write", "remote_change"},
+    }
     data.update(overrides)
     return Scope(**data)
 
 
 def _action(**overrides) -> ActionDefinition:
-    data = dict(
-        id="test.action",
-        version="1.0.0",
-        name="Test",
-        description="A test action.",
-        category="test",
-        executor=ExecutorReference(kind="process", executable="fake-tool"),
-        effects=["local_read"],
-        scope_fields=["target"],
-        approval_required=False,
-        timeout_seconds=10,
-        max_output_bytes=2_000_000,
-    )
+    data = {
+        "id": "test.action",
+        "version": "1.0.0",
+        "name": "Test",
+        "description": "A test action.",
+        "category": "test",
+        "executor": ExecutorReference(kind="process", executable="fake-tool"),
+        "effects": ["local_read"],
+        "scope_fields": ["target"],
+        "approval_required": False,
+        "timeout_seconds": 10,
+        "max_output_bytes": 2_000_000,
+    }
     data.update(overrides)
     return ActionDefinition(**data)
 
@@ -355,7 +353,7 @@ async def test_concurrency_limit_respected() -> None:
     engine = _engine(registry=registry, concurrency_limit=1)
 
     ids = []
-    for i in range(3):
+    for _i in range(3):
         eid = await engine.create_job(
             engagement_id="eng-1",
             action_id="test.action",
@@ -368,7 +366,7 @@ async def test_concurrency_limit_respected() -> None:
         engine._execution_repository.update(record)
         ids.append(eid)
 
-    async def _run_one(eid):
+    async def _run_one(eid) -> None:
         async for _ in engine.run_job(eid):
             pass
 

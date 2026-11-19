@@ -26,35 +26,35 @@ from ambrosia.policy import (
 
 
 def _scope(**overrides) -> Scope:
-    data = dict(
-        id="scope-1",
-        engagement_id="eng-1",
-        include_hosts=["10.0.0.1"],
-        include_cidrs=["10.0.0.0/24"],
-        include_domains=["example.com"],
-        exclude_hosts=["10.0.0.99"],
-        exclude_cidrs=["10.0.0.128/25"],
-        allowed_ports=[80, 443],
-        max_concurrency=2,
-        allowed_effects={"local_read", "network_observe"},
-        require_approval_for={"local_write", "remote_change"},
-    )
+    data = {
+        "id": "scope-1",
+        "engagement_id": "eng-1",
+        "include_hosts": ["10.0.0.1"],
+        "include_cidrs": ["10.0.0.0/24"],
+        "include_domains": ["example.com"],
+        "exclude_hosts": ["10.0.0.99"],
+        "exclude_cidrs": ["10.0.0.128/25"],
+        "allowed_ports": [80, 443],
+        "max_concurrency": 2,
+        "allowed_effects": {"local_read", "network_observe"},
+        "require_approval_for": {"local_write", "remote_change"},
+    }
     data.update(overrides)
     return Scope(**data)
 
 
 def _action(**overrides) -> ActionDefinition:
-    data = dict(
-        id="test.action",
-        version="1.0.0",
-        name="Test",
-        description="A test action.",
-        category="test",
-        executor=ExecutorReference(kind="process", executable="fake-tool"),
-        effects=["local_read"],
-        scope_fields=["target"],
-        approval_required=False,
-    )
+    data = {
+        "id": "test.action",
+        "version": "1.0.0",
+        "name": "Test",
+        "description": "A test action.",
+        "category": "test",
+        "executor": ExecutorReference(kind="process", executable="fake-tool"),
+        "effects": ["local_read"],
+        "scope_fields": ["target"],
+        "approval_required": False,
+    }
     data.update(overrides)
     return ActionDefinition(**data)
 

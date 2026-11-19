@@ -6,16 +6,12 @@ storage record dataclasses). ORM instances never leave this module.
 
 from __future__ import annotations
 
-import os
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from ambrosia.domain.errors import NotFoundError
-from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord, Scope
 from ambrosia.storage.base import utc_now
-from ambrosia.storage.evidence import EvidenceStore
 from ambrosia.storage.converters import (
     approval_from_orm,
     artifact_from_orm,
@@ -23,14 +19,15 @@ from ambrosia.storage.converters import (
     engagement_from_orm,
     engagement_to_orm,
     evidence_metadata_from_orm,
+    execution_event_to_orm,
     execution_from_orm,
     execution_to_orm,
-    execution_event_to_orm,
     finding_from_orm,
     scope_from_orm,
     scope_to_orm,
     target_from_orm,
 )
+from ambrosia.storage.evidence import EvidenceStore
 from ambrosia.storage.models import (
     ApprovalRecord,
     ApprovalRecordORM,
@@ -46,6 +43,14 @@ from ambrosia.storage.models import (
     TargetORM,
     TargetRecord,
 )
+
+if TYPE_CHECKING:
+    import os
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord, Scope
 
 
 class EngagementRepository:

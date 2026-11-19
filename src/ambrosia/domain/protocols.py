@@ -5,11 +5,14 @@ Repositories return domain objects, never ORM model instances.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from ambrosia.domain.action import ActionAvailability, ActionDefinition
-from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord, Scope
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from ambrosia.domain.models import Artifact, Engagement, ExecutionRecord, Scope
 
 
 @runtime_checkable

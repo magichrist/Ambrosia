@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Vertical
 from textual.widgets import Label, Static
 
 from ambrosia.application.action_service import ActionCheckDTO, ActionDTO
-from ambrosia.tui.services import TUIServiceAdapter
 from ambrosia.tui.views.base import BaseView
 from ambrosia.tui.widgets.action_list import ActionList
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from ambrosia.tui.services import TUIServiceAdapter
 
 _STATUS_ORDER = {
     "available": 0,

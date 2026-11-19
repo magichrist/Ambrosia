@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rich.text import Text
 from textual.widgets import ListItem, ListView, Static
 
-from ambrosia.application.action_service import ActionCheckDTO, ActionDTO
-from ambrosia.tui.services import TUIServiceAdapter
+if TYPE_CHECKING:
+    from ambrosia.application.action_service import ActionCheckDTO, ActionDTO
+    from ambrosia.tui.services import TUIServiceAdapter
 
 _STATUS_STYLE = {
     "available": "#00ff88",

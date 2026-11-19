@@ -47,7 +47,7 @@ def test_deterministic_across_repeated_evaluation() -> None:
     context = ContextSnapshot(
         engagement_id="e1",
         selected_target={"address": "10.0.0.1"},
-        artifacts=tuple(),
+        artifacts=(),
         inputs={},
         available_tools=frozenset(),
         platform="current",
@@ -55,11 +55,11 @@ def test_deterministic_across_repeated_evaluation() -> None:
     policy = PolicySnapshot(
         allowed_effects=frozenset(["local_read"]),
         require_approval_for=frozenset(["local_write"]),
-        include_hosts=tuple(["10.0.0.1"]),
-        include_cidrs=tuple(),
-        include_domains=tuple(),
-        exclude_hosts=tuple(),
-        exclude_cidrs=tuple(),
+        include_hosts=("10.0.0.1",),
+        include_cidrs=(),
+        include_domains=(),
+        exclude_hosts=(),
+        exclude_cidrs=(),
     )
 
     results = [matcher.evaluate_all(context, policy) for _ in range(5)]
@@ -77,7 +77,7 @@ def test_matching_does_not_mutate_snapshots() -> None:
     context = ContextSnapshot(
         engagement_id="e1",
         selected_target={"address": "10.0.0.1"},
-        artifacts=tuple(),
+        artifacts=(),
         inputs={"target": "10.0.0.1"},
         available_tools=frozenset(["nmap"]),
         platform="current",
@@ -85,11 +85,11 @@ def test_matching_does_not_mutate_snapshots() -> None:
     policy = PolicySnapshot(
         allowed_effects=frozenset(["local_read", "network_observe"]),
         require_approval_for=frozenset(["local_write"]),
-        include_hosts=tuple(["10.0.0.1"]),
-        include_cidrs=tuple(),
-        include_domains=tuple(),
-        exclude_hosts=tuple(),
-        exclude_cidrs=tuple(),
+        include_hosts=("10.0.0.1",),
+        include_cidrs=(),
+        include_domains=(),
+        exclude_hosts=(),
+        exclude_cidrs=(),
     )
 
     before_context = ContextSnapshot(
@@ -124,17 +124,17 @@ def test_artifact_produces_available_after_context_change() -> None:
     policy = PolicySnapshot(
         allowed_effects=frozenset(["local_read"]),
         require_approval_for=frozenset(),
-        include_hosts=tuple(["10.0.0.1"]),
-        include_cidrs=tuple(),
-        include_domains=tuple(),
-        exclude_hosts=tuple(),
-        exclude_cidrs=tuple(),
+        include_hosts=("10.0.0.1",),
+        include_cidrs=(),
+        include_domains=(),
+        exclude_hosts=(),
+        exclude_cidrs=(),
     )
 
     empty = ContextSnapshot(
         engagement_id="e1",
         selected_target=None,
-        artifacts=tuple(),
+        artifacts=(),
         inputs={},
         available_tools=frozenset(),
         platform="current",
@@ -142,9 +142,7 @@ def test_artifact_produces_available_after_context_change() -> None:
     filled = ContextSnapshot(
         engagement_id="e1",
         selected_target={"address": "10.0.0.1"},
-        artifacts=tuple(
-            [Artifact(id="a1", engagement_id="e1", type="network.host", target_ref="10.0.0.1", value={})]
-        ),
+        artifacts=(Artifact(id="a1", engagement_id="e1", type="network.host", target_ref="10.0.0.1", value={}),),
         inputs={"target": "10.0.0.1"},
         available_tools=frozenset(["nmap"]),
         platform="current",

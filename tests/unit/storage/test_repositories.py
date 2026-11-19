@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 
 from ambrosia.domain.models import (
@@ -14,13 +12,19 @@ from ambrosia.domain.models import (
 )
 from ambrosia.domain.protocols import (
     ArtifactRepository as ArtifactProto,
+)
+from ambrosia.domain.protocols import (
     EngagementRepository as EngagementProto,
+)
+from ambrosia.domain.protocols import (
     ExecutionRepository as ExecutionProto,
+)
+from ambrosia.domain.protocols import (
     ScopeRepository as ScopeProto,
 )
 from ambrosia.storage import (
-    ArtifactRepository,
     ApprovalRecordRepository,
+    ArtifactRepository,
     EngagementRepository,
     EvidenceRepository,
     ExecutionRepository,
@@ -92,7 +96,7 @@ def test_artifact_crud_and_target_binding(session) -> None:
     EngagementRepository(session).create(Engagement(id="e1", name="one"))
     EngagementRepository(session).create(Engagement(id="e2", name="two"))
     art_repo = ArtifactRepository(session)
-    a1 = art_repo.add(
+    art_repo.add(
         Artifact(
             id="a1",
             engagement_id="e1",
@@ -102,7 +106,7 @@ def test_artifact_crud_and_target_binding(session) -> None:
             target_ref="192.0.2.10",
         )
     )
-    a2 = art_repo.add(
+    art_repo.add(
         Artifact(
             id="a2",
             engagement_id="e1",

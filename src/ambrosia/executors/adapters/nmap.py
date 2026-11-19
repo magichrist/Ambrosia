@@ -87,7 +87,7 @@ class NmapAdapter(ToolAdapter):
     # ------------------------------------------------------------------ internals
 
     @staticmethod
-    def _parse_host(host_elem: "Element") -> NmapHost:
+    def _parse_host(host_elem: Element) -> NmapHost:
         address_elem = host_elem.find("address")
         address = address_elem.get("addr", "") if address_elem is not None else ""
 
@@ -121,7 +121,7 @@ class NmapAdapter(ToolAdapter):
         )
 
     @staticmethod
-    def _parse_port(port_elem: "Element", default_host: str) -> NmapService:
+    def _parse_port(port_elem: Element, default_host: str) -> NmapService:
         port_id = port_elem.get("portid")
         protocol = port_elem.get("protocol", "tcp")
         try:

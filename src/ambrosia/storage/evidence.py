@@ -8,10 +8,12 @@ database keeps only metadata and the generated relative path.
 from __future__ import annotations
 
 import hashlib
-import os
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import os
 
 
 class EvidenceStore:

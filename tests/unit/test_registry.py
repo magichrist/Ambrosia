@@ -58,7 +58,7 @@ def test_builtins_register_without_execution(monkeypatch) -> None:
     executed = []
 
     class TracingHandler:
-        async def execute(self, request, context):
+        async def execute(self, request, context) -> None:
             executed.append(request.action_id)
             return
 

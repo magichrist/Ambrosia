@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Never
 
 import pytest
 
@@ -14,19 +15,19 @@ from ambrosia.policy import ScopeChecker
 
 
 def _scope(**overrides) -> Scope:
-    data = dict(
-        id="scope-1",
-        engagement_id="eng-1",
-        include_hosts=["10.0.0.1", "localhost"],
-        include_cidrs=["10.0.0.0/24"],
-        include_domains=["example.com"],
-        exclude_hosts=["10.0.0.99"],
-        exclude_cidrs=["10.0.0.128/25"],
-        allowed_ports=[80, 443],
-        max_concurrency=2,
-        allowed_effects={"local_read", "network_observe"},
-        require_approval_for={"local_write"},
-    )
+    data = {
+        "id": "scope-1",
+        "engagement_id": "eng-1",
+        "include_hosts": ["10.0.0.1", "localhost"],
+        "include_cidrs": ["10.0.0.0/24"],
+        "include_domains": ["example.com"],
+        "exclude_hosts": ["10.0.0.99"],
+        "exclude_cidrs": ["10.0.0.128/25"],
+        "allowed_ports": [80, 443],
+        "max_concurrency": 2,
+        "allowed_effects": {"local_read", "network_observe"},
+        "require_approval_for": {"local_write"},
+    }
     data.update(overrides)
     return Scope(**data)
 
@@ -166,7 +167,7 @@ def test_resolve_hostname_returns_addresses(monkeypatch) -> None:
 def test_resolve_hostname_failure_returns_empty() -> None:
     checker = _checker()
 
-    def _fake_getaddrinfo(host, port):
+    def _fake_getaddrinfo(host, port) -> Never:
         raise OSError("resolution failed")
 
     import socket

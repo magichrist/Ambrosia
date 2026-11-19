@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Vertical
 from textual.widgets import Button, Input, Label, ListItem, ListView, Static
 
-from ambrosia.application.scope_service import ScopeDTO
-from ambrosia.application.target_service import TargetListDTO
-from ambrosia.tui.services import TUIServiceAdapter
 from ambrosia.tui.views.base import BaseView
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from ambrosia.application.scope_service import ScopeDTO
+    from ambrosia.application.target_service import TargetListDTO
+    from ambrosia.tui.services import TUIServiceAdapter
 
 
 class TargetScopeView(BaseView):

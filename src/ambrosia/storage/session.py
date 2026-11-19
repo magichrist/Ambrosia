@@ -10,14 +10,18 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
 from sqlalchemy.exc import PendingRollbackError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ambrosia.storage.base import Base
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from sqlalchemy.engine import Engine
 
 
 def enable_sqlite_foreign_keys(dbapi_connection: Any, connection_record: Any) -> None:

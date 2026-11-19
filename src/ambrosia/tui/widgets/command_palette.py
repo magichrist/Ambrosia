@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Vertical
-from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import Input, Label, ListItem, ListView, Static
 
-from ambrosia.tui.services import TUIServiceAdapter
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+    from textual.events import Key
+
+    from ambrosia.tui.services import TUIServiceAdapter
 
 
 class CommandPalette(ModalScreen[dict[str, object] | None]):

@@ -6,11 +6,9 @@ cancellation, output cap, secret redaction."""
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import pytest
 
-from ambrosia.domain.errors import ExecutionError
 from ambrosia.domain.protocols import ActionExecutionContext, ActionRequest
 from ambrosia.executors import FakeExecutor, ProcessExecutor, SecretRedactor
 
@@ -35,7 +33,7 @@ async def _collect(handler, request, context) -> list:
 # Fake stream / process helpers for monkeypatched subprocess tests
 
 class _StreamReader:
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytes) -> None:
         self._data = data
 
     async def read(self, n: int = 4096) -> bytes:
@@ -45,7 +43,7 @@ class _StreamReader:
 
 
 class _FakeProcess:
-    def __init__(self, stdout: bytes = b"", stderr: bytes = b""):
+    def __init__(self, stdout: bytes = b"", stderr: bytes = b"") -> None:
         self.pid = 1
         self.returncode = None
         self._stdout = _StreamReader(stdout)
@@ -61,13 +59,13 @@ class _FakeProcess:
     def stderr(self):
         return self._stderr
 
-    def terminate(self):
+    def terminate(self) -> None:
         self.terminated = True
 
-    def kill(self):
+    def kill(self) -> None:
         self.killed = True
 
-    async def wait(self):
+    async def wait(self) -> int:
         self.returncode = 0
         return 0
 
@@ -223,12 +221,11 @@ async def test_output_cap_truncates(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
     """Cancelling the generator terminates and reaps the child process."""
-    terminated = {"flag": False}
 
     async def _fake_create_subprocess_exec(*argv, **kwargs):
         proc = _FakeProcess()
 
-        async def _never_returns():
+        async def _never_returns() -> bytes:
             await asyncio.sleep(3600)
             return b""
 
@@ -310,6 +307,6 @@ async def test_fake_executor_timeout_is_cancellable() -> None:
     assert "exec-1" in fake.terminated
 
 
-async def _collect_gen(gen):
+async def _collect_gen(gen) -> None:
     async for _ in gen:
         pass

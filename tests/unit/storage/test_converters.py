@@ -23,7 +23,6 @@ from ambrosia.storage.models import (
     ArtifactORM,
     EngagementORM,
     ExecutionORM,
-    ScopeORM,
 )
 from ambrosia.storage.repositories import ArtifactRepository, EngagementRepository
 

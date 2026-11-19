@@ -135,11 +135,11 @@ def _policy():
     return PolicySnapshot(
         allowed_effects=frozenset(["local_read", "network_observe", "local_write"]),
         require_approval_for=frozenset(["local_write", "remote_change", "authentication"]),
-        include_hosts=tuple(["10.0.0.1"]),
-        include_cidrs=tuple(),
-        include_domains=tuple(),
-        exclude_hosts=tuple(),
-        exclude_cidrs=tuple(),
+        include_hosts=("10.0.0.1",),
+        include_cidrs=(),
+        include_domains=(),
+        exclude_hosts=(),
+        exclude_cidrs=(),
     )
 
 

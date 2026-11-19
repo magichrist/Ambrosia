@@ -8,7 +8,7 @@ rows into domain models (see ``converters.py``).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import String, TypeDecorator
@@ -22,14 +22,14 @@ def utc_now() -> datetime:
     datetimes that are interpreted as UTC; converters translate between the
     two representations at the storage boundary.
     """
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def to_storage_dt(value: datetime) -> datetime:
     """Convert a domain (naive UTC) datetime to aware UTC for persistence."""
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def from_storage_dt(value: datetime | None) -> datetime | None:
@@ -38,7 +38,7 @@ def from_storage_dt(value: datetime | None) -> datetime | None:
         return None
     if value.tzinfo is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 class JSONType(TypeDecorator[Any]):
