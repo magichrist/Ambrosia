@@ -18,12 +18,11 @@ from ambrosia.domain.errors import PolicyBlockedError, ScopeViolationError
 from ambrosia.domain.models import Scope
 from ambrosia.policy import (
     EffectClassifier,
-    PolicyEngine,
     PolicyDecision,
+    PolicyEngine,
     ScopeChecker,
     require_policy_allowed,
 )
-from ambrosia.policy.approvals import ApprovalState
 
 
 def _scope(**overrides) -> Scope:
