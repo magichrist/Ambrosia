@@ -8,18 +8,12 @@ implementations. Production implementations live in ``ambrosia.storage`` and
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import datetime
-from typing import Iterator, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from ambrosia.domain.models import ExecutionRecord, Target
-from ambrosia.domain.protocols import ExecutionRepository
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
-__all__ = [
-    "TargetRepository",
-    "UnitOfWork",
-    "PresetEngine",
-    "ExecutionRepository",
-]
+    from ambrosia.domain.models import ExecutionRecord, Target
 
 
 @runtime_checkable
@@ -71,3 +65,10 @@ class PresetEngine(Protocol):
         execution_id: str,
         inputs: dict[str, object],
     ) -> ExecutionRecord: ...
+
+
+__all__ = [
+    "TargetRepository",
+    "UnitOfWork",
+    "PresetEngine",
+]
