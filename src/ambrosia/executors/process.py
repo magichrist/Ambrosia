@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from ambrosia.domain.errors import ExecutionError
 from ambrosia.domain.protocols import (
@@ -19,6 +19,9 @@ from ambrosia.domain.protocols import (
     ExecutionEvent,
 )
 from ambrosia.executors.base import ExecutorResult, SecretRedactor
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class ProcessExecutor:
@@ -43,7 +46,7 @@ class ProcessExecutor:
         self._executable = executable.strip()
         self._redactor = redactor or SecretRedactor()
         self._max_output_bytes = max_output_bytes
-        self._processes: dict[str, asyncio.Process] = {}
+        self._processes: dict[str, asyncio.subprocess.Process] = {}
 
     # ------------------------------------------------------------------ execute
 
@@ -80,7 +83,7 @@ class ProcessExecutor:
         # The executable is never supplied through an untrusted preset.
         argv = [self._executable] + list(argv_inputs)
 
-        process: asyncio.Process | None = None
+        process: asyncio.subprocess.Process | None = None
         pump_tasks: list[asyncio.Task[None]] = []
         stdout_parts: list[str] = []
         stderr_parts: list[str] = []
@@ -101,7 +104,7 @@ class ProcessExecutor:
             stderr_stream = process.stderr
             if stdout_stream is None or stderr_stream is None:
                 message = "subprocess streams unexpectedly unavailable"
-                raise ExecutionError(message)
+                raise ExecutionError(message)  # noqa: TRY301
 
             yield ExecutionEvent(
                 kind="ProgressEvent",
@@ -166,7 +169,7 @@ class ProcessExecutor:
                     # a pump exits early due to an error.
                     try:
                         await queue.put(None)
-                    except Exception:
+                    except Exception:  # noqa: S110
                         pass
 
             pump_tasks = [
