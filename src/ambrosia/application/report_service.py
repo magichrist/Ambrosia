@@ -2,20 +2,31 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import cast
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from pydantic import BaseModel
 
-from ambrosia.domain.errors import NotFoundError, ValidationError
-from ambrosia.domain.protocols import (
-    ArtifactRepository as ArtifactRepositoryProtocol,
-    EngagementRepository as EngagementRepositoryProtocol,
-    ExecutionRepository as ExecutionRepositoryProtocol,
-    ScopeRepository as ScopeRepositoryProtocol,
-)
 from ambrosia.application._base import _BaseService
-from ambrosia.application.protocols import TargetRepository as TargetRepositoryProtocol
+from ambrosia.domain.errors import NotFoundError, ValidationError
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from ambrosia.application.protocols import TargetRepository as TargetRepositoryProtocol
+    from ambrosia.domain.protocols import (
+        ArtifactRepository as ArtifactRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        EngagementRepository as EngagementRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        ExecutionRepository as ExecutionRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        ScopeRepository as ScopeRepositoryProtocol,
+    )
 
 
 class ReportExportDTO(BaseModel):
@@ -42,23 +53,37 @@ class ReportService(_BaseService):
         beyond their opaque handles.
         """
         if format != "json":
-            raise ValidationError(f"unsupported report format: {format!r} (use 'json')")
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
+                f"unsupported report format: {format!r} (use 'json')"
+            )
+
+        exported_at = datetime.now(UTC).replace(tzinfo=None).isoformat()
 
         with self._session() as session:
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",
+                self._repo("engagement_repo", session),
             )
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
-            target_repo = cast(TargetRepositoryProtocol, self._repo("target_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
+            )
+            target_repo = cast(
+                "TargetRepositoryProtocol",
+                self._repo("target_repo", session),
+            )
             artifact_repo = cast(
-                ArtifactRepositoryProtocol, self._repo("artifact_repo", session)
+                "ArtifactRepositoryProtocol",
+                self._repo("artifact_repo", session),
             )
             execution_repo = cast(
-                ExecutionRepositoryProtocol, self._repo("execution_repo", session)
+                "ExecutionRepositoryProtocol",
+                self._repo("execution_repo", session),
             )
 
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
             scope = scope_repo.get_for_engagement(engagement_id)
             targets = target_repo.list_for_engagement(engagement_id)
             artifacts = artifact_repo.list_for_engagement(engagement_id)
@@ -74,7 +99,7 @@ class ReportService(_BaseService):
                 "targets": [self._target_summary(t) for t in targets],
                 "artifacts": [self._artifact_summary(a) for a in artifacts],
                 "executions": [self._execution_summary(e) for e in executions],
-                "exported_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "exported_at": exported_at,
             }
 
         if output_path is None:
@@ -89,7 +114,7 @@ class ReportService(_BaseService):
             targets=len(targets),
             artifacts=len(artifacts),
             executions=len(executions),
-            exported_at=bundle["exported_at"],
+            exported_at=exported_at,
         )
 
     # ------------------------------------------------------------------ internals
@@ -101,7 +126,7 @@ class ReportService(_BaseService):
         return json.dumps(value, indent=2, sort_keys=True, default=str)
 
     @staticmethod
-    def _scope_summary(scope: object) -> dict[str, object] | None:
+    def _scope_summary(scope: Any) -> dict[str, object] | None:
         if scope is None:
             return None
         return {
@@ -114,34 +139,34 @@ class ReportService(_BaseService):
         }
 
     @staticmethod
-    def _target_summary(target: object) -> dict[str, object]:
+    def _target_summary(target: Any) -> dict[str, object]:
         return {
-            "id": getattr(target, "id"),
-            "address": getattr(target, "address"),
+            "id": target.id,
+            "address": target.address,
             "kind": getattr(target, "kind", getattr(target, "target_type", "host")),
             "is_active": bool(getattr(target, "is_active", True)),
         }
 
     @staticmethod
-    def _artifact_summary(artifact: object) -> dict[str, object]:
+    def _artifact_summary(artifact: Any) -> dict[str, object]:
         return {
-            "id": getattr(artifact, "id"),
-            "type": getattr(artifact, "type"),
-            "sensitivity": getattr(artifact, "sensitivity"),
-            "target_ref": getattr(artifact, "target_ref"),
-            "source_kind": getattr(artifact, "source_kind"),
-            "created_at": getattr(artifact, "created_at").isoformat(),
+            "id": artifact.id,
+            "type": artifact.type,
+            "sensitivity": artifact.sensitivity,
+            "target_ref": artifact.target_ref,
+            "source_kind": artifact.source_kind,
+            "created_at": artifact.created_at.isoformat(),
         }
 
     @staticmethod
-    def _execution_summary(execution: object) -> dict[str, object]:
-        started_at = getattr(execution, "started_at")
-        finished_at = getattr(execution, "finished_at")
+    def _execution_summary(execution: Any) -> dict[str, object]:
+        started_at = execution.started_at
+        finished_at = execution.finished_at
         return {
-            "id": getattr(execution, "id"),
-            "status": getattr(execution, "status"),
-            "action_id": getattr(execution, "action_id"),
-            "preset_id": getattr(execution, "preset_id"),
+            "id": execution.id,
+            "status": execution.status,
+            "action_id": execution.action_id,
+            "preset_id": execution.preset_id,
             "started_at": started_at.isoformat() if started_at else None,
             "finished_at": finished_at.isoformat() if finished_at else None,
         }
