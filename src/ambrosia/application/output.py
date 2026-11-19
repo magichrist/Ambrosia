@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel
+
+from ambrosia.domain.errors import ValidationError
 
 OutputFormat = Literal["human", "json"]
 
@@ -45,12 +47,10 @@ def parse_human_flag(output: str | None) -> OutputFormat:
     if output is None:
         return "human"
     if output not in ("human", "json"):
-        from ambrosia.domain.errors import ValidationError
-
-        raise ValidationError(
+        raise ValidationError(  # noqa: TRY003 - operator-facing message includes the invalid value
             f"unsupported --output value: {output!r} (use 'human' or 'json')"
         )
-    return output
+    return cast("OutputFormat", output)
 
 
 __all__ = ["OutputFormat", "format_json", "parse_human_flag"]
