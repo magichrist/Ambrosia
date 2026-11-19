@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from textual.containers import VerticalScroll
@@ -11,6 +12,8 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
     from ambrosia.tui.services import TUIServiceAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class ActivityPanel(VerticalScroll):
@@ -35,15 +38,15 @@ class ActivityPanel(VerticalScroll):
             log = self.query_one("#activity-log", Static)
             log.update("\n".join(self._entries))
             self.scroll_end(animate=False)
-        except Exception:  # pragma: no cover - log not yet mounted
-            pass
+        except Exception as exc:  # pragma: no cover - log not yet mounted
+            logger.debug("Activity log not ready for update: %s", exc)
 
     def clear(self) -> None:
         self._entries = []
         try:
             self.query_one("#activity-log", Static).update("")
-        except Exception:  # pragma: no cover - log not yet mounted
-            pass
+        except Exception as exc:  # pragma: no cover - log not yet mounted
+            logger.debug("Activity log not ready to clear: %s", exc)
 
     def refresh_context(self) -> None:
         self.refresh()
