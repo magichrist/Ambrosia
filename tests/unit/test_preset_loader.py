@@ -4,11 +4,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import tempfile
+from typing import TYPE_CHECKING
 
-import yaml
-
+from ambrosia.domain.action import ActionDefinition, ExecutorReference
 from ambrosia.domain.errors import ParseError
 from ambrosia.presets.errors import (
     CyclicDependencyError,
@@ -20,7 +18,9 @@ from ambrosia.presets.errors import (
 )
 from ambrosia.presets.loader import PresetLoader
 from ambrosia.registry import Registry
-from ambrosia.domain.action import ActionDefinition, ExecutorReference
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _registry() -> Registry:
@@ -102,7 +102,7 @@ def test_invalid_yaml_rejected() -> None:
     except ParseError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected ParseError for invalid YAML")
+        raise AssertionError()
 
 
 def test_python_object_tag_rejected() -> None:
@@ -115,7 +115,7 @@ def test_python_object_tag_rejected() -> None:
     except ParseError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected ParseError for python object tag")
+        raise AssertionError()
 
 
 def test_unknown_field_rejected() -> None:
@@ -127,7 +127,7 @@ def test_unknown_field_rejected() -> None:
     except PresetValidationError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected PresetValidationError for unknown field")
+        raise AssertionError()
 
 
 def test_unknown_step_field_rejected() -> None:
@@ -146,7 +146,7 @@ def test_unknown_step_field_rejected() -> None:
     except PresetValidationError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected PresetValidationError for unknown step field")
+        raise AssertionError()
 
 
 def test_wrong_api_version_rejected() -> None:
@@ -158,7 +158,7 @@ def test_wrong_api_version_rejected() -> None:
     except PresetValidationError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected PresetValidationError for wrong api_version")
+        raise AssertionError()
 
 
 def test_duplicate_step_ids_via_loader_rejected() -> None:
@@ -170,7 +170,7 @@ def test_duplicate_step_ids_via_loader_rejected() -> None:
     except DuplicateStepIdError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected DuplicateStepIdError")
+        raise AssertionError()
 
 
 def test_cycle_via_loader_rejected() -> None:
@@ -192,7 +192,7 @@ def test_cycle_via_loader_rejected() -> None:
     except CyclicDependencyError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected CyclicDependencyError")
+        raise AssertionError()
 
 
 def test_unresolved_action_via_loader_rejected() -> None:
@@ -204,7 +204,7 @@ def test_unresolved_action_via_loader_rejected() -> None:
     except UnresolvedActionError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected UnresolvedActionError")
+        raise AssertionError()
 
 
 def test_invalid_reference_syntax_rejected() -> None:
@@ -224,7 +224,7 @@ def test_invalid_reference_syntax_rejected() -> None:
     except InvalidReferenceError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidReferenceError")
+        raise AssertionError()
 
 
 def test_invalid_predicate_rejected() -> None:
@@ -243,7 +243,7 @@ def test_invalid_predicate_rejected() -> None:
     except InvalidPredicateError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidPredicateError")
+        raise AssertionError()
 
 
 def test_then_else_branches_loaded() -> None:
