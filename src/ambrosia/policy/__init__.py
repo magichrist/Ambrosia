@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from ambrosia.policy.approvals import ApprovalRecord, ApprovalService, ApprovalState
 from ambrosia.policy.decisions import DecisionOutcome, PolicyDecision, PolicyDecisionRecord
-from ambrosia.policy.effects import EffectClassifier, EffectClassification, KNOWN_EFFECTS
+from ambrosia.policy.effects import KNOWN_EFFECTS, EffectClassification, EffectClassifier
 from ambrosia.policy.engine import PolicyEngine, require_policy_allowed
 from ambrosia.policy.scope import ScopeChecker, ScopeCheckResult
 
