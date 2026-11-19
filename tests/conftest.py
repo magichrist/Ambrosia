@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from ambrosia.application.protocols import TargetRepository as TargetRepositoryProtocol
 from ambrosia.domain.models import (
     Artifact,
     Engagement,
     ExecutionRecord,
     Scope,
+    Target,
 )
 from ambrosia.domain.protocols import (
     ArtifactRepository,
@@ -53,6 +55,35 @@ class FakeScopeRepository(ScopeRepository):
 
     def update(self, scope: Scope) -> None:
         self._items[scope.id] = scope
+
+
+class FakeTargetRepository(TargetRepositoryProtocol):
+    def __init__(self) -> None:
+        self._items: dict[str, Target] = {}
+
+    def get(self, target_id: str) -> Target | None:
+        return self._items.get(target_id)
+
+    def create(
+        self,
+        *,
+        engagement_id: str,
+        address: str,
+        target_type: str = "host",
+        hostname: str | None = None,
+        notes: str | None = None,
+        is_active: bool = True,
+    ) -> Target:
+        target = Target(
+            engagement_id=engagement_id,
+            address=address,
+            kind=target_type,  # type: ignore[arg-type] - fake accepts any string kind
+        )
+        self._items[target.id] = target
+        return target
+
+    def list_for_engagement(self, engagement_id: str) -> list[Target]:
+        return [t for t in self._items.values() if t.engagement_id == engagement_id]
 
 
 class FakeArtifactRepository(ArtifactRepository):
