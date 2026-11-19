@@ -12,7 +12,7 @@ check.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from typing import Literal
 
 from ambrosia.domain.errors import ConflictError, NotFoundError
@@ -103,9 +103,9 @@ class ApprovalService:
         """Transition ``pending`` -> ``granted``."""
         record = self._records.get(approval_id)
         if record is None:
-            raise NotFoundError(f"approval record not found: {approval_id}")
+            raise NotFoundError(f"approval record not found: {approval_id}")  # noqa: TRY003
         if not record.is_pending:
-            raise ConflictError(
+            raise ConflictError(  # noqa: TRY003
                 f"approval {approval_id} is already {record.state}"
             )
         updated = ApprovalRecord(
@@ -126,9 +126,9 @@ class ApprovalService:
         """Transition ``pending`` -> ``denied``."""
         record = self._records.get(approval_id)
         if record is None:
-            raise NotFoundError(f"approval record not found: {approval_id}")
+            raise NotFoundError(f"approval record not found: {approval_id}")  # noqa: TRY003
         if not record.is_pending:
-            raise ConflictError(
+            raise ConflictError(  # noqa: TRY003
                 f"approval {approval_id} is already {record.state}"
             )
         updated = ApprovalRecord(
@@ -149,9 +149,9 @@ class ApprovalService:
         """Transition ``pending`` -> ``expired`` (e.g. operator timeout)."""
         record = self._records.get(approval_id)
         if record is None:
-            raise NotFoundError(f"approval record not found: {approval_id}")
+            raise NotFoundError(f"approval record not found: {approval_id}")  # noqa: TRY003
         if not record.is_pending:
-            raise ConflictError(
+            raise ConflictError(  # noqa: TRY003
                 f"approval {approval_id} is already {record.state}"
             )
         updated = ApprovalRecord(
