@@ -9,25 +9,24 @@ leak into the application or CLI layers.
 
 from __future__ import annotations
 
-from contextlib import contextmanager, nullcontext
-from typing import ContextManager, Iterator, cast
+from contextlib import AbstractContextManager, contextmanager, nullcontext
+from typing import TYPE_CHECKING, cast
 
-from sqlalchemy.orm import Session
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
-from ambrosia.domain.protocols import (
-    ArtifactRepository as ArtifactRepositoryProtocol,
-    ExecutionRepository as ExecutionRepositoryProtocol,
-    EngagementRepository as EngagementRepositoryProtocol,
-    ScopeRepository as ScopeRepositoryProtocol,
-)
+    from sqlalchemy.orm import Session
+
 from ambrosia.storage.repositories import (
-    ArtifactRepository,
     ApprovalRecordRepository,
+    ArtifactRepository,
     EngagementRepository,
     EvidenceRepository,
     ExecutionRepository,
     FindingRepository,
     ScopeRepository,
+)
+from ambrosia.storage.repositories import (
     TargetRepository as StorageTargetRepository,
 )
 
@@ -47,7 +46,7 @@ class _BaseService:
     def __init__(
         self,
         *,
-        session_scope: ContextManager[object | None] = nullcontext,
+        session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
         engagement_repo: object = None,
         scope_repo: object = None,
         artifact_repo: object = None,
@@ -78,8 +77,10 @@ class _BaseService:
         repo = self._repos.get(name)
         if repo is not None:
             return repo
-        assert session is not None, f"{name} requires a storage session"
-        return _REPO_CLASSES[name](cast(Session, session))
+        if session is None:
+            message = f"{name} requires a storage session"
+            raise ValueError(message)
+        return _REPO_CLASSES[name](cast("Session", session))
 
 
 __all__ = ["_BaseService"]
