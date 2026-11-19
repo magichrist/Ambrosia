@@ -11,13 +11,15 @@ from typing import cast
 
 from pydantic import BaseModel
 
+from ambrosia.application._base import _BaseService
 from ambrosia.domain.errors import NotFoundError
 from ambrosia.domain.models import Engagement, Scope
-from ambrosia.domain.protocols import (
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     EngagementRepository as EngagementRepositoryProtocol,
+)
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     ScopeRepository as ScopeRepositoryProtocol,
 )
-from ambrosia.application._base import _BaseService
 
 
 class EngagementDTO(BaseModel):
@@ -41,9 +43,13 @@ class EngagementService(_BaseService):
         """Create an engagement with an empty conservative scope."""
         with self._session() as session:
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",  # noqa: TC001
+                self._repo("engagement_repo", session),
             )
-            scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+            scope_repo = cast(
+                "ScopeRepositoryProtocol",  # noqa: TC001
+                self._repo("scope_repo", session),
+            )
 
             engagement = Engagement(name=name, description=description)
             engagement = engagement_repo.create(engagement)
@@ -58,7 +64,8 @@ class EngagementService(_BaseService):
     def list(self) -> EngagementListDTO:
         with self._session() as session:
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",  # noqa: TC001
+                self._repo("engagement_repo", session),
             )
             return EngagementListDTO(
                 engagements=[self._dto(e) for e in engagement_repo.list()]
@@ -67,11 +74,14 @@ class EngagementService(_BaseService):
     def get(self, engagement_id: str) -> EngagementDTO:
         with self._session() as session:
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",  # noqa: TC001
+                self._repo("engagement_repo", session),
             )
             engagement = engagement_repo.get(engagement_id)
             if engagement is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
             return self._dto(engagement)
 
     def open(self, engagement_id: str) -> EngagementDTO:
