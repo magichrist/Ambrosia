@@ -72,6 +72,7 @@ __all__ = [
     "Scope",
     "Artifact",
     "ExecutionRecord",
+    "ExecutionStatus",
     "Target",
     "Observation",
     "Finding",
