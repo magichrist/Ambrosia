@@ -13,16 +13,15 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from tests.conftest import FakeExecutionRepository
 
 from ambrosia.domain.action import ActionDefinition, ExecutorReference
 from ambrosia.domain.models import Scope
 from ambrosia.domain.protocols import ActionExecutionContext, ActionRequest
-from ambrosia.engine import JobEngine, DryRunPlanner
+from ambrosia.engine import DryRunPlanner, JobEngine
 from ambrosia.executors import FakeExecutor, ProcessExecutor, SecretRedactor
 from ambrosia.policy import PolicyEngine
 from ambrosia.registry import Registry
-
-from tests.conftest import FakeExecutionRepository
 
 
 def _scope(**overrides) -> Scope:
