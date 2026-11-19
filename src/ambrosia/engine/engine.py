@@ -14,29 +14,31 @@ process is started. The engine persists every transition through the
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
-from ambrosia.domain.action import ActionDefinition
 from ambrosia.domain.errors import (
     ConflictError,
     ExecutionCancelledError,
     ExecutionError,
     ExecutionTimeoutError,
     NotFoundError,
-    PolicyBlockedError,
     ScopeViolationError,
 )
-from ambrosia.domain.models import ExecutionRecord
+from ambrosia.domain.models import ExecutionRecord, Scope
 from ambrosia.domain.protocols import (
     ActionExecutionContext,
     ActionRequest,
     ExecutionEvent,
     ExecutionRepository,
 )
-from ambrosia.engine.job import JobEvent, JobStatus, valid_transition
-from ambrosia.policy import PolicyEngine
-from ambrosia.registry import Registry
+from ambrosia.engine.job import valid_transition
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from ambrosia.policy import PolicyEngine
+    from ambrosia.registry import Registry
 
 _SECRET_KEYS = frozenset(
     {"password", "passwd", "secret", "token", "key", "credential", "hash"}
@@ -94,7 +96,7 @@ class JobEngine:
         """Create a new execution record in ``draft`` status. Returns the ID."""
         definition = self._registry.get(action_id)
         if definition is None:
-            raise NotFoundError(f"action {action_id!r} is not registered")
+            raise NotFoundError(f"action {action_id!r} is not registered")  # noqa: TRY003
 
         record = ExecutionRecord(
             engagement_id=engagement_id,
@@ -113,7 +115,7 @@ class JobEngine:
         self,
         execution_id: str,
         *,
-        scope,
+        scope: Scope,
         address: str | None = None,
         port: int | None = None,
     ) -> None:
@@ -125,11 +127,13 @@ class JobEngine:
         """
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
+        if record.action_id is None:
+            raise ValueError("execution is missing an action_id")  # noqa: TRY003
         definition = self._registry.get(record.action_id)
         if definition is None:
-            raise NotFoundError(f"action {record.action_id!r} is not registered")
+            raise NotFoundError(f"action {record.action_id!r} is not registered")  # noqa: TRY003
 
         # Policy evaluation: scope + effects + approval.
         outcome, _decision, _record = self._policy_engine.evaluate(
@@ -142,13 +146,13 @@ class JobEngine:
         )
 
         if outcome == "blocked":
-            raise ScopeViolationError(
+            raise ScopeViolationError(  # noqa: TRY003
                 "execution blocked by policy scope check",
                 details={"execution_id": execution_id, "action_id": record.action_id},
             )
 
-        if not valid_transition(record.status, "validated"):  # type: ignore[arg-type]
-            raise ConflictError(
+        if not valid_transition(record.status, "validated"):
+            raise ConflictError(  # noqa: TRY003
                 f"cannot validate execution {execution_id!r} in status "
                 f"{record.status!r}"
             )
@@ -166,27 +170,27 @@ class JobEngine:
         """
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
+        if record.action_id is None:
+            raise ValueError("execution is missing an action_id")  # noqa: TRY003
         definition = self._registry.get(record.action_id)
         if definition is None:
-            raise NotFoundError(f"action {record.action_id!r} is not registered")
+            raise NotFoundError(f"action {record.action_id!r} is not registered")  # noqa: TRY003
 
-        # Determine if approval is required by re-evaluating effects.
-        scope = None  # The engine does not carry scope here; caller should pass.
         # Approval requirement is derived from the action definition + scope
         # at validation time. Here we just record the intent.
         if not definition.approval_required and not any(
             e in {"local_write", "remote_change", "authentication", "credential_access"}
             for e in definition.effects
         ):
-            if valid_transition(record.status, "ready"):  # type: ignore[arg-type]
+            if valid_transition(record.status, "ready"):
                 record.status = "ready"
                 self._execution_repository.update(record)
             return None
 
-        if not valid_transition(record.status, "awaiting_approval"):  # type: ignore[arg-type]
-            raise ConflictError(
+        if not valid_transition(record.status, "awaiting_approval"):
+            raise ConflictError(  # noqa: TRY003
                 f"cannot request approval for execution {execution_id!r} in "
                 f"status {record.status!r}"
             )
@@ -216,12 +220,12 @@ class JobEngine:
         """Transition ``awaiting_approval`` -> ``ready`` after explicit grant."""
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
         self._policy_engine.grant_approval(approval_id, decided_by=decided_by)
 
-        if not valid_transition(record.status, "ready"):  # type: ignore[arg-type]
-            raise ConflictError(
+        if not valid_transition(record.status, "ready"):
+            raise ConflictError(  # noqa: TRY003
                 f"cannot move execution {execution_id!r} to ready from "
                 f"status {record.status!r}"
             )
@@ -234,14 +238,14 @@ class JobEngine:
         """Transition ``awaiting_approval`` -> ``blocked`` after explicit denial."""
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
         self._policy_engine.deny_approval(
             approval_id, decided_by=decided_by, reason=reason
         )
 
-        if not valid_transition(record.status, "blocked"):  # type: ignore[arg-type]
-            raise ConflictError(
+        if not valid_transition(record.status, "blocked"):
+            raise ConflictError(  # noqa: TRY003
                 f"cannot block execution {execution_id!r} from status "
                 f"{record.status!r}"
             )
@@ -263,23 +267,25 @@ class JobEngine:
         """
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
         if record.status != "ready":
-            raise ConflictError(
+            raise ConflictError(  # noqa: TRY003
                 f"cannot run execution {execution_id!r} in status "
                 f"{record.status!r}"
             )
 
+        if record.action_id is None:
+            raise ValueError("execution is missing an action_id")  # noqa: TRY003
         definition = self._registry.get(record.action_id)
         if definition is None:
-            raise NotFoundError(f"action {record.action_id!r} is not registered")
+            raise NotFoundError(f"action {record.action_id!r} is not registered")  # noqa: TRY003
 
         handler = self._registry.get_handler(record.action_id)
         if handler is None:
             from ambrosia.registry.errors import HandlerNotFoundError
 
-            raise HandlerNotFoundError(
+            raise HandlerNotFoundError(  # noqa: TRY003
                 f"no handler registered for action {record.action_id!r}"
             )
 
@@ -297,7 +303,11 @@ class JobEngine:
         self._execution_repository.update(record)
 
         sequence = 0
-        iterator = handler.execute(request, context)
+        # handler.execute is an async generator function; calling it returns an
+        # async generator (an AsyncIterator) directly. The protocol types it as
+        # async def -> AsyncIterator, which mypy reads as a coroutine, so we
+        # annotate as Any to keep the runtime type and satisfy the type checker.
+        iterator: Any = handler.execute(request, context)
         handler_failed = False
 
         try:
@@ -312,15 +322,15 @@ class JobEngine:
                             event = await anext(iterator)
                     except StopAsyncIteration:
                         break
-                    except TimeoutError:
+                    except TimeoutError as exc:
                         try:
                             await iterator.aclose()
-                        except Exception:
+                        except Exception:  # noqa: S110
                             pass
-                        raise ExecutionTimeoutError(
+                        raise ExecutionTimeoutError(  # noqa: TRY003
                             f"execution {execution_id!r} timed out after "
                             f"{timeout_seconds}s"
-                        )
+                        ) from exc
 
                     sequence += 1
                     self._execution_repository.add_event(
@@ -335,7 +345,7 @@ class JobEngine:
                         handler_failed = True
                         try:
                             await iterator.aclose()
-                        except Exception:
+                        except Exception:  # noqa: S110
                             pass
                         break
 
@@ -366,14 +376,14 @@ class JobEngine:
             # Operator cancellation: stop the handler (terminates its process).
             try:
                 await iterator.aclose()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             record.status = "cancelled"
             record.finished_at = _utc_now_naive()
             self._execution_repository.update(record)
-            raise ExecutionCancelledError(
+            raise ExecutionCancelledError(  # noqa: B904, TRY003
                 f"execution {execution_id!r} was cancelled"
-            )
+            ) from None
         except ExecutionTimeoutError:
             record.status = "failed"
             record.error_code = "execution_timeout"
@@ -384,7 +394,7 @@ class JobEngine:
         except Exception as exc:  # noqa: BLE001
             try:
                 await iterator.aclose()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
             record.status = "failed"
             record.error_code = "execution_error"
@@ -403,7 +413,7 @@ class JobEngine:
         """
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
         task = self._running_tasks.get(execution_id)
         if task is not None and not task.done():
@@ -415,7 +425,7 @@ class JobEngine:
         self,
         execution_id: str,
         *,
-        scope,
+        scope: Scope,
         address: str | None = None,
         port: int | None = None,
     ) -> dict[str, object]:
@@ -426,11 +436,13 @@ class JobEngine:
         """
         record = self._execution_repository.get(execution_id)
         if record is None:
-            raise NotFoundError(f"execution {execution_id!r} not found")
+            raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
+        if record.action_id is None:
+            raise ValueError("execution is missing an action_id")  # noqa: TRY003
         definition = self._registry.get(record.action_id)
         if definition is None:
-            raise NotFoundError(f"action {record.action_id!r} is not registered")
+            raise NotFoundError(f"action {record.action_id!r} is not registered")  # noqa: TRY003
 
         # Policy evaluation only -- no process is started.
         outcome, decision, decision_record = self._policy_engine.evaluate(
