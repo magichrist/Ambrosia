@@ -10,7 +10,6 @@ Every job has an ID and durable status transitions:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 from ambrosia.domain.models import ExecutionStatus
 
