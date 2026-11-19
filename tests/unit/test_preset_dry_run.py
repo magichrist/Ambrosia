@@ -4,13 +4,14 @@
 
 from __future__ import annotations
 
+from typing import Never
+
 from ambrosia.domain.action import ActionDefinition, ExecutorReference
 from ambrosia.domain.models import Artifact
 from ambrosia.presets.errors import (
     ArtifactSelectionRequest,
     DeferredStepOutput,
     InputRequest,
-    ResolvedValue,
     SecretHandle,
     TypeMismatchError,
 )
@@ -21,8 +22,10 @@ from ambrosia.registry import Registry
 class _TracingHandler:
     """Handler that raises if invoked: dry-runs must never execute actions."""
 
-    async def execute(self, request, context):  # type: ignore[no-untyped-def]
-        raise AssertionError("action handler must not run during a dry-run")
+    async def execute(
+        self, request: object, context: object
+    ) -> Never:  # type: ignore[no-untyped-def]
+        raise AssertionError()
 
 
 def _registry() -> Registry:
@@ -77,7 +80,7 @@ steps:
 """
 
 
-def _load(registry: Registry, text: str):
+def _load(registry: Registry, text: str) -> tuple[PresetLoader, object]:
     loader = PresetLoader(registry)
     loaded = loader.load_text(text)
     return loader, loaded
@@ -303,7 +306,7 @@ def test_step_output_reference_to_action_is_deferred() -> None:
 def test_artifact_selection_request_on_ambiguity() -> None:
     registry = _registry()
     loader = PresetLoader(registry)
-    loaded = loader.load_text(
+    loader.load_text(
         _preset_text(
             inputs="",
             steps="""\
