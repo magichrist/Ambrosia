@@ -8,17 +8,22 @@ from __future__ import annotations
 
 import ipaddress
 import re
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
+
+if TYPE_CHECKING:
+    from typing import Any
 
 from pydantic import BaseModel
 
+from ambrosia.application._base import _BaseService
 from ambrosia.domain.errors import NotFoundError, ValidationError
 from ambrosia.domain.models import Target
-from ambrosia.domain.protocols import (
-    EngagementRepository as EngagementRepositoryProtocol,
-)
-from ambrosia.application._base import _BaseService
-from ambrosia.application.protocols import TargetRepository as TargetRepositoryProtocol
+
+if TYPE_CHECKING:
+    from ambrosia.application.protocols import TargetRepository as TargetRepositoryProtocol
+    from ambrosia.domain.protocols import (
+        EngagementRepository as EngagementRepositoryProtocol,
+    )
 
 _HOSTNAME_RE = re.compile(
     r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*$"
@@ -63,20 +68,24 @@ class TargetService(_BaseService):
         """
         with self._session() as session:
             target_repo = cast(
-                TargetRepositoryProtocol, self._repo("target_repo", session)
+                "TargetRepositoryProtocol",
+                self._repo("target_repo", session),
             )
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",
+                self._repo("engagement_repo", session),
             )
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
 
             resolved_kind = self._resolve_kind(address) if kind == "auto" else kind
             # Validate the address against its kind via the domain model.
             Target(
                 engagement_id=engagement_id,
                 address=address,
-                kind=cast(Literal["host", "ip", "domain"], resolved_kind),
+                kind=cast("Literal['host', 'ip', 'domain']", resolved_kind),
             )
 
             record = target_repo.create(
@@ -91,13 +100,17 @@ class TargetService(_BaseService):
     def list(self, engagement_id: str) -> TargetListDTO:
         with self._session() as session:
             target_repo = cast(
-                TargetRepositoryProtocol, self._repo("target_repo", session)
+                "TargetRepositoryProtocol",
+                self._repo("target_repo", session),
             )
             engagement_repo = cast(
-                EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+                "EngagementRepositoryProtocol",
+                self._repo("engagement_repo", session),
             )
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
             return TargetListDTO(
                 targets=[
                     self._dto(t)
@@ -117,24 +130,24 @@ class TargetService(_BaseService):
             return "domain"
         if _HOSTNAME_RE.fullmatch(address):
             return "host"
-        raise ValidationError(
+        raise ValidationError(  # noqa: TRY003 - operator-facing message
             f"target address is not a valid host, IP, or domain: {address!r}"
         )
 
     @staticmethod
-    def _dto(obj: object) -> TargetDTO:
+    def _dto(obj: Any) -> TargetDTO:
         return TargetDTO(
-            id=getattr(obj, "id"),
-            engagement_id=getattr(obj, "engagement_id"),
-            address=getattr(obj, "address"),
+            id=obj.id,
+            engagement_id=obj.engagement_id,
+            address=obj.address,
             kind=cast(
-                str, getattr(obj, "kind", None) or getattr(obj, "target_type", "host")
+                "str", getattr(obj, "kind", None) or getattr(obj, "target_type", "host")
             ),
             target_type=getattr(obj, "target_type", None),
             hostname=getattr(obj, "hostname", None),
             notes=getattr(obj, "notes", None),
             is_active=bool(getattr(obj, "is_active", True)),
-            created_at=getattr(obj, "created_at").isoformat(),
+            created_at=obj.created_at.isoformat(),
         )
 
 
