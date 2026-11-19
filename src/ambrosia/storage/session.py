@@ -7,7 +7,6 @@ by default in SQLite).
 
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,6 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ambrosia.storage.base import Base
 
 if TYPE_CHECKING:
+    import os
     from collections.abc import Iterator
 
     from sqlalchemy.engine import Engine
@@ -61,11 +61,11 @@ def _resolve_db_url(db_url: str, workspace_root: Path | None) -> str:
         return db_url
     prefix = "sqlite:///"
     relative_path = db_url[len(prefix):]
-    if os.path.isabs(relative_path):
+    if Path(relative_path).is_absolute():
         return db_url
     if workspace_root is not None:
         return prefix + str((workspace_root / relative_path).resolve())
-    return prefix + os.path.abspath(relative_path)
+    return prefix + str(Path(relative_path).resolve())
 
 
 def create_engine_from_config(config: StorageConfig) -> Engine:
