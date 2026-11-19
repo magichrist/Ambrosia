@@ -10,10 +10,16 @@ from ambrosia.domain.protocols import (
     ScopeRepository,
 )
 from ambrosia.storage import (
-    EngagementRepository as OrmEngagementRepository,
-    ScopeRepository as OrmScopeRepository,
     ArtifactRepository as OrmArtifactRepository,
+)
+from ambrosia.storage import (
+    EngagementRepository as OrmEngagementRepository,
+)
+from ambrosia.storage import (
     ExecutionRepository as OrmExecutionRepository,
+)
+from ambrosia.storage import (
+    ScopeRepository as OrmScopeRepository,
 )
 from ambrosia.storage import Storage
 
