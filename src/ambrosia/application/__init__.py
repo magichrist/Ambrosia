@@ -24,12 +24,12 @@ Exit codes are defined in :mod:`ambrosia.application.exit_codes`.
 from __future__ import annotations
 
 from ambrosia.application.exit_codes import (
-    OK,
     CANCELLED,
     EXECUTION_FAILURE,
     INTERNAL_ERROR,
     MISSING_DEPENDENCY,
     NOT_FOUND,
+    OK,
     POLICY_BLOCKED,
     SCOPE_VIOLATION,
     VALIDATION_ERROR,
