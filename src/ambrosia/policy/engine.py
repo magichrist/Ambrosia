@@ -7,13 +7,17 @@ record. No action may launch without a valid policy evaluation.
 
 from __future__ import annotations
 
-from ambrosia.domain.action import ActionDefinition
+from typing import TYPE_CHECKING
+
 from ambrosia.domain.errors import PolicyBlockedError, ScopeViolationError
-from ambrosia.domain.models import Scope
 from ambrosia.policy.approvals import ApprovalRecord, ApprovalService
 from ambrosia.policy.decisions import PolicyDecision, PolicyDecisionRecord
 from ambrosia.policy.effects import EffectClassifier
 from ambrosia.policy.scope import ScopeChecker
+
+if TYPE_CHECKING:
+    from ambrosia.domain.action import ActionDefinition
+    from ambrosia.domain.models import Scope
 
 
 class PolicyEngine:
@@ -180,7 +184,6 @@ def require_policy_allowed(outcome: str, decision: PolicyDecision) -> None:
     Convenience helper for execution paths that must fail fast when policy
     blocks an action.
     """
-    from ambrosia.domain.errors import PolicyBlockedError
 
     if outcome != "allowed":
         raise PolicyBlockedError(
