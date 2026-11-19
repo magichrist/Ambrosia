@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from ambrosia.domain.models import Artifact
 from ambrosia.presets.errors import InvalidPredicateError
 from ambrosia.presets.predicates import Predicate, evaluate_predicate, parse_predicate
