@@ -8,26 +8,35 @@ typed missing-dependency error instead of silently succeeding.
 
 from __future__ import annotations
 
-import builtins
 import re
 import uuid
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
+from ambrosia.application._base import _BaseService
 from ambrosia.domain.errors import NotFoundError, ValidationError
 from ambrosia.domain.models import ExecutionRecord
-from ambrosia.domain.protocols import (
+from ambrosia.domain.preset import PresetDefinition, PresetStep
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     ArtifactRepository as ArtifactRepositoryProtocol,
+)
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     EngagementRepository as EngagementRepositoryProtocol,
+)
+from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     ScopeRepository as ScopeRepositoryProtocol,
 )
-from ambrosia.domain.preset import PresetDefinition, PresetStep
-from ambrosia.application._base import _BaseService
-from ambrosia.application.protocols import PresetEngine
-from ambrosia.registry import Registry
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Callable
+
+    from ambrosia.application.protocols import PresetEngine
+    from ambrosia.registry import Registry
 
 _REFERENCE_RE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 _VALID_NAMESPACES = frozenset({"inputs", "context", "target", "artifacts", "steps", "preset", "secrets"})
@@ -89,9 +98,17 @@ class PresetService(_BaseService):
         registry: Registry,
         presets_dirs: builtins.list[Path],
         engine: PresetEngine | None = None,
-        **kwargs: object,
+        session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
+        scope_repo: object = None,
+        engagement_repo: object = None,
+        artifact_repo: object = None,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            session_scope=session_scope,
+            scope_repo=scope_repo,
+            engagement_repo=engagement_repo,
+            artifact_repo=artifact_repo,
+        )
         self._registry = registry
         self._presets_dirs = presets_dirs
         self._engine = engine
@@ -135,13 +152,12 @@ class PresetService(_BaseService):
 
         self._check_cycles(definition.steps, errors)
 
-        declared_inputs = set(definition.inputs)
         for step in definition.steps:
             if step.type == "action" and step.action is not None:
                 if self._registry.get(step.action) is None:
                     errors.append(f"step {step.id!r}: action {step.action!r} is not registered")
                 else:
-                    warnings.extend(self._validate_step_bindings(step, declared_inputs, errors))
+                    warnings.extend(self._validate_step_bindings(step))
             for value in step.inputs.values():
                 self._check_references(value, f"step {step.id!r} inputs", errors)
 
@@ -162,7 +178,7 @@ class PresetService(_BaseService):
         definition, path = self._find_preset(preset_id)
         validation = self.validate(str(path))
         if not validation.valid:
-            raise ValidationError(
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
                 f"preset {preset_id!r} is invalid: " + "; ".join(validation.errors)
             )
 
@@ -199,21 +215,23 @@ class PresetService(_BaseService):
         definition, path = self._find_preset(preset_id)
         validation = self.validate(str(path))
         if not validation.valid:
-            raise ValidationError(
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
                 f"preset {preset_id!r} is invalid: " + "; ".join(validation.errors)
             )
 
         with self._session() as session:
-            engagement_repo = cast(
-                EngagementRepositoryProtocol,
+            engagement_repo = cast(  # noqa: TC001
+                "EngagementRepositoryProtocol",
                 self._repo("engagement_repo", session),
             )
             if engagement_repo.get(engagement_id) is None:
-                raise NotFoundError(f"engagement {engagement_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"engagement {engagement_id!r} not found"
+                )
             # Touch the scope so a missing scope surfaces as a policy error
             # during execution rather than silently later.
-            cast(
-                ScopeRepositoryProtocol,
+            cast(  # noqa: TC001
+                "ScopeRepositoryProtocol",
                 self._repo("scope_repo", session),
             ).get_for_engagement(engagement_id)
 
@@ -224,14 +242,14 @@ class PresetService(_BaseService):
         gateway = PolicyGateway(
             session_scope=self._session_scope,
             registry=self._registry,
-            engagement_repository=cast(
-                EngagementRepositoryProtocol, self._repos.get("engagement_repo")
+            engagement_repository=cast(  # noqa: TC001
+                "EngagementRepositoryProtocol", self._repos.get("engagement_repo")
             ),
-            scope_repository=cast(
-                ScopeRepositoryProtocol, self._repos.get("scope_repo")
+            scope_repository=cast(  # noqa: TC001
+                "ScopeRepositoryProtocol", self._repos.get("scope_repo")
             ),
-            artifact_repository=cast(
-                ArtifactRepositoryProtocol, self._repos.get("artifact_repo")
+            artifact_repository=cast(  # noqa: TC001
+                "ArtifactRepositoryProtocol", self._repos.get("artifact_repo")
             ),
         )
         for step in definition.steps:
@@ -246,14 +264,20 @@ class PresetService(_BaseService):
         if self._engine is None:
             from ambrosia.domain.errors import MissingDependencyError
 
-            raise MissingDependencyError(
+            raise MissingDependencyError(  # noqa: TRY003 - operator-facing message
                 "execution engine (ambrosia.engine) is not integrated yet; "
                 "use 'preset plan' for a dry-run plan",
                 details={"preset_id": preset_id},
             )
 
         engine = self._engine
-        assert engine is not None
+        if engine is None:  # pragma: no cover - guarded above
+            from ambrosia.domain.errors import MissingDependencyError
+
+            raise MissingDependencyError(  # noqa: TRY003 - operator-facing message
+                "execution engine (ambrosia.engine) is not integrated yet",
+                details={"preset_id": preset_id},
+            )
         execution_id = str(uuid.uuid4())
         record = await engine.run(
             preset_id=preset_id, execution_id=execution_id, inputs=inputs or {}
@@ -278,15 +302,19 @@ class PresetService(_BaseService):
         try:
             text = path.read_text(encoding="utf-8")
         except OSError as exc:
-            raise NotFoundError(f"preset file not found: {path}") from exc
+            raise NotFoundError(  # noqa: TRY003 - operator-facing message
+                f"preset file not found: {path}"
+            ) from exc
         try:
             data = yaml.safe_load(text)
         except yaml.YAMLError as exc:
-            message = f"preset {path} is not valid YAML: {exc}"
-            raise ValidationError(message) from exc
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
+                f"preset {path} is not valid YAML: {exc}"
+            ) from exc
         if not isinstance(data, dict):
-            message = f"preset {path} must contain a mapping, not {type(data).__name__}"
-            raise ValidationError(message)
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
+                f"preset {path} must contain a mapping, not {type(data).__name__}"
+            )
         return PresetDefinition.model_validate(data)
 
     def _find_preset(self, preset_id: str) -> tuple[PresetDefinition, Path]:
@@ -303,7 +331,9 @@ class PresetService(_BaseService):
                 if definition.metadata.id == preset_id:
                     return definition, path
         detail = f" ({last_error})" if last_error else ""
-        raise NotFoundError(f"preset {preset_id!r} not found{detail}")
+        raise NotFoundError(  # noqa: TRY003 - operator-facing message
+            f"preset {preset_id!r} not found{detail}"
+        )
 
     @staticmethod
     def _check_cycles(
@@ -313,7 +343,7 @@ class PresetService(_BaseService):
         visited: set[str] = set()
         stack: set[str] = set()
 
-        def visit(step_id: str, path: list[str]) -> None:
+        def visit(step_id: str, path: builtins.list[str]) -> None:
             if step_id in stack:
                 cycle = " -> ".join(path + [step_id])
                 errors.append(f"cyclic step dependencies: {cycle}")
@@ -407,7 +437,7 @@ class PresetService(_BaseService):
 
     @staticmethod
     def _validate_step_bindings(
-        step: PresetStep, declared_inputs: set[str], errors: builtins.list[str]
+        step: PresetStep,
     ) -> builtins.list[str]:
         warnings: builtins.list[str] = []
         for name, value in step.inputs.items():
