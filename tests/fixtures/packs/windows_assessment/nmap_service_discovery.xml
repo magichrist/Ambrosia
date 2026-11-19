@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -oX - -Pn -sV -p 80,443,445,3389,5985 10.0.0.10" start="1234567890" startstr="Thu Nov 19 00:00:00 2026" version="7.90" xmloutputversion="1.04">
+  <scaninfo type="syn" protocol="tcp" numservices="5" services="80,443,445,3389,5985"/>
+  <verbose level="0"/>
+  <debugging level="0"/>
+  <host starttime="1234567890" endtime="1234567895">
+    <status state="up" reason="syn-ack"/>
+    <address addr="10.0.0.10" addrtype="ipv4"/>
+    <hostnames><hostname name="dc01.corp.local" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="smb" product="Samba" version="4.6.2" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2019 Datacenter 1809 (Windows Server 2019 Datacenter 6.3)
+Computer name: DC01
+NetBIOS computer name: DC01
+Domain name: CORP.LOCAL
+Forest name: CORP.LOCAL
+FQDN: DC01.corp.local
+"/><script id="smb-security-mode" output="account_used: guest&lt;br /&gt;authentication_level: user&lt;br /&gt;"/><script id="smb-protocols" output="1.0&lt;br /&gt;2.0&lt;br /&gt;2.1&lt;br /&gt;3.0&lt;br /&gt;3.11&lt;br /&gt;"/></port>
+      <port protocol="tcp" portid="80"><state state="open" reason="syn-ack"/><service name="http" product="Microsoft IIS" version="10.0" extrainfo=""/><script id="http-methods" output="Supported Methods: GET, HEAD, POST, OPTIONS"/></port>
+      <port protocol="tcp" portid="3389"><state state="open" reason="syn-ack"/><service name="rdp" product="Microsoft" version="RDP" extrainfo=""/><script id="rdp-enum-encryption" output="Security layer: SSL"/></port>
+      <port protocol="tcp" portid="5985"><state state="open" reason="syn-ack"/><service name="winrm" product="Microsoft" version="HTTPAPI" extrainfo=""/><script id="winrm-info" output="Auth: Kerberos, Negotiate"/></port>
+      <port protocol="tcp" portid="135"><state state="filtered" reason="no-response"/><service name="msrpc"/></port>
+    </ports>
+  </host>
+  <runstats><finished time="1234567895" elapsed="5.00" summary="Nmap done: 1 IP address (1 host up) scanned in 5.00 seconds" hostsup="1" hostsdown="0" totalhosts="1"/></runstats>
+</nmaprun>
