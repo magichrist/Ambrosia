@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import cast
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, cast
 
 from pydantic import BaseModel
 
-from ambrosia.domain.errors import NotFoundError
-from ambrosia.domain.models import ExecutionRecord
-from ambrosia.domain.protocols import (
-    ExecutionRepository as ExecutionRepositoryProtocol,
-)
 from ambrosia.application._base import _BaseService
+from ambrosia.domain.errors import NotFoundError
+
+if TYPE_CHECKING:
+    from ambrosia.domain.models import ExecutionRecord
+    from ambrosia.domain.protocols import (
+        ExecutionRepository as ExecutionRepositoryProtocol,
+    )
 
 
 class JobDTO(BaseModel):
@@ -51,20 +53,24 @@ class JobShowDTO(BaseModel):
 class JobService(_BaseService):
     def list(self, engagement_id: str) -> JobListDTO:
         with self._session() as session:
-            execution_repo = cast(
-                ExecutionRepositoryProtocol, self._repo("execution_repo", session)
+            execution_repo = cast(  # noqa: TC001
+                "ExecutionRepositoryProtocol",
+                self._repo("execution_repo", session),
             )
             executions = execution_repo.list_for_engagement(engagement_id)
             return JobListDTO(jobs=[self._dto(e) for e in executions])
 
     def show(self, execution_id: str) -> JobShowDTO:
         with self._session() as session:
-            execution_repo = cast(
-                ExecutionRepositoryProtocol, self._repo("execution_repo", session)
+            execution_repo = cast(  # noqa: TC001
+                "ExecutionRepositoryProtocol",
+                self._repo("execution_repo", session),
             )
             execution = execution_repo.get(execution_id)
             if execution is None:
-                raise NotFoundError(f"execution {execution_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"execution {execution_id!r} not found"
+                )
             events: list[JobEventDTO] = []
             list_events = getattr(execution_repo, "list_events", None)
             if list_events is not None:
@@ -87,14 +93,17 @@ class JobService(_BaseService):
 
     def cancel(self, execution_id: str) -> JobDTO:
         with self._session() as session:
-            execution_repo = cast(
-                ExecutionRepositoryProtocol, self._repo("execution_repo", session)
+            execution_repo = cast(  # noqa: TC001
+                "ExecutionRepositoryProtocol",
+                self._repo("execution_repo", session),
             )
             execution = execution_repo.get(execution_id)
             if execution is None:
-                raise NotFoundError(f"execution {execution_id!r} not found")
+                raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                    f"execution {execution_id!r} not found"
+                )
             execution.status = "cancelled"
-            execution.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            execution.finished_at = datetime.now(UTC).replace(tzinfo=None)
             execution_repo.update(execution)
             return self._dto(execution)
 
