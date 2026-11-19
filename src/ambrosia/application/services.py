@@ -7,12 +7,10 @@ fake repositories (and no storage); production builds it through
 
 from __future__ import annotations
 
-from collections.abc import ContextManager
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ambrosia.application._base import _BaseService
-from ambrosia.application.protocols import PresetEngine
 from ambrosia.application.action_service import ActionService
 from ambrosia.application.engagement_service import EngagementService
 from ambrosia.application.job_service import JobService
@@ -21,7 +19,18 @@ from ambrosia.application.preset_service import PresetService
 from ambrosia.application.report_service import ReportService
 from ambrosia.application.scope_service import ScopeService
 from ambrosia.application.target_service import TargetService
-from ambrosia.registry import Registry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ambrosia.application.protocols import PresetEngine
+    from ambrosia.domain.protocols import (
+        EngagementRepository as EngagementRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        ScopeRepository as ScopeRepositoryProtocol,
+    )
+    from ambrosia.registry import Registry
 
 
 class ApplicationServices:
@@ -30,12 +39,12 @@ class ApplicationServices:
     def __init__(
         self,
         *,
-        session_scope: ContextManager[object | None] = nullcontext,
+        session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
         registry: Registry,
         presets_dirs: tuple[str, ...] = (),
         engine: PresetEngine | None = None,
-        engagement_repo: object = None,
-        scope_repo: object = None,
+        engagement_repo: EngagementRepositoryProtocol | None = None,
+        scope_repo: ScopeRepositoryProtocol | None = None,
         artifact_repo: object = None,
         execution_repo: object = None,
         target_repo: object = None,
@@ -105,7 +114,7 @@ def load_services(
     storage: object,
     registry: Registry,
     presets_dirs: tuple[str, ...] = (),
-    engine: object | None = None,
+    engine: PresetEngine | None = None,
 ) -> ApplicationServices:
     """Build production services backed by SQLAlchemy repositories.
 
