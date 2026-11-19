@@ -68,7 +68,10 @@ class ActionDetailsView(BaseView):
 
         dto = self._dto
         check = self._check
-        assert dto is not None and check is not None
+        if dto is None or check is None:
+            header.update(f"Action {self._action_id}")
+            body.update("Action details are unavailable.")
+            return
         header.update(
             f"{dto.id}  (v{dto.version})  |  {dto.category}  |  risk: {dto.risk}  |  "
             f"executor: {dto.executor_kind}"
