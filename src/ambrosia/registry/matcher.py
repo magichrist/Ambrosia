@@ -353,8 +353,15 @@ def _matching_artifacts(
 
 
 def _predicate_matches(artifact: Artifact, where: dict[str, object]) -> bool:
-    for key, value in where.items():
-        if artifact.value.get(key) != value:
+    value = artifact.value
+    for key, expected in where.items():
+        if isinstance(value, dict):
+            actual = value.get(key)
+        else:
+            # Typed artifact wrappers expose their payload as a Pydantic model,
+            # not a dict. Read the field by attribute name instead.
+            actual = getattr(value, key, None)
+        if actual != expected:
             return False
     return True
 
