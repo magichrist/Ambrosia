@@ -15,6 +15,7 @@ launches subprocesses.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from textual.app import App, ComposeResult
@@ -47,6 +48,8 @@ from ambrosia.tui.widgets.status_bar import StatusBar
 
 if TYPE_CHECKING:
     from ambrosia.tui.views.base import BaseView
+
+logger = logging.getLogger(__name__)
 
 VIEW_DASHBOARD = "dashboard"
 VIEW_ENGAGEMENTS = "engagements"
@@ -190,8 +193,8 @@ class AmbrosiaApp(App[None]):
             return
         try:
             view.refresh_view()
-        except Exception:  # pragma: no cover - defensive
-            pass
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("Failed to refresh active view: %s", exc)
 
     # ------------------------------------------------------------------ navigation
 
