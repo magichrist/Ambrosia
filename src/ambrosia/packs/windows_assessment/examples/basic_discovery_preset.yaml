@@ -1,0 +1,69 @@
+# Example preset: bounded read-only Windows service discovery.
+#
+# This preset runs Nmap service discovery on an explicitly in-scope target and
+# records which follow-up actions each discovered service would suggest. It is
+# documentation of the artifact -> action suggestion chain; the preset engine
+# (Agent 4) validates and runs ambrosia/v1 presets.
+#
+# Suggestion chain implemented by action required_artifacts (same_target):
+#
+#   network.service smb       -> windows.smb.configuration_audit
+#   network.service ldap      -> windows.ldap.domain_inventory
+#   network.service http      -> windows.http.method_observation
+#   network.service rdp       -> windows.rdp.exposure_observation
+#   network.service winrm     -> windows.winrm.exposure_observation
+#
+# windows.smb.configuration_audit additionally produces windows.domain and
+# windows.host_role artifacts that can unlock domain-level actions in future
+# packs.
+
+api_version: ambrosia/v1
+kind: preset
+metadata:
+  id: windows.basic-discovery
+  name: Windows Basic Discovery
+  version: 1.0.0
+  description: >
+    Bounded read-only service discovery on an in-scope Windows target.
+    Discovers SMB, LDAP, HTTP, RDP, and WinRM services and emits typed
+    artifacts that surface follow-up configuration-assessment actions.
+  tags: [discovery, windows, read-only]
+  author: ambrosia
+
+phase_refs:
+  - windows.discovery
+
+inputs:
+  target:
+    type: target.host
+    required: true
+    description: In-scope target host or IP address.
+  ports:
+    type: port_list
+    required: false
+    default: "80,443,445,3389,5985"
+    description: Comma-separated port list to scan.
+
+steps:
+  - id: discover
+    action: network.nmap.service_discovery
+    inputs:
+      target: "{{ inputs.target }}"
+      ports: "{{ inputs.ports }}"
+    outputs:
+      services: artifacts.network.services
+
+  - id: suggest_followups
+    type: output
+    name: suggested_actions
+    value:
+      - condition: artifact type network.service with service_name == smb exists on target
+        action: windows.smb.configuration_audit
+      - condition: artifact type network.service with service_name == ldap exists on target
+        action: windows.ldap.domain_inventory
+      - condition: artifact type network.service with service_name == http exists on target
+        action: windows.http.method_observation
+      - condition: artifact type network.service with service_name == rdp exists on target
+        action: windows.rdp.exposure_observation
+      - condition: artifact type network.service with service_name == winrm exists on target
+        action: windows.winrm.exposure_observation
