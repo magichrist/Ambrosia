@@ -11,10 +11,13 @@ from __future__ import annotations
 import ipaddress
 import socket
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from ambrosia.domain.errors import ScopeViolationError
-from ambrosia.domain.models import Scope
+
+if TYPE_CHECKING:
+    from ambrosia.domain.models import Scope
 
 
 def _utc_now_naive() -> datetime:
@@ -208,7 +211,7 @@ class ScopeChecker:
         before the address check (the DNS resolution boundary).
         """
         if self.is_expired(scope, now=now):
-            raise ScopeViolationError(
+            raise ScopeViolationError(  # noqa: TRY003
                 f"engagement scope {scope.id} has expired",
                 details={
                     "scope_id": scope.id,
@@ -234,7 +237,7 @@ class ScopeChecker:
             )
 
         if port is not None and not self.is_port_allowed(port, scope):
-            raise ScopeViolationError(
+            raise ScopeViolationError(  # noqa: TRY003
                 f"port {port} is not allowed by scope",
                 details={
                     "port": port,
