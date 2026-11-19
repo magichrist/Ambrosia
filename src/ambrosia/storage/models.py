@@ -11,7 +11,8 @@ storage-specific repository methods; they are not ORM instances.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -27,9 +28,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ambrosia.storage.base import Base, JSONType, utc_now
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 
 def _new_id() -> str:
