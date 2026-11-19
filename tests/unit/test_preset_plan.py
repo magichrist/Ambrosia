@@ -5,6 +5,12 @@
 from __future__ import annotations
 
 from ambrosia.domain.action import ActionDefinition, ExecutorReference
+from ambrosia.domain.preset import (
+    PresetDefinition,
+    PresetInput,
+    PresetMetadata,
+    PresetStep,
+)
 from ambrosia.presets.errors import (
     CyclicDependencyError,
     DuplicateStepIdError,
@@ -13,12 +19,6 @@ from ambrosia.presets.errors import (
     UnresolvedActionError,
 )
 from ambrosia.presets.plan import build_plan
-from ambrosia.domain.preset import (
-    PresetDefinition,
-    PresetMetadata,
-    PresetInput,
-    PresetStep,
-)
 from ambrosia.registry import Registry
 
 
@@ -94,7 +94,7 @@ def test_duplicate_step_ids_rejected() -> None:
     except DuplicateStepIdError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected DuplicateStepIdError")
+        raise AssertionError()
 
 
 def test_cyclic_dependency_rejected() -> None:
@@ -104,7 +104,7 @@ def test_cyclic_dependency_rejected() -> None:
     except CyclicDependencyError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected CyclicDependencyError")
+        raise AssertionError()
 
 
 def test_self_dependency_via_output_reference_is_cycle() -> None:
@@ -116,7 +116,7 @@ def test_self_dependency_via_output_reference_is_cycle() -> None:
     except CyclicDependencyError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected CyclicDependencyError")
+        raise AssertionError()
 
 
 def test_unresolved_action_rejected() -> None:
@@ -126,7 +126,7 @@ def test_unresolved_action_rejected() -> None:
     except UnresolvedActionError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected UnresolvedActionError")
+        raise AssertionError()
 
 
 def test_condition_without_predicate_rejected() -> None:
@@ -136,7 +136,7 @@ def test_condition_without_predicate_rejected() -> None:
     except InvalidPredicateError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidPredicateError")
+        raise AssertionError()
 
 
 def test_non_action_step_rejects_action() -> None:
@@ -146,7 +146,7 @@ def test_non_action_step_rejects_action() -> None:
     except InvalidReferenceError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidReferenceError")
+        raise AssertionError()
 
 
 def test_unknown_needs_rejected() -> None:
@@ -156,7 +156,7 @@ def test_unknown_needs_rejected() -> None:
     except InvalidReferenceError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidReferenceError")
+        raise AssertionError()
 
 
 def test_topological_order_deterministic_and_tie_broken_by_declaration() -> None:
@@ -252,7 +252,7 @@ def test_branch_to_unknown_step_rejected() -> None:
     except InvalidReferenceError:
         pass
     else:  # pragma: no cover - failure path
-        raise AssertionError("expected InvalidReferenceError")
+        raise AssertionError()
 
 
 def test_empty_preset_is_valid() -> None:
