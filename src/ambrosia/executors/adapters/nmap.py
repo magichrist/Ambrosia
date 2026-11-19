@@ -72,7 +72,9 @@ class NmapAdapter(ToolAdapter):
         if not stdout or not stdout.strip():
             return NmapParseResult()
         try:
-            root = ET.fromstring(stdout)
+            # Nmap XML is emitted by the locally invoked nmap binary, not by an
+            # untrusted remote party; stdlib ElementTree does not resolve external entities.
+            root = ET.fromstring(stdout)  # noqa: S314
         except ET.ParseError as exc:
             message = f"nmap XML output is not well-formed: {exc}"
             raise ValueError(message) from exc
