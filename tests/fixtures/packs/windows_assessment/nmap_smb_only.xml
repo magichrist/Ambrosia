@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -oX - -Pn -sV -p 445 10.0.0.20" start="1234567890" startstr="Thu Nov 19 00:00:00 2026" version="7.90" xmloutputversion="1.04">
+  <scaninfo type="syn" protocol="tcp" numservices="1" services="445"/>
+  <verbose level="0"/>
+  <debugging level="0"/>
+  <host starttime="1234567890" endtime="1234567895">
+    <status state="up" reason="syn-ack"/>
+    <address addr="10.0.0.20" addrtype="ipv4"/>
+    <hostnames><hostname name="fs01.contoso.local" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="smb" product="Samba" version="4.15" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2022 Datacenter (Windows Server 2022 Datacenter 21H2)
+Computer name: FS01
+NetBIOS computer name: FS01
+Domain name: CONTOSO.LOCAL
+Forest name: CONTOSO.LOCAL
+FQDN: FS01.contoso.local
+"/><script id="smb-protocols" output="1.0&lt;br /&gt;2.0&lt;br /&gt;2.1&lt;br /&gt;3.0&lt;br /&gt;3.11&lt;br /&gt;"/></port>
+    </ports>
+    <os><osmatch name="Windows Server 2022 Datacenter (domain controller)" accuracy="100"/></os>
+  </host>
+  <runstats><finished time="1234567895" elapsed="5.00" summary="Nmap done: 1 IP address (1 host up) scanned in 5.00 seconds" hostsup="1" hostsdown="0" totalhosts="1"/></runstats>
+</nmaprun>
