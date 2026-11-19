@@ -11,18 +11,28 @@ should delegate to it; the service interface (`check_action`) stays unchanged.
 
 from __future__ import annotations
 
-from typing import cast
+from contextlib import AbstractContextManager, nullcontext
+from typing import TYPE_CHECKING, cast
 
-from ambrosia.domain.errors import NotFoundError, ScopeViolationError
-from ambrosia.domain.models import Scope
-from ambrosia.domain.protocols import (
-    ArtifactRepository as ArtifactRepositoryProtocol,
-    EngagementRepository as EngagementRepositoryProtocol,
-    ScopeRepository as ScopeRepositoryProtocol,
-)
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 from ambrosia.application._base import _BaseService
+from ambrosia.domain.errors import NotFoundError, ScopeViolationError
 from ambrosia.registry import AvailabilityMatcher, PolicySnapshot, Registry
 from ambrosia.registry.models import ContextSnapshot as RegistryContextSnapshot
+
+if TYPE_CHECKING:
+    from ambrosia.domain.models import Scope
+    from ambrosia.domain.protocols import (
+        ArtifactRepository as ArtifactRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        EngagementRepository as EngagementRepositoryProtocol,
+    )
+    from ambrosia.domain.protocols import (
+        ScopeRepository as ScopeRepositoryProtocol,
+    )
 
 
 class PolicyGateway(_BaseService):
@@ -43,7 +53,7 @@ class PolicyGateway(_BaseService):
     def __init__(
         self,
         *,
-        session_scope: ContextManager[object | None] = nullcontext,
+        session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
         registry: Registry,
         engagement_repository: EngagementRepositoryProtocol | None = None,
         scope_repository: ScopeRepositoryProtocol | None = None,
@@ -73,16 +83,17 @@ class PolicyGateway(_BaseService):
         Raises typed domain errors on policy/scope blocks instead of returning
         a ``blocked`` availability, so CLI and TUI cannot forget to handle them.
         """
-        from ambrosia.domain.action import ActionAvailability  # noqa: PLC0415
 
         definition = self._registry.get(action_id)
         if definition is None:
-            raise NotFoundError(f"action {action_id!r} is not registered")
+            raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                f"action {action_id!r} is not registered"
+            )
 
         with self._session() as session:
             scope = self._scope_for(session, engagement_id)
             if scope is None and (definition.scope_fields or definition.effects):
-                raise ScopeViolationError(
+                raise ScopeViolationError(  # noqa: TRY003 - operator-facing message
                     "no scope is defined for this engagement; "
                     "action requires scope authorization",
                     details={"action_id": action_id, "engagement_id": engagement_id},
@@ -92,8 +103,8 @@ class PolicyGateway(_BaseService):
             if target_address is not None:
                 selected_target = {"address": target_address}
 
-            artifact_repo = cast(
-                ArtifactRepositoryProtocol, self._repo("artifact_repo", session)
+            artifact_repo = cast(  # noqa: TC001
+                "ArtifactRepositoryProtocol", self._repo("artifact_repo", session)
             )
             snapshot = RegistryContextSnapshot(
                 engagement_id=engagement_id,
@@ -106,7 +117,11 @@ class PolicyGateway(_BaseService):
                 available_tools=available_tools,
                 platform="current",
             )
-            policy = PolicySnapshot.from_scope(scope) if scope is not None else PolicySnapshot()
+            policy = (
+                PolicySnapshot.from_scope(scope)
+                if scope is not None
+                else PolicySnapshot()
+            )
 
         availability = self._matcher.evaluate(action_id, snapshot, policy)
         self._raise_on_blocked(availability, action_id, engagement_id)
@@ -114,16 +129,22 @@ class PolicyGateway(_BaseService):
 
     # ------------------------------------------------------------------ internals
 
-    def _scope_for(self, session: object | None, engagement_id: str) -> Scope | None:
-        engagement_repo = cast(
-            EngagementRepositoryProtocol, self._repo("engagement_repo", session)
+    def _scope_for(
+        self, session: object | None, engagement_id: str
+    ) -> Scope | None:
+        engagement_repo = cast(  # noqa: TC001
+            "EngagementRepositoryProtocol", self._repo("engagement_repo", session)
         )
         engagement = engagement_repo.get(engagement_id)
         if engagement is None:
-            raise NotFoundError(f"engagement {engagement_id!r} not found")
+            raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
+                f"engagement {engagement_id!r} not found"
+            )
         if engagement.scope_id is None:
             return None
-        scope_repo = cast(ScopeRepositoryProtocol, self._repo("scope_repo", session))
+        scope_repo = cast(  # noqa: TC001
+            "ScopeRepositoryProtocol", self._repo("scope_repo", session)
+        )
         return scope_repo.get_for_engagement(engagement_id)
 
     @staticmethod
@@ -159,23 +180,25 @@ class PolicyGateway(_BaseService):
         }
         if status == "blocked":
             # Distinguish scope violations from other policy blocks.
-            for reason in availability.reasons:
-                if "scope" in reason.lower():
-                    raise ScopeViolationError(
-                        "target is outside the authorized engagement scope",
-                        details=details,
-                    )
-            raise PolicyBlockedError(
+            if any(
+                reason.startswith("blocked by scope")
+                for reason in availability.reasons
+            ):
+                raise ScopeViolationError(  # noqa: TRY003 - operator-facing message
+                    "target is outside the authorized engagement scope",
+                    details=details,
+                )
+            raise PolicyBlockedError(  # noqa: TRY003 - operator-facing message
                 "execution is blocked by policy",
                 details=details,
             )
         if status == "missing_dependency":
-            raise MissingDependencyError(
+            raise MissingDependencyError(  # noqa: TRY003 - operator-facing message
                 "a required dependency is unavailable",
                 details=details,
             )
         if status == "needs_approval":
-            raise PolicyBlockedError(
+            raise PolicyBlockedError(  # noqa: TRY003 - operator-facing message
                 "approval is required before execution",
                 details={**details, "required_approval": True},
             )
