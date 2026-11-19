@@ -4,13 +4,17 @@
 
 from __future__ import annotations
 
-from ambrosia.domain.errors import ParseError
+from typing import TYPE_CHECKING
+
 from ambrosia.domain.models import Artifact
 from ambrosia.phases import (
     PhaseCatalog,
     load_phase_file,
     load_phases_from_dir,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _artifact(artifact_id: str, artifact_type: str, value: dict[str, object]) -> Artifact:
