@@ -8,30 +8,29 @@ format the result, and return an exit code. Core business behavior lives in
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any
 
 import typer
 from pydantic import ValidationError as PydanticValidationError
 
 from ambrosia.application import (
-    ApplicationServices,
     MISSING_DEPENDENCY,
     OK,
     POLICY_BLOCKED,
     SCOPE_VIOLATION,
+    ApplicationServices,
     exit_code_for_error,
     format_json,
     load_services,
     parse_human_flag,
 )
-from ambrosia.domain.errors import MissingInputError
 from ambrosia.application.action_service import ActionCheckDTO, ActionDTO, ActionListDTO
 from ambrosia.application.engagement_service import EngagementDTO, EngagementListDTO
 from ambrosia.application.job_service import JobDTO, JobListDTO, JobShowDTO
 from ambrosia.application.preset_service import (
-    PlanStepDTO,
     PresetListDTO,
     PresetPlanDTO,
     PresetValidateDTO,
@@ -40,7 +39,7 @@ from ambrosia.application.report_service import ReportExportDTO
 from ambrosia.application.scope_service import ScopeDTO
 from ambrosia.application.target_service import TargetDTO, TargetListDTO
 from ambrosia.application.workspace import read_current_engagement, write_current_engagement
-from ambrosia.domain.errors import AmbrosiaError
+from ambrosia.domain.errors import AmbrosiaError, MissingInputError
 from ambrosia.storage import Storage, StorageConfig
 
 # Lazy service handle: real services are built on first use so the CLI can be
@@ -81,10 +80,7 @@ def set_services(services: ApplicationServices) -> None:
     _services = services
 
 
-F = TypeVar("F", bound=Callable[..., Any])
-
-
-def command(func: F) -> F:
+def command[F: Callable[..., Any]](func: F) -> F:
     """Decorator: run a service call, format output, return an exit code.
 
     The decorated function returns a presentation payload (or a
@@ -96,7 +92,7 @@ def command(func: F) -> F:
     def wrapper(*args: object, **kwargs: object) -> None:
         output = parse_human_flag(kwargs.pop("output", "human"))  # type: ignore[arg-type]
         try:
-            outcome = func(*args, **kwargs)  # type: ignore[misc]
+            outcome = func(*args, **kwargs)
         except (AmbrosiaError, PydanticValidationError) as exc:
             _fail(exc, output)
         if isinstance(outcome, tuple):
@@ -151,7 +147,7 @@ def _resolve_engagement(explicit: str | None) -> str:
     current = read_current_engagement()
     if current is not None:
         return current
-    raise MissingInputError(
+    raise MissingInputError(  # noqa: TRY003 - operator-facing message
         "no engagement selected; pass --engagement or run "
         "`ambrosia engagement use <id>`"
     )
@@ -521,7 +517,7 @@ def _check_exit_code(availability: ActionCheckDTO) -> int:
     if availability.status == "missing_dependency":
         return MISSING_DEPENDENCY
     if availability.status == "blocked":
-        if any("scope" in reason.lower() for reason in availability.reasons):
+        if any(reason.startswith("blocked by scope") for reason in availability.reasons):
             return SCOPE_VIOLATION
         return POLICY_BLOCKED
     return POLICY_BLOCKED  # needs_approval / needs_input treated as blocked for automation
