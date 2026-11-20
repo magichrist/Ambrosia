@@ -136,9 +136,7 @@ def _validate_and_parse_steps(
 ) -> dict[str, StepNode]:
     step_ids = [step.id for step in definition.steps]
     if len(step_ids) != len(set(step_ids)):
-        duplicates = sorted(
-            step_id for step_id in step_ids if step_ids.count(step_id) > 1
-        )
+        duplicates = sorted(step_id for step_id in step_ids if step_ids.count(step_id) > 1)
         raise DuplicateStepIdError(  # noqa: TRY003
             f"duplicate step ids: {', '.join(duplicates)}"
         )
@@ -170,8 +168,7 @@ def _validate_and_parse_steps(
                 dep = step_id_from_steps_reference(binding.reference)
                 if dep not in known:
                     raise InvalidReferenceError(  # noqa: TRY003
-                        f"step {step.id!r} references outputs of unknown "
-                        f"step {dep!r}"
+                        f"step {step.id!r} references outputs of unknown step {dep!r}"
                     )
                 if dep == step.id:
                     raise CyclicDependencyError(  # noqa: TRY003
@@ -193,8 +190,7 @@ def _validate_and_parse_steps(
                     )
                 if branch_step_id in gated_by:
                     raise InvalidReferenceError(  # noqa: TRY003
-                        f"step {branch_step_id!r} is in branches of multiple "
-                        f"conditions"
+                        f"step {branch_step_id!r} is in branches of multiple conditions"
                     )
                 gated_by[branch_step_id] = step.id
         output_implicit[step.id] = implicit
@@ -205,9 +201,7 @@ def _validate_and_parse_steps(
         if step_id in gated_by and gated_by[step_id] not in needs:
             needs.append(gated_by[step_id])
         if output_implicit[step_id] or step_id in gated_by:
-            nodes[step_id] = replace(
-                step, needs=tuple(needs), gated_by=gated_by.get(step_id)
-            )
+            nodes[step_id] = replace(step, needs=tuple(needs), gated_by=gated_by.get(step_id))
 
     return nodes
 
@@ -274,9 +268,7 @@ def _parse_binding(value: object) -> Binding:
         if "{{" in value or "}}" in value:
             # Only a complete {{...}} token may be substituted; free-form
             # interpolation is rejected.
-            return Binding(
-                kind="reference", reference=parse_reference(value)
-            )
+            return Binding(kind="reference", reference=parse_reference(value))
         return Binding(kind="literal", value=value)
     return Binding(kind="literal", value=value)
 
@@ -284,9 +276,7 @@ def _parse_binding(value: object) -> Binding:
 def _topological_order(steps: dict[str, StepNode]) -> tuple[str, ...]:
     """Kahn's algorithm with declaration-order tie-breaking (deterministic)."""
 
-    declaration_index = {
-        step_id: index for index, step_id in enumerate(steps)
-    }
+    declaration_index = {step_id: index for index, step_id in enumerate(steps)}
     incoming: dict[str, set[str]] = {step_id: set() for step_id in steps}
     dependents: dict[str, list[str]] = {step_id: [] for step_id in steps}
     for step_id, step in steps.items():
@@ -297,9 +287,7 @@ def _topological_order(steps: dict[str, StepNode]) -> tuple[str, ...]:
                 incoming[step_id].add(dependency)
                 dependents[dependency].append(step_id)
 
-    ready: list[str] = [
-        step_id for step_id in steps if not incoming[step_id]
-    ]
+    ready: list[str] = [step_id for step_id in steps if not incoming[step_id]]
     order: list[str] = []
     while ready:
         ready.sort(key=lambda sid: declaration_index[sid])
