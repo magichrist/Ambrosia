@@ -34,6 +34,12 @@ class ConfirmDialog(ModalScreen[bool]):
         else:
             self.dismiss(False)
 
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(False)
+            event.prevent_default()
+            event.stop()
+
 
 class HelpModal(ModalScreen[None]):
     """Keyboard reference."""
@@ -58,9 +64,12 @@ class HelpModal(ModalScreen[None]):
             yield Static(
                 "/   global search / command palette\n"
                 "Tab move between regions (context, content, activity)\n"
-                "Enter open / select\n"
+                "Enter open / select highlighted item\n"
                 "Esc   back / close modal\n"
-                "g   engagement switcher\n"
+                "g   engagement switcher      r   refresh suggestions\n"
+                "t   target / scope view       p   preset browser\n"
+                "j   job monitor               f   findings\n"
+                "a   artifact browser\n"
                 "?   show this help\n"
                 "q   quit (confirm if jobs are active)\n",
                 id="help-text",
@@ -70,6 +79,12 @@ class HelpModal(ModalScreen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close":
             self.dismiss()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+            event.prevent_default()
+            event.stop()
 
 
 class DetailModal(ModalScreen[None]):
@@ -103,6 +118,12 @@ class DetailModal(ModalScreen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close":
             self.dismiss()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+            event.prevent_default()
+            event.stop()
 
 
 class InputFormModal(ModalScreen[dict[str, str] | None]):
@@ -159,6 +180,7 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
         if event.key == "escape":
             self.dismiss(None)
             event.prevent_default()
+            event.stop()
 
 
 __all__ = ["ConfirmDialog", "HelpModal", "InputFormModal"]
