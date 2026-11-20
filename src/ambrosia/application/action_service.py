@@ -172,9 +172,7 @@ class ActionService(_BaseService):
                 "EngagementRepositoryProtocol",
                 self._repos.get("engagement_repo"),
             ),
-            scope_repository=cast(
-                "ScopeRepositoryProtocol", self._repos.get("scope_repo")
-            ),
+            scope_repository=cast("ScopeRepositoryProtocol", self._repos.get("scope_repo")),
             artifact_repository=cast(
                 "ArtifactRepositoryProtocol", self._repos.get("artifact_repo")
             ),
@@ -198,9 +196,7 @@ class ActionService(_BaseService):
                 "ArtifactRepositoryProtocol",
                 self._repo("artifact_repo", session),
             )
-            scope_repo = cast(
-                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
-            )
+            scope_repo = cast("ScopeRepositoryProtocol", self._repo("scope_repo", session))
             artifacts = tuple(artifact_repo.list_for_engagement(engagement_id))
             scope = scope_repo.get_for_engagement(engagement_id)
         selected_target: dict[str, object] | None = None
@@ -224,9 +220,7 @@ class ActionService(_BaseService):
 
     def _policy_snapshot(self, engagement_id: str) -> PolicySnapshot:
         with self._session() as session:
-            scope_repo = cast(
-                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
-            )
+            scope_repo = cast("ScopeRepositoryProtocol", self._repo("scope_repo", session))
             scope = scope_repo.get_for_engagement(engagement_id)
         if scope is None:
             from ambrosia.domain.models import Scope
