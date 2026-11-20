@@ -62,6 +62,7 @@ def _action(**overrides) -> ActionDefinition:
 # ---------------------------------------------------------------------------
 # Scope include/exclude
 
+
 def test_include_exact_ip() -> None:
     checker = ScopeChecker()
     assert checker.is_address_in_scope("10.0.0.1", _scope()).in_scope is True
@@ -99,13 +100,12 @@ def test_empty_scope_allows_nothing() -> None:
 # ---------------------------------------------------------------------------
 # Expiry
 
+
 def test_scope_expiry_blocks() -> None:
     checker = ScopeChecker()
     past = datetime.utcnow() - timedelta(days=1)
     with pytest.raises(ScopeViolationError):
-        checker.check_target(
-            "10.0.0.1", scope=_scope(expires_at=past)
-        )
+        checker.check_target("10.0.0.1", scope=_scope(expires_at=past))
 
 
 def test_scope_future_not_expired() -> None:
@@ -116,6 +116,7 @@ def test_scope_future_not_expired() -> None:
 
 # ---------------------------------------------------------------------------
 # Target outside scope blocked on every path
+
 
 def test_outside_scope_blocked_by_check_target() -> None:
     checker = ScopeChecker()
@@ -151,6 +152,7 @@ def test_outside_scope_blocked_by_dry_run() -> None:
 
 # ---------------------------------------------------------------------------
 # Policy effects and approval transitions
+
 
 def test_effect_classification_allowed() -> None:
     classifier = EffectClassifier()
