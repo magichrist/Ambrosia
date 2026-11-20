@@ -1,17 +1,12 @@
 Metadata-Version: 2.4
 Name: ambrosia
 Version: 0.1.0
-Summary: Context-driven automation workbench for authorized Windows and Active Directory security assessment
+Summary: Fast TUI-first command launcher and executor workbench for authorized use
 Author: Ambrosia
 Requires-Python: >=3.12
 License-File: LICENSE
 Requires-Dist: textual<1,>=0.86
 Requires-Dist: typer[all]<1,>=0.12
-Requires-Dist: pydantic<3,>=2.10
-Requires-Dist: pydantic-settings<3,>=2.4
-Requires-Dist: sqlalchemy<3,>=2.0
-Requires-Dist: alembic<2,>=1.13
-Requires-Dist: pyyaml<8,>=6
 Provides-Extra: dev
 Requires-Dist: pytest<10,>=8; extra == "dev"
 Requires-Dist: pytest-asyncio<1,>=0.24; extra == "dev"
