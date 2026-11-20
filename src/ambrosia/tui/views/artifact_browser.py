@@ -32,14 +32,21 @@ class ArtifactBrowserView(BaseView):
             yield Button("Back", id="back-artifacts")
 
     def on_mount(self) -> None:
-        self.refresh_view()
+        # Defer until composed children are available in the DOM.
+        self.call_after_refresh(self.safe_refresh)
 
-    def refresh_view(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "refresh-artifacts":
+            self.call_after_refresh(self.safe_refresh)
+        elif event.button.id == "back-artifacts":
+            self.workspace.action_go_back()
+
+    async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
         body = self.query_one("#artifacts-body", Static)
         artifact_list = self.query_one("#artifacts-list", ListView)
-        artifact_list.clear()
+        await artifact_list.clear()
         self._artifacts = []
         if not engagement_id:
             body.update("No engagement selected.")
@@ -51,7 +58,7 @@ class ArtifactBrowserView(BaseView):
             return
         for artifact in self._artifacts:
             label = f"{artifact.id[:8]}  {artifact.type}  target={artifact.target_ref or '-'}"
-            artifact_list.append(ListItem(Static(label), id=artifact.id))
+            await artifact_list.append(ListItem(Static(label), id=artifact.id))
         if not self._artifacts:
             body.update("No artifacts yet. Run actions to produce typed evidence.")
         else:
