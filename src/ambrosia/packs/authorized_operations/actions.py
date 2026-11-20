@@ -229,6 +229,66 @@ NTLM_RELAY = _definition(
     risk="critical",
 )
 
+ASREP_ROAST = _definition(
+    action_id="windows.ad.asrep_roast",
+    name="AD AS-REP roast (authorized)",
+    description=(
+        "Enumerate AS-REP roastable accounts with an installed Impacket GetNPUsers.py "
+        "against an in-scope domain controller. Requires an authorization reference."
+    ),
+    executable="GetNPUsers.py",
+    properties=_properties(
+        target=_TARGET,
+        domain=_DOMAIN,
+        username=_USERNAME,
+        password=_PASSWORD,
+    ),
+    required=["target", "domain", "authorization_reference"],
+    effects=["credential_access"],
+    scope_fields=["target"],
+    risk="critical",
+)
+
+KERBEROAST = _definition(
+    action_id="windows.ad.kerberoast",
+    name="AD Kerberoast (authorized)",
+    description=(
+        "Request service tickets for offline analysis with an installed Impacket "
+        "GetUserSPNs.py against an in-scope domain controller. Requires an authorization reference."
+    ),
+    executable="GetUserSPNs.py",
+    properties=_properties(
+        target=_TARGET,
+        domain=_DOMAIN,
+        username=_USERNAME,
+        password=_PASSWORD,
+    ),
+    required=["target", "authorization_reference"],
+    effects=["credential_access"],
+    scope_fields=["target"],
+    risk="critical",
+)
+
+SID_ENUM = _definition(
+    action_id="windows.ad.sid_enumeration",
+    name="AD SID enumeration (authorized)",
+    description=(
+        "Enumerate domain principals and SIDs with an installed Impacket lookupsid.py "
+        "against an in-scope host. Requires an authorization reference."
+    ),
+    executable="lookupsid.py",
+    properties=_properties(
+        target=_TARGET,
+        username=_USERNAME,
+        password=_PASSWORD,
+        domain=_DOMAIN,
+    ),
+    required=["target", "authorization_reference"],
+    effects=["authentication", "remote_read"],
+    scope_fields=["target"],
+    risk="high",
+)
+
 ALL_ACTIONS: tuple[ActionDefinition, ...] = (
     SECRETSDUMP,
     SAMDUMP2,
@@ -236,6 +296,9 @@ ALL_ACTIONS: tuple[ActionDefinition, ...] = (
     NETEXEC_EXEC,
     PSEXEC,
     DOMAIN_ENUM,
+    ASREP_ROAST,
+    KERBEROAST,
+    SID_ENUM,
     NTLM_RELAY,
 )
 
