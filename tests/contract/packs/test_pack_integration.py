@@ -153,7 +153,7 @@ def test_pack_loads_and_matches_before_and_after_artifacts() -> None:
         )
         for d in drafts
     ]
-    smb_artifacts = [a for a in artifacts if a.value.service_name == "smb"]
+    smb_artifacts = [a for a in artifacts if a.value.service_name == "microsoft-ds"]
     assert len(smb_artifacts) == 1
 
     # After discovery: the SMB audit action becomes applicable on the same
