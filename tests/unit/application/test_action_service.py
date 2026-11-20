@@ -172,9 +172,7 @@ def test_check_policy_blocked_effect() -> None:
         scope_repo=scope_repo,
         artifact_repo=FakeArtifactRepository(),
     )
-    result = service.check(
-        "test.remote_change", engagement_id="eng-1", target_address="10.0.0.1"
-    )
+    result = service.check("test.remote_change", engagement_id="eng-1", target_address="10.0.0.1")
     assert result.allowed is False
     assert result.status == "blocked"
 
@@ -188,8 +186,6 @@ def test_check_missing_dependency() -> None:
         scope_repo=scope_repo,
         artifact_repo=FakeArtifactRepository(),
     )
-    result = service.check(
-        "test.missing_dep", engagement_id="eng-1", target_address="10.0.0.1"
-    )
+    result = service.check("test.missing_dep", engagement_id="eng-1", target_address="10.0.0.1")
     assert result.allowed is False
     assert result.status == "missing_dependency"
