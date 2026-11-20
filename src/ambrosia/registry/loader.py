@@ -15,6 +15,8 @@ import yaml  # type: ignore[import-untyped]  # types-PyYAML stubs are not a proj
 if TYPE_CHECKING:
     from typing import Any
 
+    from ambrosia.registry import Registry
+
 from ambrosia.domain.action import ActionDefinition
 from ambrosia.domain.errors import ParseError
 from ambrosia.registry.errors import ManifestValidationError
@@ -107,7 +109,28 @@ def load_pack_from_file(path: str | Path) -> list[ActionDefinition]:
     return load_pack_from_mapping(data, source=source)
 
 
+def build_registry() -> Registry:
+    """Build the production registry with built-in actions and built-in packs.
+
+    This is the single startup path used by the CLI and TUI so that domain packs
+    (notably the Windows assessment pack) are registered in every real
+    application. Registration is metadata-only: registering an action or pack
+    never executes a tool, resolves a secret, or runs an assessment.
+    """
+    # Imported lazily to avoid a cycle: the Windows pack imports ``Registry``
+    # from ``ambrosia.registry`` at module import time.
+    from ambrosia.actions.builtins import register_builtins
+    from ambrosia.packs.windows_assessment import register_pack
+    from ambrosia.registry import Registry
+
+    registry = Registry()
+    register_builtins(registry)
+    register_pack(registry)
+    return registry
+
+
 __all__ = [
+    "build_registry",
     "load_definition_from_mapping",
     "load_definition_from_file",
     "load_pack_from_mapping",
