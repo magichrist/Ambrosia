@@ -164,8 +164,12 @@ def execution_to_orm(execution: ExecutionRecord) -> ExecutionORM:
         preset_id=execution.preset_id,
         created_at=utc_now(),
         status=execution.status,
-        started_at=to_storage_dt(execution.started_at) if execution.started_at is not None else None,
-        finished_at=to_storage_dt(execution.finished_at) if execution.finished_at is not None else None,
+        started_at=to_storage_dt(execution.started_at)
+        if execution.started_at is not None
+        else None,
+        finished_at=to_storage_dt(execution.finished_at)
+        if execution.finished_at is not None
+        else None,
         target_refs=list(execution.target_refs),
         input_summary=dict(execution.input_summary),
         output_artifact_ids=list(execution.output_artifact_ids),
@@ -193,7 +197,9 @@ def execution_from_orm(orm: ExecutionORM) -> ExecutionRecord:
     )
 
 
-def execution_event_to_orm(execution_id: str, kind: str, payload: dict[str, object], sequence: int) -> ExecutionEventORM:
+def execution_event_to_orm(
+    execution_id: str, kind: str, payload: dict[str, object], sequence: int
+) -> ExecutionEventORM:
     return ExecutionEventORM(
         execution_id=execution_id,
         kind=kind,
@@ -201,7 +207,6 @@ def execution_event_to_orm(execution_id: str, kind: str, payload: dict[str, obje
         timestamp=utc_now(),
         sequence=sequence,
     )
-
 
 
 def target_from_orm(orm: TargetORM) -> TargetRecord:
@@ -259,6 +264,3 @@ def evidence_metadata_from_orm(orm: EvidenceMetadataORM) -> EvidenceMetadataReco
         size=orm.size,
         created_at=cast("datetime", from_storage_dt(orm.created_at)),
     )
-
-
-
