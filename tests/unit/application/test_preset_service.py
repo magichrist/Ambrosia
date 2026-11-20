@@ -74,6 +74,63 @@ def test_list_reports_loadable_presets(tmp_path) -> None:
     assert [d.id for d in dtos.presets] == ["test.valid-preset"]
 
 
+BRANCH_PRESET = """api_version: ambrosia/v1
+kind: preset
+metadata:
+  id: test.branch-preset
+  name: Branch Preset
+  version: 1.0.0
+  description: A preset that uses engine-level condition branches.
+steps:
+  - id: discover
+    action: core.echo
+    inputs:
+      message: hello
+    outputs:
+      services: { source: "{{ steps.discover.outputs.echo }}" }
+  - id: suggest
+    type: condition
+    when:
+      kind: input_present
+      input: target
+    then: [publish]
+  - id: publish
+    type: output
+    outputs:
+      next_actions: { source: "{{ steps.suggest.outputs.result }}" }
+"""
+
+
+def test_list_reports_branch_presets(tmp_path) -> None:
+    """SHIPPED-PRESET REGRESSION: ``then``/``else`` are engine keys, not typos.
+
+    Both bundled presets use condition branches. The service used to validate
+    raw YAML against the strict domain model and reject them with
+    ``extra_forbidden`` on ``steps.<n>.then``, so ``preset list``/validate/plan
+    could never see a real shipped preset.
+    """
+    _write_preset(tmp_path, "branch", BRANCH_PRESET)
+    service = _make_service(tmp_path, _make_registry())
+    assert [d.id for d in service.list().presets] == ["test.branch-preset"]
+
+
+def test_validate_accepts_branch_preset(tmp_path) -> None:
+    path = _write_preset(tmp_path, "branch", BRANCH_PRESET)
+    result = _make_service(tmp_path, _make_registry()).validate(path)
+    assert result.valid is True
+    assert result.errors == []
+    assert result.step_count == 3
+
+
+def test_plan_accepts_branch_preset(tmp_path) -> None:
+    _write_preset(tmp_path, "branch", BRANCH_PRESET)
+    plan = _make_service(tmp_path, _make_registry()).plan("test.branch-preset")
+    # The service plan is a simplified, needs-only view; branch gating is
+    # applied by the real PresetLoader at execution time. Assert the branch
+    # steps are present rather than their topological position.
+    assert {step.id for step in plan.steps} == {"discover", "suggest", "publish"}
+
+
 def test_validate_accepts_valid_preset(tmp_path) -> None:
     path = _write_preset(tmp_path, "valid", VALID_PRESET)
     registry = _make_registry()
