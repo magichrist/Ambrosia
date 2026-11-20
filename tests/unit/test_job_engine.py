@@ -78,6 +78,7 @@ def _engine(registry=None, execution_repository=None, concurrency_limit=2):
 # ---------------------------------------------------------------------------
 # lifecycle transitions
 
+
 def test_valid_transition_matrix() -> None:
     assert valid_transition("draft", "validated") is True
     assert valid_transition("validated", "ready") is True
@@ -139,6 +140,7 @@ async def test_validate_blocks_outside_scope() -> None:
 # ---------------------------------------------------------------------------
 # approval transitions
 
+
 @pytest.mark.asyncio
 async def test_approval_transition_awaiting_to_ready() -> None:
     engine = _engine()
@@ -177,9 +179,7 @@ async def test_approval_transition_awaiting_to_ready() -> None:
     assert record.status == "awaiting_approval"
 
     # Grant -> ready
-    await engine.grant_approval(
-        execution_id, approval_id=approval_id, decided_by="operator"
-    )
+    await engine.grant_approval(execution_id, approval_id=approval_id, decided_by="operator")
     record = engine._execution_repository.get(execution_id)
     assert record.status == "ready"
 
@@ -210,9 +210,7 @@ async def test_approval_deny_transitions_to_blocked() -> None:
     )
     await engine.validate_job(
         execution_id,
-        scope=_scope(
-            allowed_effects={"local_read", "local_write", "network_observe"}
-        ),
+        scope=_scope(allowed_effects={"local_read", "local_write", "network_observe"}),
         address="10.0.0.1",
     )
 
@@ -227,6 +225,7 @@ async def test_approval_deny_transitions_to_blocked() -> None:
 
 # ---------------------------------------------------------------------------
 # full run through fake executor
+
 
 @pytest.mark.asyncio
 async def test_run_executes_and_succeeds() -> None:
@@ -289,6 +288,7 @@ async def test_run_failure_transitions_to_failed() -> None:
 # ---------------------------------------------------------------------------
 # dry run
 
+
 @pytest.mark.asyncio
 async def test_dry_run_returns_plan_without_starting_process() -> None:
     fake = FakeExecutor()
@@ -302,9 +302,7 @@ async def test_dry_run_returns_plan_without_starting_process() -> None:
         target_refs=["10.0.0.1"],
     )
 
-    plan = await engine.dry_run(
-        execution_id, scope=_scope(), address="10.0.0.1", port=80
-    )
+    plan = await engine.dry_run(execution_id, scope=_scope(), address="10.0.0.1", port=80)
 
     assert plan["dry_run"] is True
     assert plan["action_id"] == "test.action"
@@ -324,15 +322,14 @@ async def test_dry_run_blocks_outside_scope() -> None:
         target_refs=["99.99.99.99"],
     )
 
-    plan = await engine.dry_run(
-        execution_id, scope=_scope(), address="99.99.99.99"
-    )
+    plan = await engine.dry_run(execution_id, scope=_scope(), address="99.99.99.99")
 
     assert plan["outcome"] == "blocked"
 
 
 # ---------------------------------------------------------------------------
 # concurrency limit
+
 
 @pytest.mark.asyncio
 async def test_concurrency_limit_respected() -> None:
@@ -381,6 +378,7 @@ async def test_concurrency_limit_respected() -> None:
 
 # ---------------------------------------------------------------------------
 # cannot run non-ready job
+
 
 @pytest.mark.asyncio
 async def test_run_rejects_non_ready() -> None:
