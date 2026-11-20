@@ -37,6 +37,8 @@ class ActionDetailsView(BaseView):
         yield Static(id="details-body")
         yield Label("Inputs", id="inputs-title")
         yield Input(placeholder="key=value,key2=value2", id="details-inputs")
+        yield Label("Authorization reference (required for high-impact actions)", id="auth-label")
+        yield Input(placeholder="rules-of-engagement id", id="authorization-reference")
         with Vertical():
             yield Button("Run", id="run-action", variant="primary")
             yield Button("Dry run (preview)", id="dry-run-action")
@@ -56,8 +58,9 @@ class ActionDetailsView(BaseView):
             self._open_typed_inputs()
             return
         inputs = self._collect_inputs()
+        auth_ref = self.query_one("#authorization-reference", Input).value.strip() or None
         if button_id == "run-action":
-            self.workspace.execute_action(self._action_id, inputs)
+            self.workspace.execute_action(self._action_id, inputs, authorization_reference=auth_ref)
             self.workspace.status_bar().set_status(f"queued {self._action_id}")
         elif button_id == "dry-run-action":
             self.workspace.dry_run_action(self._action_id, inputs)
