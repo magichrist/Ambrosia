@@ -64,9 +64,7 @@ class ReportService(_BaseService):
                 "EngagementRepositoryProtocol",
                 self._repo("engagement_repo", session),
             )
-            scope_repo = cast(
-                "ScopeRepositoryProtocol", self._repo("scope_repo", session)
-            )
+            scope_repo = cast("ScopeRepositoryProtocol", self._repo("scope_repo", session))
             target_repo = cast(
                 "TargetRepositoryProtocol",
                 self._repo("target_repo", session),
