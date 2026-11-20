@@ -48,13 +48,13 @@ def test_repositories_return_domain_models_not_orm() -> None:
         assert type(scope) is Scope
 
         artifact = artifact_repo.add(
-            Artifact(id="a1", engagement_id="e1", type="network.host", value={}, source_kind="operator")
+            Artifact(
+                id="a1", engagement_id="e1", type="network.host", value={}, source_kind="operator"
+            )
         )
         assert type(artifact) is Artifact
 
-        execution = execution_repo.add(
-            ExecutionRecord(id="x1", engagement_id="e1", status="draft")
-        )
+        execution = execution_repo.add(ExecutionRecord(id="x1", engagement_id="e1", status="draft"))
         assert type(execution) is ExecutionRecord
 
         assert type(engagement_repo.get("e1")) is Engagement
