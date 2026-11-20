@@ -1,12 +1,10 @@
-"""Ambrosia adaptive Textual TUI.
+"""Ambrosia TUI package.
 
-The TUI is a presentation layer only. It calls application services (and the
-execution engine) for all behaviour; it never performs business logic, queries
-SQLAlchemy directly, or launches subprocesses.
+The Textual application lives here and is intentionally self-contained: it
+depends only on the :mod:`ambrosia` model, storage, session, and executor
+adapters, never on any v1 code.
 """
 
-from __future__ import annotations
+from ambrosia.tui.app import AmbrosiaApp
 
-from ambrosia.tui.app import AmbrosiaApp, build_app
-
-__all__ = ["AmbrosiaApp", "build_app"]
+__all__ = ["AmbrosiaApp"]
