@@ -58,7 +58,7 @@ class ActionHandler(Protocol):
     expose the TUI application instance or a raw SQLAlchemy session.
     """
 
-    async def execute(
+    def execute(
         self,
         request: ActionRequest,
         context: ActionExecutionContext,
