@@ -18,7 +18,9 @@ from ambrosia.domain.models import Artifact
 from ambrosia.presets import InputRequest, PresetLoader, SecretHandle
 from ambrosia.registry import Registry
 
-BUILTIN_PRESET = Path(__file__).resolve().parents[2] / "builtin_presets" / "network.basic-discovery.yaml"
+BUILTIN_PRESET = (
+    Path(__file__).resolve().parents[2] / "builtin_presets" / "network.basic-discovery.yaml"
+)
 
 
 def _registry() -> Registry:
