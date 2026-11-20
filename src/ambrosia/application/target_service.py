@@ -25,12 +25,8 @@ if TYPE_CHECKING:
         EngagementRepository as EngagementRepositoryProtocol,
     )
 
-_HOSTNAME_RE = re.compile(
-    r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*$"
-)
-_DOMAIN_RE = re.compile(
-    r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))+\.?$"
-)
+_HOSTNAME_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))*$")
+_DOMAIN_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63}(?<!-))+\.?$")
 
 
 class TargetDTO(BaseModel):
@@ -112,10 +108,7 @@ class TargetService(_BaseService):
                     f"engagement {engagement_id!r} not found"
                 )
             return TargetListDTO(
-                targets=[
-                    self._dto(t)
-                    for t in target_repo.list_for_engagement(engagement_id)
-                ]
+                targets=[self._dto(t) for t in target_repo.list_for_engagement(engagement_id)]
             )
 
     @staticmethod
@@ -140,9 +133,7 @@ class TargetService(_BaseService):
             id=obj.id,
             engagement_id=obj.engagement_id,
             address=obj.address,
-            kind=cast(
-                "str", getattr(obj, "kind", None) or getattr(obj, "target_type", "host")
-            ),
+            kind=cast("str", getattr(obj, "kind", None) or getattr(obj, "target_type", "host")),
             target_type=getattr(obj, "target_type", None),
             hostname=getattr(obj, "hostname", None),
             notes=getattr(obj, "notes", None),
