@@ -108,22 +108,14 @@ def superseded_ids(artifacts: Iterable[Artifact]) -> set[str]:
     return superseded
 
 
-def active_artifacts(
-    artifacts: Iterable[Artifact], now: datetime | None = None
-) -> list[Artifact]:
+def active_artifacts(artifacts: Iterable[Artifact], now: datetime | None = None) -> list[Artifact]:
     """Return artifacts that are neither expired nor superseded."""
     now = now or _utc_now()
     superseded = superseded_ids(artifacts)
-    return [
-        a
-        for a in artifacts
-        if a.id not in superseded and not is_expired(a, now=now)
-    ]
+    return [a for a in artifacts if a.id not in superseded and not is_expired(a, now=now)]
 
 
-def artifacts_for_target(
-    artifacts: Iterable[Artifact], target_ref: str
-) -> list[Artifact]:
+def artifacts_for_target(artifacts: Iterable[Artifact], target_ref: str) -> list[Artifact]:
     """Return artifacts bound to the given target."""
     return [a for a in artifacts if a.target_ref == target_ref]
 
@@ -172,8 +164,7 @@ def match_required_artifacts(
         candidates = [
             a
             for a in artifact_list
-            if a.type == requirement.type
-            and matches_requirement(a, requirement, action_target_ref)
+            if a.type == requirement.type and matches_requirement(a, requirement, action_target_ref)
         ]
         if candidates:
             matched_ids.extend(a.id for a in candidates)
