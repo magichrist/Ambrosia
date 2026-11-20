@@ -53,9 +53,7 @@ def test_resolve_inputs_provided() -> None:
 
 def test_resolve_inputs_default() -> None:
     declaration = PresetInput(type="string", required=False, default="80,443")
-    resolver = Resolver(
-        context=_context(inputs={}, declared_inputs={"port": declaration})
-    )
+    resolver = Resolver(context=_context(inputs={}, declared_inputs={"port": declaration}))
     result = resolver.resolve(parse_reference("{{ inputs.port }}"))
     assert isinstance(result, ResolvedValue)
     assert result.value == "80,443"
@@ -63,9 +61,7 @@ def test_resolve_inputs_default() -> None:
 
 def test_resolve_inputs_missing_required_returns_request() -> None:
     declaration = PresetInput(type="target.host", required=True)
-    resolver = Resolver(
-        context=_context(inputs={}, declared_inputs={"target": declaration})
-    )
+    resolver = Resolver(context=_context(inputs={}, declared_inputs={"target": declaration}))
     result = resolver.resolve(parse_reference("{{ inputs.target }}"))
     assert isinstance(result, InputRequest)
     assert result.input_id == "target"
@@ -76,9 +72,7 @@ def test_resolve_inputs_missing_required_returns_request() -> None:
 
 def test_resolve_inputs_missing_optional_without_default() -> None:
     declaration = PresetInput(type="string", required=False)
-    resolver = Resolver(
-        context=_context(inputs={}, declared_inputs={"target": declaration})
-    )
+    resolver = Resolver(context=_context(inputs={}, declared_inputs={"target": declaration}))
     result = resolver.resolve(parse_reference("{{ inputs.target }}"))
     assert isinstance(result, ResolvedValue)
     assert result.value is None
@@ -91,7 +85,10 @@ def test_resolve_context_and_target() -> None:
             target={"address": "10.0.0.1"},
         )
     )
-    assert resolver.resolve(parse_reference("{{ context.selected_target.address }}")).value == "10.0.0.1"
+    assert (
+        resolver.resolve(parse_reference("{{ context.selected_target.address }}")).value
+        == "10.0.0.1"
+    )
     assert resolver.resolve(parse_reference("{{ target.address }}")).value == "10.0.0.1"
     assert resolver.resolve(parse_reference("{{ context.missing.deep }}")).value is None
 
@@ -114,9 +111,7 @@ def test_resolve_unknown_artifact_rejected() -> None:
 
 
 def test_resolve_step_output_condition() -> None:
-    resolver = Resolver(
-        context=_context(step_outputs={"check": {"result": True}})
-    )
+    resolver = Resolver(context=_context(step_outputs={"check": {"result": True}}))
     result = resolver.resolve(parse_reference("{{ steps.check.outputs.result }}"))
     assert isinstance(result, ResolvedValue) and result.value is True
 
@@ -144,7 +139,9 @@ def test_resolve_secret_opaque_handle() -> None:
 
 def test_resolve_preset_metadata() -> None:
     resolver = Resolver(
-        context=_context(preset={"metadata": {"id": "net.demo", "name": "Demo", "version": "1.0.0"}})
+        context=_context(
+            preset={"metadata": {"id": "net.demo", "name": "Demo", "version": "1.0.0"}}
+        )
     )
     result = resolver.resolve(parse_reference("{{ preset.metadata.id }}"))
     assert isinstance(result, ResolvedValue) and result.value == "net.demo"
@@ -196,9 +193,7 @@ def test_resolve_artifact_selection_none_one_many() -> None:
     assert result.candidates == ("a1", "a2")
 
     single = [_artifact("a1", "network.service", {"service": "smb"})]
-    resolver_single = Resolver(
-        context=_context(artifacts={"a1": single[0]})
-    )
+    resolver_single = Resolver(context=_context(artifacts={"a1": single[0]}))
     found = resolver_single.resolve_artifact_selection(artifact_type="network.service")
     assert isinstance(found, Artifact)
     assert found.id == "a1"
