@@ -94,8 +94,7 @@ class PolicyGateway(_BaseService):
             scope = self._scope_for(session, engagement_id)
             if scope is None and (definition.scope_fields or definition.effects):
                 raise ScopeViolationError(  # noqa: TRY003 - operator-facing message
-                    "no scope is defined for this engagement; "
-                    "action requires scope authorization",
+                    "no scope is defined for this engagement; action requires scope authorization",
                     details={"action_id": action_id, "engagement_id": engagement_id},
                 )
 
@@ -110,18 +109,12 @@ class PolicyGateway(_BaseService):
                 engagement_id=engagement_id,
                 selected_target=selected_target,
                 scope_targets=self._scope_targets(scope),
-                artifacts=tuple(
-                    artifact_repo.list_for_engagement(engagement_id)
-                ),
+                artifacts=tuple(artifact_repo.list_for_engagement(engagement_id)),
                 inputs={},
                 available_tools=available_tools,
                 platform="current",
             )
-            policy = (
-                PolicySnapshot.from_scope(scope)
-                if scope is not None
-                else PolicySnapshot()
-            )
+            policy = PolicySnapshot.from_scope(scope) if scope is not None else PolicySnapshot()
 
         availability = self._matcher.evaluate(action_id, snapshot, policy)
         self._raise_on_blocked(availability, action_id, engagement_id)
@@ -129,9 +122,7 @@ class PolicyGateway(_BaseService):
 
     # ------------------------------------------------------------------ internals
 
-    def _scope_for(
-        self, session: object | None, engagement_id: str
-    ) -> Scope | None:
+    def _scope_for(self, session: object | None, engagement_id: str) -> Scope | None:
         engagement_repo = cast(  # noqa: TC001
             "EngagementRepositoryProtocol", self._repo("engagement_repo", session)
         )
@@ -180,10 +171,7 @@ class PolicyGateway(_BaseService):
         }
         if status == "blocked":
             # Distinguish scope violations from other policy blocks.
-            if any(
-                reason.startswith("blocked by scope")
-                for reason in availability.reasons
-            ):
+            if any(reason.startswith("blocked by scope") for reason in availability.reasons):
                 raise ScopeViolationError(  # noqa: TRY003 - operator-facing message
                     "target is outside the authorized engagement scope",
                     details=details,
