@@ -87,6 +87,17 @@ class AvailabilityMatcher:
         matched_ids: list[str] = []
 
         self._check_pack(definition, context, findings)
+        if any(f.status == "not_applicable" for f in findings):
+            # A disabled pack makes the action wholly inapplicable; additional
+            # dependency/effect findings would only obscure the real reason.
+            return ActionAvailability(
+                action_id=action_id,
+                status="not_applicable",
+                reasons=[f.reason for f in findings],
+                missing_inputs=[],
+                matched_artifact_ids=[],
+                required_approval=False,
+            )
         self._check_platform(definition, context, findings)
         self._check_dependencies(definition, context, findings)
         self._check_scope(definition, context, policy, findings)
@@ -171,6 +182,18 @@ class AvailabilityMatcher:
     ) -> None:
         target = context.selected_target
 
+        # Effect policy applies to every action, including offline actions with
+        # no target. Checking it only inside the target branch would let an
+        # action with no scope_fields bypass the effect allowlist entirely.
+        for effect in definition.effects:
+            if effect not in policy.allowed_effects:
+                findings.append(
+                    _Finding(
+                        "blocked",
+                        f"blocked by policy: effect {effect!r} is not allowed in scope",
+                    )
+                )
+
         # An action that declares scope fields requires a target in scope.
         if definition.scope_fields and target is None:
             fields = ", ".join(definition.scope_fields)
@@ -196,17 +219,6 @@ class AvailabilityMatcher:
                     f"blocked by scope: target {address} is outside the authorized scope",
                 )
             )
-
-        # Effect policy: effects not allowed at all block; effects needing
-        # approval flag approval (handled in _check_approval as well).
-        for effect in definition.effects:
-            if effect not in policy.allowed_effects:
-                findings.append(
-                    _Finding(
-                        "blocked",
-                        f"blocked by policy: effect {effect!r} is not allowed in scope",
-                    )
-                )
 
     def _check_artifacts(
         self,
