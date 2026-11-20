@@ -9,7 +9,7 @@
     <address addr="10.0.0.20" addrtype="ipv4"/>
     <hostnames><hostname name="fs01.contoso.local" type="PTR"/></hostnames>
     <ports>
-      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="smb" product="Samba" version="4.15" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2022 Datacenter (Windows Server 2022 Datacenter 21H2)
+      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="microsoft-ds" product="Samba" version="4.15" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2022 Datacenter (Windows Server 2022 Datacenter 21H2)
 Computer name: FS01
 NetBIOS computer name: FS01
 Domain name: CONTOSO.LOCAL
