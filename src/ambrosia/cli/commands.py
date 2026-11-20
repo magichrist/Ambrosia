@@ -567,12 +567,24 @@ def preset_run(
     engagement: str | None = typer.Option(
         None, "--engagement", "-e", help="Engagement id (required)."
     ),
+    authorization: str | None = typer.Option(
+        None,
+        "--authorization",
+        help="Explicit per-run authorization reference for high-impact actions.",
+    ),
     output: str = typer.Option("human", "--output", help="Output format: human or json."),
 ) -> Any:
     """Run a preset. Policy is enforced for every action step before execution."""
     services = get_services()
     engagement_id = _resolve_engagement(engagement)
-    return asyncio.run(services.preset.run(preset_id, engagement_id=engagement_id, inputs=None))
+    return asyncio.run(
+        services.preset.run(
+            preset_id,
+            engagement_id=engagement_id,
+            inputs=None,
+            authorization_reference=authorization,
+        )
+    )
 
 
 # ------------------------------------------------------------------ jobs
