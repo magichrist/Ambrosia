@@ -37,6 +37,7 @@ def _past() -> datetime:
 # Valid artifact types and payloads
 # ---------------------------------------------------------------------------
 
+
 def test_valid_host_artifact() -> None:
     artifact = create_artifact(
         engagement_id="eng-1",
@@ -85,6 +86,7 @@ def test_valid_secret_ref_artifact() -> None:
 # Secret reference redaction / no raw secret material
 # ---------------------------------------------------------------------------
 
+
 def test_secret_value_in_payload_rejected() -> None:
     with pytest.raises(ValidationError):
         create_artifact(
@@ -114,6 +116,7 @@ def test_secret_ref_is_opaque_reference_only() -> None:
 # ---------------------------------------------------------------------------
 # Payload validation
 # ---------------------------------------------------------------------------
+
 
 def test_invalid_ip_rejected() -> None:
     with pytest.raises(ValidationError):
@@ -153,8 +156,15 @@ def test_unknown_artifact_type_falls_back_to_base() -> None:
 
 def test_all_built_in_types_registered() -> None:
     expected = {
-        "network.host", "network.service", "windows.domain", "windows.host_role",
-        "identity.user_ref", "secret.ref", "evidence.ref", "observation", "finding",
+        "network.host",
+        "network.service",
+        "windows.domain",
+        "windows.host_role",
+        "identity.user_ref",
+        "secret.ref",
+        "evidence.ref",
+        "observation",
+        "finding",
     }
     assert set(TYPE_REGISTRY) == expected
 
@@ -162,6 +172,7 @@ def test_all_built_in_types_registered() -> None:
 # ---------------------------------------------------------------------------
 # Expiry
 # ---------------------------------------------------------------------------
+
 
 def test_future_expiry_not_expired() -> None:
     artifact = create_artifact(
@@ -217,6 +228,7 @@ def test_no_expiry_never_expired() -> None:
 # Supersession
 # ---------------------------------------------------------------------------
 
+
 def test_superseded_artifact_excluded_from_active() -> None:
     original = create_artifact(
         engagement_id="eng-1",
@@ -245,6 +257,7 @@ def test_superseded_artifact_excluded_from_active() -> None:
 # Provenance survives serialization
 # ---------------------------------------------------------------------------
 
+
 def test_provenance_survives_serialization_round_trip() -> None:
     original = create_artifact(
         engagement_id="eng-1",
@@ -262,7 +275,11 @@ def test_provenance_survives_serialization_round_trip() -> None:
         metadata={"parser": "nmap"},
     )
     dumped = original.model_dump()
-    restored = HostArtifact.model_validate(dumped) if isinstance(original, HostArtifact) else ServiceArtifact.model_validate(dumped)
+    restored = (
+        HostArtifact.model_validate(dumped)
+        if isinstance(original, HostArtifact)
+        else ServiceArtifact.model_validate(dumped)
+    )
     assert restored.id == original.id
     assert restored.engagement_id == original.engagement_id
     assert restored.type == original.type
@@ -281,10 +298,20 @@ def test_provenance_survives_serialization_round_trip() -> None:
 # Target scoping / cross-host prevention
 # ---------------------------------------------------------------------------
 
+
 def test_artifacts_for_target_filters_by_target_ref() -> None:
-    a = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a")
-    b = create_artifact(engagement_id="e", type="network.service", value={"host_ref": "x", "port": 445, "service_name": "smb"}, target_ref="target-a")
-    c = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b")
+    a = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a"
+    )
+    b = create_artifact(
+        engagement_id="e",
+        type="network.service",
+        value={"host_ref": "x", "port": 445, "service_name": "smb"},
+        target_ref="target-a",
+    )
+    c = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b"
+    )
 
     in_a = artifacts_for_target([a, b, c], "target-a")
     assert {x.id for x in in_a} == {a.id, b.id}
@@ -294,30 +321,49 @@ def test_artifacts_for_target_filters_by_target_ref() -> None:
 
 
 def test_same_target_prevents_cross_host_match() -> None:
-    host_a = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a")
-    svc_a = create_artifact(engagement_id="e", type="network.service", value={"host_ref": host_a.id, "port": 445, "service_name": "smb"}, target_ref="target-a")
-    host_b = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b")
+    host_a = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a"
+    )
+    svc_a = create_artifact(
+        engagement_id="e",
+        type="network.service",
+        value={"host_ref": host_a.id, "port": 445, "service_name": "smb"},
+        target_ref="target-a",
+    )
+    host_b = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b"
+    )
 
     artifacts = [host_a, svc_a, host_b]
     requirement = ArtifactRequirement(type="network.service", same_target=True)
 
-    matched, missing = match_required_artifacts(artifacts, [requirement], action_target_ref="target-a")
+    matched, missing = match_required_artifacts(
+        artifacts, [requirement], action_target_ref="target-a"
+    )
     assert svc_a.id in matched
     assert missing == []
 
-    matched_b, missing_b = match_required_artifacts(artifacts, [requirement], action_target_ref="target-b")
+    matched_b, missing_b = match_required_artifacts(
+        artifacts, [requirement], action_target_ref="target-b"
+    )
     assert svc_a.id not in matched_b
     assert missing_b == ["network.service"]
 
 
 def test_cross_target_allowed_when_same_target_false() -> None:
-    host_a = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a")
-    host_b = create_artifact(engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b")
+    host_a = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h1"}, target_ref="target-a"
+    )
+    host_b = create_artifact(
+        engagement_id="e", type="network.host", value={"hostname": "h2"}, target_ref="target-b"
+    )
 
     artifacts = [host_a, host_b]
     requirement = ArtifactRequirement(type="network.host", same_target=False)
 
-    matched, missing = match_required_artifacts(artifacts, [requirement], action_target_ref="target-b")
+    matched, missing = match_required_artifacts(
+        artifacts, [requirement], action_target_ref="target-b"
+    )
     assert host_a.id in matched  # cross-target explicitly allowed
     assert missing == []
 
@@ -325,6 +371,7 @@ def test_cross_target_allowed_when_same_target_false() -> None:
 # ---------------------------------------------------------------------------
 # Remaining built-in artifact types (valid and invalid payloads)
 # ---------------------------------------------------------------------------
+
 
 def test_valid_domain_artifact() -> None:
     artifact = create_artifact(
@@ -477,6 +524,7 @@ def test_observation_artifact_secret_evidence_rejected() -> None:
 # ---------------------------------------------------------------------------
 # Secret reference redaction: opaque handle only, never plaintext
 # ---------------------------------------------------------------------------
+
 
 def test_secret_ref_artifact_dump_contains_handle_not_value() -> None:
     artifact = create_artifact(
