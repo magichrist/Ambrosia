@@ -97,9 +97,7 @@ def __engagement(id_: str):  # noqa: D401 - test helper
 def test_check_action_unknown_raises_not_found() -> None:
     gateway = _make_gateway(_registry_with_actions())
     with pytest.raises(NotFoundError):
-        gateway.check_action(
-            action_id="does-not-exist", engagement_id="eng-1"
-        )
+        gateway.check_action(action_id="does-not-exist", engagement_id="eng-1")
 
 
 def test_check_action_no_scope_raises_scope_violation() -> None:
@@ -183,6 +181,8 @@ def test_check_action_missing_dependency_raises() -> None:
     # metadata-only via available_tools, which is empty here).
     with pytest.raises(MissingDependencyError):
         gateway.check_action(
-            action_id="test.dep", engagement_id="eng-1", target_address="10.0.0.1",
+            action_id="test.dep",
+            engagement_id="eng-1",
+            target_address="10.0.0.1",
             available_tools=frozenset(),
         )
