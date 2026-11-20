@@ -168,9 +168,7 @@ class ContextService:
         )
         return artifact
 
-    def supersede_artifact(
-        self, original_id: str, replacement: Artifact
-    ) -> Artifact:
+    def supersede_artifact(self, original_id: str, replacement: Artifact) -> Artifact:
         """Persist a replacement artifact that supersedes ``original_id``."""
         if replacement.supersedes is not None and replacement.supersedes != original_id:
             message = "replacement supersedes field must match original_id"
@@ -284,9 +282,7 @@ class ContextService:
             artifact.id: artifact.model_dump() for artifact in active
         }
 
-        facts_ns: dict[str, object] = {
-            fact.id: fact.model_dump() for fact in self._facts.values()
-        }
+        facts_ns: dict[str, object] = {fact.id: fact.model_dump() for fact in self._facts.values()}
 
         last_execution_ns: dict[str, object] = {}
         if executions:
