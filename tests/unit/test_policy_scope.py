@@ -39,6 +39,7 @@ def _checker() -> ScopeChecker:
 # ---------------------------------------------------------------------------
 # include_hosts / include_cidrs / include_domains
 
+
 def test_include_exact_ip_match() -> None:
     result = _checker().is_address_in_scope("10.0.0.1", _scope())
     assert result.in_scope is True
@@ -70,13 +71,16 @@ def test_include_domain_non_match() -> None:
 
 
 def test_empty_include_lists_authorize_nothing() -> None:
-    result = _checker().is_address_in_scope("10.0.0.1", _scope(include_hosts=[], include_cidrs=[], include_domains=[]))
+    result = _checker().is_address_in_scope(
+        "10.0.0.1", _scope(include_hosts=[], include_cidrs=[], include_domains=[])
+    )
     assert result.in_scope is False
     assert result.reason is not None
 
 
 # ---------------------------------------------------------------------------
 # exclusions take precedence
+
 
 def test_exclude_host_takes_precedence_over_include() -> None:
     result = _checker().is_address_in_scope("10.0.0.99", _scope())
@@ -93,6 +97,7 @@ def test_exclude_cidr_takes_precedence_over_include() -> None:
 # ---------------------------------------------------------------------------
 # ports
 
+
 def test_port_allowed_when_in_allowed_ports() -> None:
     assert _checker().is_port_allowed(80, _scope()) is True
 
@@ -107,6 +112,7 @@ def test_port_unrestricted_when_allowed_ports_none() -> None:
 
 # ---------------------------------------------------------------------------
 # expiry
+
 
 def test_scope_not_expired() -> None:
     future = datetime.utcnow() + timedelta(days=7)
@@ -124,6 +130,7 @@ def test_scope_no_expiry() -> None:
 
 # ---------------------------------------------------------------------------
 # check_target raises ScopeViolationError
+
 
 def test_check_target_raises_when_outside_scope() -> None:
     checker = _checker()
@@ -152,6 +159,7 @@ def test_check_target_passes_when_in_scope() -> None:
 
 # ---------------------------------------------------------------------------
 # hostname resolution boundary
+
 
 def test_resolve_hostname_returns_addresses(monkeypatch) -> None:
     checker = _checker()
@@ -204,6 +212,7 @@ def test_is_hostname_in_scope_not_found() -> None:
 
 # ---------------------------------------------------------------------------
 # check_target with hostname resolution
+
 
 def test_check_target_resolves_hostname(monkeypatch) -> None:
     checker = _checker()
