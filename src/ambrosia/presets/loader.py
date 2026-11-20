@@ -29,6 +29,7 @@ from ambrosia.presets.errors import (
     PresetValidationError,
     TypeMismatchError,
 )
+from ambrosia.presets.normalize import normalize_engine_step_keys
 from ambrosia.presets.plan import PresetPlan, StepNode, build_plan
 from ambrosia.presets.predicates import evaluate_predicate
 from ambrosia.presets.references import parse_reference
@@ -52,12 +53,6 @@ _JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
     "object": "object",
     "array": "array",
 }
-
-# Step-level keys understood by the engine layer but not by the domain step
-# model. They are popped before strict domain validation so that genuine
-# typos (e.g. ``actin``) are still rejected by ``extra="forbid"``.
-_ENGINE_STEP_KEYS = frozenset({"then", "else"})
-
 
 @dataclass(frozen=True)
 class LoadedPreset:
@@ -128,7 +123,7 @@ class PresetLoader:
                 f"got {type(data).__name__}"
             )
         data = dict(data)
-        branches = self._normalize_steps(data)
+        branches = normalize_engine_step_keys(data)
         try:
             definition = PresetDefinition.model_validate(data)
         except Exception as exc:  # pragma: no cover - pydantic raises ValidationError
@@ -138,44 +133,6 @@ class PresetLoader:
 
         plan = build_plan(definition, self._registry, branches=branches)
         return LoadedPreset(definition=definition, plan=plan)
-
-    def _normalize_steps(self, data: dict[str, Any]) -> dict[str, tuple[tuple[str, ...], tuple[str, ...]]]:
-        """Extract engine-level ``then``/``else`` branch keys from step mappings.
-
-        Returns a branch map (step id -> (then, else)) and mutates ``data``
-        so the remaining step fields strictly conform to the domain model.
-        """
-        branches: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
-        raw_steps = data.get("steps", [])
-        if not isinstance(raw_steps, list):
-            raise PresetValidationError("'steps' must be a list")  # noqa: TRY003
-        normalized: list[dict[str, Any]] = []
-        for index, raw_step in enumerate(raw_steps):
-            label = f"steps[{index}]"
-            if not isinstance(raw_step, dict):
-                raise PresetValidationError(f"{label}: step must be a mapping")  # noqa: TRY003
-            step = dict(raw_step)
-            then = step.pop("then", [])
-            else_ = step.pop("else", [])
-            then_ids = self._as_step_ids(then, f"{label}.then")
-            else_ids = self._as_step_ids(else_, f"{label}.else")
-            step_id = step.get("id")
-            if not isinstance(step_id, str) or not step_id:
-                raise PresetValidationError(f"{label}: step 'id' must be a non-empty string")  # noqa: TRY003
-            if then_ids or else_ids:
-                branches[step_id] = (tuple(then_ids), tuple(else_ids))
-            normalized.append(step)
-        data["steps"] = normalized
-        return branches
-
-    @staticmethod
-    def _as_step_ids(value: Any, label: str) -> list[str]:
-        if not isinstance(value, list):
-            raise PresetValidationError(f"{label}: must be a list of step ids")  # noqa: TRY003
-        for item in value:
-            if not isinstance(item, str):
-                raise PresetValidationError(f"{label}: entries must be step id strings")  # noqa: TRY003
-        return list(value)
 
     # ------------------------------------------------------------------ dry-run
 
