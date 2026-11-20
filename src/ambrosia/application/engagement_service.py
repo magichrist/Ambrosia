@@ -67,9 +67,7 @@ class EngagementService(_BaseService):
                 "EngagementRepositoryProtocol",  # noqa: TC001
                 self._repo("engagement_repo", session),
             )
-            return EngagementListDTO(
-                engagements=[self._dto(e) for e in engagement_repo.list()]
-            )
+            return EngagementListDTO(engagements=[self._dto(e) for e in engagement_repo.list()])
 
     def get(self, engagement_id: str) -> EngagementDTO:
         with self._session() as session:
