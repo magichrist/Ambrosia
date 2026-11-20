@@ -125,6 +125,7 @@ async def test_every_view_button_is_wired() -> None:
                 "refresh-presets",
                 "validate-preset",
                 "plan-preset",
+                "save-preset",
                 "back-presets",
             ],
             VIEW_JOBS: ["refresh-jobs", "cancel-job", "back-jobs"],
