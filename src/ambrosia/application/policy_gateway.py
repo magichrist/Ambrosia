@@ -77,6 +77,7 @@ class PolicyGateway(_BaseService):
         engagement_id: str,
         target_address: str | None = None,
         available_tools: frozenset[str] = frozenset(),
+        authorization_reference: str | None = None,
     ) -> object:  # ActionAvailability (imported lazily to avoid a cycle)
         """Return the availability of ``action_id`` for the engagement.
 
@@ -89,6 +90,12 @@ class PolicyGateway(_BaseService):
             raise NotFoundError(  # noqa: TRY003 - operator-facing identifier
                 f"action {action_id!r} is not registered"
             )
+
+        # High-impact actions need an explicit per-run authorization before any
+        # other policy check or process start.
+        from ambrosia.policy.authorization import AuthorizationService  # noqa: PLC0415
+
+        AuthorizationService().require_reference(definition, authorization_reference)
 
         with self._session() as session:
             scope = self._scope_for(session, engagement_id)
