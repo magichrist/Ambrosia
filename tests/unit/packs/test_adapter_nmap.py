@@ -61,7 +61,7 @@ def test_parse_service_discovery_fixture() -> None:
     assert ports == {445, 80, 3389, 5985}
 
     smb = next(s for s in open_services if s.port == 445)
-    assert smb.service_name == "smb"
+    assert smb.service_name == "microsoft-ds"
     assert smb.product == "Samba"
     assert smb.version == "4.6.2"
     assert smb.state == "open"
