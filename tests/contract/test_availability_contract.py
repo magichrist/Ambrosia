@@ -120,7 +120,9 @@ def _registry():
     return registry
 
 
-def _context(selected_target=None, artifacts=(), inputs=None, available_tools=(), platform="current"):
+def _context(
+    selected_target=None, artifacts=(), inputs=None, available_tools=(), platform="current"
+):
     return ContextSnapshot(
         engagement_id="e1",
         selected_target=selected_target,
@@ -198,7 +200,9 @@ def test_not_applicable_becomes_available_when_artifact_present() -> None:
     registry = _registry()
     matcher = AvailabilityMatcher(registry)
     policy = _policy()
-    artifact = _artifact("art-h1", "network.host", target_ref="10.0.0.1", value={"address": "10.0.0.1"})
+    artifact = _artifact(
+        "art-h1", "network.host", target_ref="10.0.0.1", value={"address": "10.0.0.1"}
+    )
     context = _context(selected_target={"address": "10.0.0.1"}, artifacts=(artifact,))
     avail = matcher.evaluate("contract.not_applicable", context, policy)
     assert avail.status == "available"
@@ -209,7 +213,9 @@ def test_target_scoped_artifact_requires_same_target() -> None:
     registry = _registry()
     matcher = AvailabilityMatcher(registry)
     policy = _policy()
-    artifact = _artifact("art-h2", "network.host", target_ref="10.0.0.2", value={"address": "10.0.0.2"})
+    artifact = _artifact(
+        "art-h2", "network.host", target_ref="10.0.0.2", value={"address": "10.0.0.2"}
+    )
     context = _context(selected_target={"address": "10.0.0.1"}, artifacts=(artifact,))
     avail = matcher.evaluate("contract.not_applicable", context, policy)
     assert avail.status == "not_applicable"
