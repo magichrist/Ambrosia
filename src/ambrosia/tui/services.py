@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from ambrosia.application.preset_service import (
         PresetListDTO,
         PresetPlanDTO,
+        PresetSaveDTO,
         PresetValidateDTO,
     )
     from ambrosia.application.report_service import ReportExportDTO
@@ -207,6 +208,10 @@ class TUIServiceAdapter:
 
     def plan_preset(self, preset_id: str) -> PresetPlanDTO:
         return self._services.preset.plan(preset_id)
+
+    def save_preset(self, source: str, *, new_id: str, name: str | None = None) -> PresetSaveDTO:
+        """Fork a validated workflow into the workspace user presets."""
+        return self._services.preset.save(source, new_id=new_id, name=name)
 
     def list_artifacts(self, engagement_id: str) -> list[Artifact]:
         if self._artifact_repo is None:
