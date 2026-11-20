@@ -39,14 +39,14 @@ async def _collect(handler: AuthorizedToolHandler, request: ActionRequest) -> li
 def test_manifest_loads_without_side_effects() -> None:
     manifest = load_manifest()
     assert manifest.metadata.id == PACK_ID
-    assert len(manifest.actions) == 7
+    assert len(manifest.actions) == 10
 
 
 def test_registration_requires_explicit_call() -> None:
     registry = Registry()
     assert not registry.has("windows.credentials.secretsdump")
     result = register_authorized_operations(registry, executor=FakeExecutor())
-    assert result.actions_loaded == 7
+    assert result.actions_loaded == 10
     assert registry.action_pack_id("windows.credentials.secretsdump") == PACK_ID
     assert registry.get_handler("windows.smb.netexec") is not None
 
@@ -104,6 +104,21 @@ def test_target_actions_declare_scope_fields() -> None:
             argv.build_domain_enumeration_argv,
             {"target": "dc01.corp.local", "domain": "corp.local"},
             ["dc01.corp.local", "-all", "corp.local"],
+        ),
+        (
+            argv.build_asrep_roast_argv,
+            {"target": "10.0.0.1", "domain": "corp.local"},
+            ["corp.local/", "-dc-ip", "10.0.0.1"],
+        ),
+        (
+            argv.build_kerberoast_argv,
+            {"target": "dc01.corp.local", "domain": "corp.local"},
+            ["dc01.corp.local", "corp.local", "-request"],
+        ),
+        (
+            argv.build_sid_enumeration_argv,
+            {"target": "10.0.0.10"},
+            ["10.0.0.10"],
         ),
         (
             argv.build_ntlm_relay_argv,
