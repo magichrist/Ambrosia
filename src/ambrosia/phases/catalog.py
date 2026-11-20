@@ -52,9 +52,7 @@ class PhaseCatalog:
 
     def phase_refs_for_preset(self, preset_id: str) -> tuple[str, ...]:
         """Phase ids that reference the given preset (navigation metadata only)."""
-        return tuple(
-            phase.id for phase in self.all() if preset_id in phase.preset_refs
-        )
+        return tuple(phase.id for phase in self.all() if preset_id in phase.preset_refs)
 
     def evaluate_visibility(
         self,
@@ -78,9 +76,7 @@ class PhaseCatalog:
             parsed = parse_predicate(predicate.model_dump())
             if parsed is None:  # pragma: no cover - guarded by Predicate validation
                 continue
-            results.append(
-                evaluate_predicate(parsed, artifacts=artifacts, inputs=inputs)
-            )
+            results.append(evaluate_predicate(parsed, artifacts=artifacts, inputs=inputs))
         return all(results)
 
 
