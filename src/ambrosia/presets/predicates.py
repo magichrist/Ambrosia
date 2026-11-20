@@ -23,9 +23,7 @@ from ambrosia.presets.errors import InvalidPredicateError
 if TYPE_CHECKING:
     from ambrosia.domain.models import Artifact
 
-_PREDICATE_KINDS = frozenset(
-    {"artifact_exists", "artifact_field_equals", "input_present"}
-)
+_PREDICATE_KINDS = frozenset({"artifact_exists", "artifact_field_equals", "input_present"})
 
 _LITERAL_TYPES = (str, int, float, bool, type(None))
 
@@ -73,8 +71,7 @@ def parse_predicate(raw: dict[str, object] | None) -> Predicate | None:
     kind = raw.get("kind")
     if kind not in _PREDICATE_KINDS:
         raise InvalidPredicateError(  # noqa: TRY003
-            f"unknown predicate kind {kind!r}; expected one of "
-            f"{sorted(_PREDICATE_KINDS)}"
+            f"unknown predicate kind {kind!r}; expected one of {sorted(_PREDICATE_KINDS)}"
         )
 
     artifact_type = raw.get("artifact_type")
@@ -149,8 +146,7 @@ def evaluate_predicate(
     """
     if predicate.kind == "artifact_exists":
         return any(
-            artifact.type == predicate.artifact_type
-            and _where_matches(artifact, predicate.where)
+            artifact.type == predicate.artifact_type and _where_matches(artifact, predicate.where)
             for artifact in artifacts
         )
     if predicate.kind == "artifact_field_equals":
@@ -169,9 +165,7 @@ def evaluate_predicate(
 def _where_matches(artifact: Artifact, where: dict[str, object] | None) -> bool:
     if not where:
         return True
-    return all(
-        artifact.value.get(key) == value for key, value in where.items()
-    )
+    return all(artifact.value.get(key) == value for key, value in where.items())
 
 
 __all__ = [
