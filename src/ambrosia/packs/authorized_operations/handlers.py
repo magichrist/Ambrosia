@@ -25,13 +25,16 @@ from ambrosia.domain.protocols import (
     ExecutionEvent,
 )
 from ambrosia.packs.authorized_operations.argv import (
+    build_asrep_roast_argv,
     build_domain_enumeration_argv,
+    build_kerberoast_argv,
     build_netexec_argv,
     build_netexec_exec_argv,
     build_ntlm_relay_argv,
     build_psexec_argv,
     build_samdump2_argv,
     build_secretsdump_argv,
+    build_sid_enumeration_argv,
 )
 from ambrosia.policy.authorization import require_request_authorization
 
@@ -49,6 +52,9 @@ _BUILDERS: dict[str, ArgvBuilder] = {
     "windows.lateral.netexec_exec": build_netexec_exec_argv,
     "windows.lateral.psexec": build_psexec_argv,
     "windows.ad.domain_enumeration": build_domain_enumeration_argv,
+    "windows.ad.asrep_roast": build_asrep_roast_argv,
+    "windows.ad.kerberoast": build_kerberoast_argv,
+    "windows.ad.sid_enumeration": build_sid_enumeration_argv,
     "windows.smb.ntlm_relay": build_ntlm_relay_argv,
 }
 
