@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class EchoHandler(ActionHandler):
     """Echoes the ``message`` input back as stream output events."""
 
-    async def execute(  # type: ignore[misc, override]  # noqa: ANN401 - protocol-implementing handler; async-generator body returns AsyncIterator directly
+    async def execute(  # noqa: ANN401 - protocol-implementing async-generator handler
         self,
         request: ActionRequest,
         context: ActionExecutionContext,
