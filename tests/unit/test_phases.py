@@ -56,7 +56,9 @@ def test_load_phases_from_dir_deterministic(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (tmp_path / "a.yaml").write_text(
-        _PHASE_TEXT.replace("phase.discovery", "phase.a").replace("name: Discovery", "name: A").replace("sort_order: 50", "sort_order: 10"),
+        _PHASE_TEXT.replace("phase.discovery", "phase.a")
+        .replace("name: Discovery", "name: A")
+        .replace("sort_order: 50", "sort_order: 10"),
         encoding="utf-8",
     )
     catalog = load_phases_from_dir(tmp_path)
