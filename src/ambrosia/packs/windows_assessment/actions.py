@@ -37,6 +37,24 @@ _NMAP_EXECUTOR = ExecutorReference(kind="process", executable="nmap")
 
 _SCOPE_FIELD_TARGET = ["target"]
 
+# Nmap reports service names from its own service-probe fingerprint database,
+# which differ from the canonical Windows service labels used in action IDs.
+# Follow-up prerequisites accept BOTH forms so they work on real scans as well
+# as on hand-authored artifacts. The matcher treats a collection in ``where``
+# as "any of these values" (see registry/matcher.py::_predicate_matches).
+_NMAP_SERVICE_ALIASES: dict[str, tuple[str, ...]] = {
+    "smb": ("smb", "microsoft-ds"),
+    "ldap": ("ldap", "ldaps"),
+    "http": ("http", "https", "www", "http-alt"),
+    "rdp": ("rdp", "ms-wbt-server"),
+    "winrm": ("winrm", "wsman", "wsman-http"),
+}
+
+
+def _service_where(canonical: str) -> dict[str, object]:
+    """Build a ``where`` predicate accepting canonical and real Nmap names."""
+    return {"service_name": list(_NMAP_SERVICE_ALIASES[canonical])}
+
 
 def _discovery_action(
     *,
@@ -90,13 +108,15 @@ NETWORK_NMAP_SERVICE_DISCOVERY = _discovery_action(
     description=(
         "Bounded, read-only network service discovery using Nmap XML output. "
         "Scans only the declared ports on an explicitly in-scope target and "
-        "produces typed ``network.service`` artifacts (and ``observation`` "
-        "artifacts) from structured XML -- never from human-readable tables."
+        "produces typed ``network.service`` artifacts from structured XML -- "
+        "never from human-readable tables. Service names are recorded as "
+        "observed (for example ``microsoft-ds`` rather than ``smb``); follow-up "
+        "actions accept both the real Nmap name and the canonical label."
     ),
     category="discovery",
     tags=["discovery", "network", "nmap", "read-only"],
     required_artifacts=[],
-    output_artifact_types=["network.service", "network.host", "observation"],
+    output_artifact_types=["network.service"],
     risk="low",
     input_properties={
         "target": {
@@ -132,7 +152,7 @@ WINDOWS_SMB_CONFIGURATION_AUDIT = _discovery_action(
     required_artifacts=[
         ArtifactRequirement(
             type="network.service",
-            where={"service_name": "smb"},
+            where=_service_where("smb"),
             same_target=True,
         )
     ],
@@ -163,17 +183,19 @@ WINDOWS_LDAP_DOMAIN_INVENTORY = _discovery_action(
     name="LDAP Service / Domain Inventory",
     description=(
         "Read-only LDAP service and domain inventory. Requires a discovered "
-        "LDAP service on the same target. Observes LDAP service metadata and, "
-        "when available, directory domain/forest information from Nmap script "
-        "output. Produces ``windows.domain`` artifacts and observations. "
-        "Never performs authentication, binding, or credential access."
+        "LDAP service on the same target. Observes LDAP service metadata from "
+        "Nmap's service fingerprint. Any domain name is a best-effort heuristic "
+        "inferred from the target's hostname (no Nmap script is run and no "
+        "authoritative directory query is made); forest is not enumerated. "
+        "Produces ``windows.domain`` artifacts and observations. Never performs "
+        "authentication, binding, or credential access."
     ),
     category="configuration",
     tags=["windows", "ldap", "inventory", "read-only", "domain"],
     required_artifacts=[
         ArtifactRequirement(
             type="network.service",
-            where={"service_name": "ldap"},
+            where=_service_where("ldap"),
             same_target=True,
         )
     ],
@@ -214,7 +236,7 @@ WINDOWS_HTTP_METHOD_OBSERVATION = _discovery_action(
     required_artifacts=[
         ArtifactRequirement(
             type="network.service",
-            where={"service_name": "http"},
+            where=_service_where("http"),
             same_target=True,
         )
     ],
@@ -254,7 +276,7 @@ WINDOWS_RDP_EXPOSURE_OBSERVATION = _discovery_action(
     required_artifacts=[
         ArtifactRequirement(
             type="network.service",
-            where={"service_name": "rdp"},
+            where=_service_where("rdp"),
             same_target=True,
         )
     ],
@@ -295,7 +317,7 @@ WINDOWS_WINRM_EXPOSURE_OBSERVATION = _discovery_action(
     required_artifacts=[
         ArtifactRequirement(
             type="network.service",
-            where={"service_name": "winrm"},
+            where=_service_where("winrm"),
             same_target=True,
         )
     ],
