@@ -17,6 +17,9 @@ engagements that explicitly authorize high-impact testing. This document is the
 | Remote command execution (NetExec) | `windows.lateral.netexec_exec` | `netexec` |
 | Remote command execution (Impacket) | `windows.lateral.psexec` | `psexec.py` |
 | AD user enumeration | `windows.ad.domain_enumeration` | `GetADUsers.py` |
+| AD AS-REP roast | `windows.ad.asrep_roast` | `GetNPUsers.py` |
+| AD Kerberoast | `windows.ad.kerberoast` | `GetUserSPNs.py` |
+| AD SID enumeration | `windows.ad.sid_enumeration` | `lookupsid.py` |
 | NTLM → SMB relay | `windows.smb.ntlm_relay` | `ntlmrelayx.py` |
 
 Ambrosia does **not** install, download, bundle, or execute these tools during
