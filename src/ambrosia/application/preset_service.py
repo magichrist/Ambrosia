@@ -310,6 +310,7 @@ class PresetService(_BaseService):
         *,
         engagement_id: str,
         inputs: dict[str, object] | None = None,
+        authorization_reference: str | None = None,
     ) -> PresetRunDTO:
         """Validate, policy-check, and run a preset through the engine."""
         definition, path = self._find_preset(preset_id)
@@ -359,6 +360,7 @@ class PresetService(_BaseService):
                     engagement_id=engagement_id,
                     target_address=None,
                     available_tools=frozenset(),
+                    authorization_reference=authorization_reference,
                 )
 
         if self._engine is None:
