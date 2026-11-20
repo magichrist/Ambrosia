@@ -64,9 +64,7 @@ def step_id_from_steps_reference(ref: VariableReference) -> str:
         raise InvalidReferenceError(  # noqa: TRY003
             f"not a steps reference: {ref.raw!r}"
         )
-    marker_indexes = [
-        index for index, segment in enumerate(ref.path) if segment == "outputs"
-    ]
+    marker_indexes = [index for index, segment in enumerate(ref.path) if segment == "outputs"]
     if not marker_indexes:
         raise InvalidReferenceError(  # noqa: TRY003
             f"invalid steps reference {ref.raw!r}: missing outputs marker"
