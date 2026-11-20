@@ -558,9 +558,7 @@ class HttpMethodObservationHandler(ReadOnlyToolHandler):
                 if service.state != "open" or service.port != port:
                     continue
                 target_ref = service.host or target
-                methods = self._parse_advertised_methods(
-                    service.scripts.get("http-methods", "")
-                )
+                methods = self._parse_advertised_methods(service.scripts.get("http-methods", ""))
                 drafts.append(
                     self._observation_draft(
                         request=request,
@@ -570,8 +568,9 @@ class HttpMethodObservationHandler(ReadOnlyToolHandler):
                         title="HTTP methods advertised",
                         description=(
                             f"HTTP service on port {service.port} advertises "
-                            f"{', '.join(methods) if methods else 'no methods '
-                            'from script output'}. These are observations only "
+                            f"{
+                                ', '.join(methods) if methods else 'no methods from script output'
+                            }. These are observations only "
                             "and do not prove exploitability."
                         ),
                         evidence={
@@ -658,8 +657,9 @@ class RdpExposureObservationHandler(ReadOnlyToolHandler):
                         title="RDP exposure observed",
                         description=(
                             f"RDP service detected on port {service.port} "
-                            f"(security layer: {security_layer or 'not '
-                            'observed'}). Configuration observation only; no "
+                            f"(security layer: {
+                                security_layer or 'not observed'
+                            }). Configuration observation only; no "
                             "authentication is attempted."
                         ),
                         evidence={
