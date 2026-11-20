@@ -361,7 +361,14 @@ def _predicate_matches(artifact: Artifact, where: dict[str, object]) -> bool:
             # Typed artifact wrappers expose their payload as a Pydantic model,
             # not a dict. Read the field by attribute name instead.
             actual = getattr(value, key, None)
-        if actual != expected:
+        if isinstance(expected, (list, tuple, set, frozenset)):
+            # A collection of accepted values means "actual is any of these".
+            # This lets a requirement accept both a canonical label and the
+            # real service name emitted by a tool (e.g. "smb"/"microsoft-ds")
+            # without normalising observed artifacts.
+            if actual not in expected:
+                return False
+        elif actual != expected:
             return False
     return True
 
