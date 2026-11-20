@@ -1,0 +1,23 @@
+# Phase detection metadata — NOT a permission or lifecycle gate.
+# Entry predicates (visible_when) are ANDed; completion evidence (complete_when)
+# is ORed. Detection is pure inference used only for UI navigation.
+id: windows.recon
+name: "Discovery"
+description: >
+  Establish what is in scope: profile the selected host and discover live
+  services and operating-system details using read-only probes.
+tags: [windows, recon, read-only]
+sort_order: 10
+action_refs:
+  - network.nmap.service_discovery
+  - windows.rdp.exposure_observation
+  - windows.smb.configuration_audit
+preset_refs:
+  - windows.builtin.discovery
+  - authorized.comprehensive-windows
+visible_when: []
+complete_when:
+  - kind: artifact_exists
+    artifact_type: network.service
+  - kind: artifact_exists
+    artifact_type: network.host
