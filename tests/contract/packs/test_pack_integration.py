@@ -69,7 +69,12 @@ class _StubExecutor:
             kind="CompletedEvent",
             execution_id=execution_id,
             payload={
-                "summary": {"exit_code": 0, "stdout": self.stdout, "stderr": "", "duration_seconds": 0.0}
+                "summary": {
+                    "exit_code": 0,
+                    "stdout": self.stdout,
+                    "stderr": "",
+                    "duration_seconds": 0.0,
+                }
             },
         )
 
