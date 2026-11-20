@@ -1,2 +1,2 @@
 [console_scripts]
-ambrosia = ambrosia.cli.main:app
+ambrosia = ambrosia.cli:main
