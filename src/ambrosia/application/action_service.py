@@ -157,6 +157,7 @@ class ActionService(_BaseService):
         *,
         engagement_id: str,
         target_address: str | None = None,
+        authorization_reference: str | None = None,
     ) -> None:
         """Raise a typed domain error if the action cannot run.
 
@@ -182,6 +183,7 @@ class ActionService(_BaseService):
             engagement_id=engagement_id,
             target_address=target_address,
             available_tools=self._available_tools(action_id),
+            authorization_reference=authorization_reference,
         )
 
     # ------------------------------------------------------------------ internals
