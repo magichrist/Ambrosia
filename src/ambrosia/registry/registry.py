@@ -67,7 +67,9 @@ class Registry:
         """
         result = validate_action_definition(definition)
         if not result.ok:
-            raise ValueError(f"invalid action definition {definition.id}: {'; '.join(result.errors)}")  # noqa: TRY003
+            raise ValueError(
+                f"invalid action definition {definition.id}: {'; '.join(result.errors)}"
+            )  # noqa: TRY003
 
         existing_pack = self._action_pack.get(definition.id)
         if definition.id in self._actions:
@@ -139,7 +141,11 @@ class Registry:
                 continue
             if tag is not None and tag not in definition.tags:
                 continue
-            if platform is not None and definition.platforms and platform not in definition.platforms:
+            if (
+                platform is not None
+                and definition.platforms
+                and platform not in definition.platforms
+            ):
                 continue
             results.append(definition)
         results.sort(key=lambda d: (d.category, d.id))
@@ -241,8 +247,7 @@ class Registry:
         internal_dups = check_duplicate_ids(definitions)
         if internal_dups:
             raise PackConflictError(  # noqa: TRY003
-                f"pack {pack_id!r} contains duplicate action ids: "
-                + "; ".join(internal_dups)
+                f"pack {pack_id!r} contains duplicate action ids: " + "; ".join(internal_dups)
             )
 
         # Detect conflicts with already-registered actions.
@@ -260,7 +265,9 @@ class Registry:
             raise PackConflictError(result.errors[0])  # noqa: TRY003
 
         if conflicts:
-            result.warnings.append(f"pack {pack_id!r} overrides existing actions: " + "; ".join(conflicts))
+            result.warnings.append(
+                f"pack {pack_id!r} overrides existing actions: " + "; ".join(conflicts)
+            )
 
         for definition in definitions:
             try:
