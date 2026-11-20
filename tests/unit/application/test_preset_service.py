@@ -170,9 +170,8 @@ def test_plan_produces_dry_run(tmp_path) -> None:
 
 
 def test_plan_rejects_invalid_preset(tmp_path) -> None:
-    content = (
-        VALID_PRESET.replace("test.valid-preset", "test.bad-preset")
-        .replace("core.echo", "does-not-exist")
+    content = VALID_PRESET.replace("test.valid-preset", "test.bad-preset").replace(
+        "core.echo", "does-not-exist"
     )
     _write_preset(tmp_path, "bad", content)
     registry = _make_registry()
