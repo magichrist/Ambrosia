@@ -116,7 +116,7 @@ class ReadOnlyToolHandler(ActionHandler, ABC):
 
     # ------------------------------------------------------------------ execute
 
-    async def execute(  # type: ignore[override]  # protocol-implementing async generator
+    async def execute(
         self,
         request: ActionRequest,
         context: ActionExecutionContext,
@@ -132,6 +132,10 @@ class ReadOnlyToolHandler(ActionHandler, ABC):
         try:
             stdout = await self._capture_stdout(request, context, execution_id)
             result = cast("NmapParseResult", self._adapter.parse_output(stdout))
+            # Draft construction validates and converts tool output into typed
+            # artifact values; keep it inside the guard so a parsing error is
+            # reported as a FailedEvent rather than escaping the generator.
+            drafts = list(self._drafts_from_result(result, request, context, execution_id))
         except Exception as exc:  # noqa: BLE001 - translate to a typed failed event
             yield ExecutionEvent(
                 kind="FailedEvent",
@@ -144,7 +148,6 @@ class ReadOnlyToolHandler(ActionHandler, ABC):
             )
             return
 
-        drafts = list(self._drafts_from_result(result, request, context, execution_id))
         for draft in drafts:
             yield ExecutionEvent(
                 kind="ArtifactProducedEvent",
@@ -253,7 +256,9 @@ class ReadOnlyToolHandler(ActionHandler, ABC):
 class NmapServiceDiscoveryHandler(ReadOnlyToolHandler):
     """Discovers network services on a bounded target/port list via Nmap XML."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
@@ -311,7 +316,9 @@ class NmapServiceDiscoveryHandler(ReadOnlyToolHandler):
 class SmbConfigurationAuditHandler(ReadOnlyToolHandler):
     """Read-only SMB configuration inventory via Nmap SMB scripts."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
@@ -419,7 +426,9 @@ class SmbConfigurationAuditHandler(ReadOnlyToolHandler):
 class LdapDomainInventoryHandler(ReadOnlyToolHandler):
     """Read-only LDAP service and domain inventory."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
@@ -508,7 +517,9 @@ class LdapDomainInventoryHandler(ReadOnlyToolHandler):
 class HttpMethodObservationHandler(ReadOnlyToolHandler):
     """Non-mutating observation of advertised HTTP methods."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
@@ -593,7 +604,9 @@ class HttpMethodObservationHandler(ReadOnlyToolHandler):
 class RdpExposureObservationHandler(ReadOnlyToolHandler):
     """Read-only observation of RDP exposure and configuration."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
@@ -679,7 +692,9 @@ class RdpExposureObservationHandler(ReadOnlyToolHandler):
 class WinrmExposureObservationHandler(ReadOnlyToolHandler):
     """Read-only observation of WinRM exposure and configuration."""
 
-    def __init__(self, executor: object | None = None, adapter: ToolAdapter | None = None) -> None:
+    def __init__(
+        self, executor: ActionHandler | None = None, adapter: ToolAdapter | None = None
+    ) -> None:
         super().__init__(
             executor or ProcessExecutor(executable="nmap"),
             adapter or NmapAdapter(),
