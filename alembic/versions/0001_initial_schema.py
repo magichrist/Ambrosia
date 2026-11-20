@@ -84,15 +84,11 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_targets"),
-        sa.UniqueConstraint(
-            "engagement_id", "address", name="uq_targets_engagement_address"
-        ),
+        sa.UniqueConstraint("engagement_id", "address", name="uq_targets_engagement_address"),
     )
     op.create_index("ix_targets_engagement_id", "targets", ["engagement_id"])
     op.create_index("ix_targets_address", "targets", ["address"])
-    op.create_index(
-        "ix_targets_engagement_active", "targets", ["engagement_id", "is_active"]
-    )
+    op.create_index("ix_targets_engagement_active", "targets", ["engagement_id", "is_active"])
 
     op.create_table(
         "executions",
@@ -176,9 +172,7 @@ def upgrade() -> None:
         sa.Column("sequence", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_execution_events"),
     )
-    op.create_index(
-        "ix_execution_events_execution_id", "execution_events", ["execution_id"]
-    )
+    op.create_index("ix_execution_events_execution_id", "execution_events", ["execution_id"])
     op.create_index(
         "ix_execution_events_execution_seq",
         "execution_events",
