@@ -46,9 +46,7 @@ def test_workspace_local_db_path_persists_across_instances(tmp_path: Path) -> No
 def test_workspace_local_db_relative_path_resolved_against_workspace_root(
     tmp_path: Path,
 ) -> None:
-    config = StorageConfig(
-        db_url="sqlite:///nested/ambrosia.db", workspace_root=tmp_path
-    )
+    config = StorageConfig(db_url="sqlite:///nested/ambrosia.db", workspace_root=tmp_path)
     engine = create_engine_from_config(config)
     assert Path(engine.url.database).is_absolute()
     storage = Storage(config=config)
@@ -57,14 +55,10 @@ def test_workspace_local_db_relative_path_resolved_against_workspace_root(
 
 
 def test_foreign_keys_are_enforced_by_default(tmp_path: Path) -> None:
-    config = StorageConfig(
-        db_url=f"sqlite:///{tmp_path / 'fk.db'}", workspace_root=tmp_path
-    )
+    config = StorageConfig(db_url=f"sqlite:///{tmp_path / 'fk.db'}", workspace_root=tmp_path)
     storage = Storage(config=config)
     with storage.session() as session:
-        session.add(
-            EngagementORM(id="eng-1", name="e", status="active")
-        )
+        session.add(EngagementORM(id="eng-1", name="e", status="active"))
         session.flush()
         bad = ArtifactORM(
             id="art-1",
@@ -97,14 +91,10 @@ def test_timestamps_are_stored_in_utc() -> None:
 
 
 def test_session_scope_rolls_back_on_exception(tmp_path: Path) -> None:
-    config = StorageConfig(
-        db_url=f"sqlite:///{tmp_path / 'tx.db'}", workspace_root=tmp_path
-    )
+    config = StorageConfig(db_url=f"sqlite:///{tmp_path / 'tx.db'}", workspace_root=tmp_path)
     storage = Storage(config=config)
     with storage.session() as session:
-        EngagementRepository(session).create(
-            Engagement(id="kept-id", name="kept", description="d")
-        )
+        EngagementRepository(session).create(Engagement(id="kept-id", name="kept", description="d"))
     with storage.session() as session:
         try:
             with session_scope(session):
@@ -117,10 +107,7 @@ def test_session_scope_rolls_back_on_exception(tmp_path: Path) -> None:
         except IntegrityError:
             pass
     with storage.session() as session:
-        names = {
-            row.name
-            for row in session.execute(select(EngagementORM)).scalars().all()
-        }
+        names = {row.name for row in session.execute(select(EngagementORM)).scalars().all()}
         assert names == {"kept"}
 
 
