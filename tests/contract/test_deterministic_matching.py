@@ -142,7 +142,11 @@ def test_artifact_produces_available_after_context_change() -> None:
     filled = ContextSnapshot(
         engagement_id="e1",
         selected_target={"address": "10.0.0.1"},
-        artifacts=(Artifact(id="a1", engagement_id="e1", type="network.host", target_ref="10.0.0.1", value={}),),
+        artifacts=(
+            Artifact(
+                id="a1", engagement_id="e1", type="network.host", target_ref="10.0.0.1", value={}
+            ),
+        ),
         inputs={"target": "10.0.0.1"},
         available_tools=frozenset(["nmap"]),
         platform="current",
