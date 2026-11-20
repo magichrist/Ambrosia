@@ -57,6 +57,7 @@ def _action(**overrides) -> ActionDefinition:
 # ---------------------------------------------------------------------------
 # Effect classification
 
+
 def test_classify_all_allowed() -> None:
     classifier = EffectClassifier()
     result = classifier.classify(
@@ -106,6 +107,7 @@ def test_classify_unknown_effect_blocked() -> None:
 # ---------------------------------------------------------------------------
 # Policy decision records
 
+
 def test_policy_decision_to_dict_is_secret_free() -> None:
     decision = PolicyDecision(
         execution_id="exec-1",
@@ -140,14 +142,24 @@ def test_policy_decision_record_immutable_append() -> None:
 
 def test_policy_decision_record_blocked_and_approval() -> None:
     record = PolicyDecisionRecord(execution_id="exec-1")
-    record = record.add(PolicyDecision(
-        execution_id="exec-1", action_id="a", engagement_id="e",
-        outcome="blocked", reason="out of scope",
-    ))
-    record = record.add(PolicyDecision(
-        execution_id="exec-1", action_id="a", engagement_id="e",
-        outcome="requires_approval", reason="needs approval",
-    ))
+    record = record.add(
+        PolicyDecision(
+            execution_id="exec-1",
+            action_id="a",
+            engagement_id="e",
+            outcome="blocked",
+            reason="out of scope",
+        )
+    )
+    record = record.add(
+        PolicyDecision(
+            execution_id="exec-1",
+            action_id="a",
+            engagement_id="e",
+            outcome="requires_approval",
+            reason="needs approval",
+        )
+    )
     assert record.blocked is True
     assert record.requires_approval is True
     assert record.allowed is False
@@ -155,6 +167,7 @@ def test_policy_decision_record_blocked_and_approval() -> None:
 
 # ---------------------------------------------------------------------------
 # PolicyEngine.evaluate
+
 
 def test_engine_evaluate_allowed() -> None:
     engine = PolicyEngine()
@@ -186,9 +199,7 @@ def test_engine_evaluate_requires_approval() -> None:
     engine = PolicyEngine()
     outcome, decision, record = engine.evaluate(
         action=_action(effects=["local_write"], approval_required=True),
-        scope=_scope(
-            allowed_effects={"local_read", "local_write", "network_observe"}
-        ),
+        scope=_scope(allowed_effects={"local_read", "local_write", "network_observe"}),
         address="10.0.0.1",
         execution_id="exec-1",
         engagement_id="eng-1",
@@ -212,6 +223,7 @@ def test_require_policy_allowed_raises() -> None:
 # ---------------------------------------------------------------------------
 # Approval state transitions
 
+
 def test_approval_create_pending() -> None:
     service = ApprovalService()
     record = service.create(
@@ -227,9 +239,7 @@ def test_approval_create_pending() -> None:
 
 def test_approval_grant_transition() -> None:
     service = ApprovalService()
-    record = service.create(
-        execution_id="exec-1", engagement_id="eng-1", effect="local_write"
-    )
+    record = service.create(execution_id="exec-1", engagement_id="eng-1", effect="local_write")
     granted = service.grant(record.id, decided_by="operator")
     assert granted.state == "granted"
     assert granted.is_granted is True
@@ -239,9 +249,7 @@ def test_approval_grant_transition() -> None:
 
 def test_approval_deny_transition() -> None:
     service = ApprovalService()
-    record = service.create(
-        execution_id="exec-1", engagement_id="eng-1", effect="local_write"
-    )
+    record = service.create(execution_id="exec-1", engagement_id="eng-1", effect="local_write")
     denied = service.deny(record.id, decided_by="operator", reason="denied")
     assert denied.state == "denied"
     assert denied.is_terminal is True
@@ -249,9 +257,7 @@ def test_approval_deny_transition() -> None:
 
 def test_approval_expire_transition() -> None:
     service = ApprovalService()
-    record = service.create(
-        execution_id="exec-1", engagement_id="eng-1", effect="local_write"
-    )
+    record = service.create(execution_id="exec-1", engagement_id="eng-1", effect="local_write")
     expired = service.expire(record.id)
     assert expired.state == "expired"
     assert expired.is_terminal is True
@@ -259,9 +265,7 @@ def test_approval_expire_transition() -> None:
 
 def test_approval_grant_twice_raises_conflict() -> None:
     service = ApprovalService()
-    record = service.create(
-        execution_id="exec-1", engagement_id="eng-1", effect="local_write"
-    )
+    record = service.create(execution_id="exec-1", engagement_id="eng-1", effect="local_write")
     service.grant(record.id, decided_by="operator")
     with pytest.raises(ConflictError):
         service.grant(record.id, decided_by="operator")
