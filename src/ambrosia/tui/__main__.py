@@ -11,7 +11,6 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import Literal
 
-from ambrosia.actions.builtins import register_builtins
 from ambrosia.application import ApplicationServices
 from ambrosia.domain.models import (
     Artifact,
@@ -22,7 +21,7 @@ from ambrosia.domain.models import (
 )
 from ambrosia.engine.engine import JobEngine
 from ambrosia.policy.engine import PolicyEngine
-from ambrosia.registry import Registry
+from ambrosia.registry.loader import build_registry
 from ambrosia.tui.app import build_app
 from ambrosia.tui.services import TUIServiceAdapter
 
@@ -143,8 +142,7 @@ class _FakeExecutionRepository:
 
 
 def main() -> None:
-    registry = Registry()
-    register_builtins(registry)
+    registry = build_registry()
 
     engagement_repo = _FakeEngagementRepository()
     scope_repo = _FakeScopeRepository()
@@ -178,6 +176,7 @@ def main() -> None:
         registry=registry,
         execution_repository=execution_repo,
         policy_engine=PolicyEngine(),
+        artifact_repository=artifact_repo,
     )
     adapter = TUIServiceAdapter(
         services=services,
