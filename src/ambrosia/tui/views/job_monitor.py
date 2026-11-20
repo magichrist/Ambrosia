@@ -47,9 +47,7 @@ class JobMonitorView(BaseView):
             if job_id is None:
                 self.query_one("#jobs-body", Static).update("Select an execution to cancel.")
                 return
-            self.workspace.run_worker(
-                self.services.cancel_job(job_id), name=f"cancel-{job_id}"
-            )
+            self.workspace.run_worker(self.services.cancel_job(job_id), name=f"cancel-{job_id}")
             self.query_one("#jobs-body", Static).update(f"Cancelling {job_id[:8]} ...")
             self.call_after_refresh(self.safe_refresh)
 
