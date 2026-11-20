@@ -35,9 +35,7 @@ def test_list_returns_executions() -> None:
     exec_repo.add(_execution("e-1"))
     exec_repo.add(_execution("e-2", status="failed"))
 
-    service = JobService(
-        session_scope=nullcontext, execution_repo=exec_repo
-    )
+    service = JobService(session_scope=nullcontext, execution_repo=exec_repo)
     dtos = service.list("eng-1")
     assert len(dtos.jobs) == 2
 
@@ -47,9 +45,7 @@ def test_show_returns_events() -> None:
     exec_repo.add(_execution("e-1"))
     exec_repo.add_event("e-1", "ProgressEvent", {"message": "hi"}, 1)
 
-    service = JobService(
-        session_scope=nullcontext, execution_repo=exec_repo
-    )
+    service = JobService(session_scope=nullcontext, execution_repo=exec_repo)
     dto = service.show("e-1")
     assert dto.job.id == "e-1"
     assert len(dto.events) == 1
@@ -66,9 +62,7 @@ def test_cancel_marks_execution() -> None:
     exec_repo = FakeExecutionRepository()
     exec_repo.add(_execution("e-1", status="running"))
 
-    service = JobService(
-        session_scope=nullcontext, execution_repo=exec_repo
-    )
+    service = JobService(session_scope=nullcontext, execution_repo=exec_repo)
     dto = service.cancel("e-1")
     assert dto.status == "cancelled"
     assert dto.finished_at is not None
