@@ -33,6 +33,7 @@ from ambrosia.application.job_service import JobDTO, JobListDTO, JobShowDTO
 from ambrosia.application.preset_service import (
     PresetListDTO,
     PresetPlanDTO,
+    PresetSaveDTO,
     PresetValidateDTO,
 )
 from ambrosia.application.report_service import ReportExportDTO
@@ -525,6 +526,18 @@ def preset_list(
 ) -> PresetListDTO:
     """List available presets."""
     return get_services().preset.list()
+
+
+@preset_app.command("save")
+@command
+def preset_save(
+    source: str = typer.Argument(..., help="Preset YAML path or registered preset id to fork."),
+    new_id: str | None = typer.Option(None, "--as", help="New namespaced id for the saved copy."),
+    name: str | None = typer.Option(None, "--name", help="Display name for the saved copy."),
+    output: str = typer.Option("human", "--output", help="Output format: human or json."),
+) -> PresetSaveDTO:
+    """Save a workflow as a reusable preset in the workspace."""
+    return get_services().preset.save(source, new_id=new_id, name=name)
 
 
 @preset_app.command("validate")
