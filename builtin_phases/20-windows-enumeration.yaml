@@ -1,0 +1,28 @@
+# Phase detection metadata — NOT a permission or lifecycle gate.
+id: windows.enumeration
+name: "Enumeration"
+description: >
+  With services known, enumerate Windows/AD configuration, hosts, roles, and
+  user/identity data to map the attack surface.
+tags: [windows, enumeration]
+sort_order: 20
+action_refs:
+  - windows.smb.configuration_audit
+  - windows.ldap.domain_inventory
+  - windows.identity.local_users
+preset_refs:
+  - windows.authorized.enumeration
+  - authorized.comprehensive-windows
+visible_when:
+  - kind: artifact_exists
+    artifact_type: network.service
+complete_when:
+  - kind: artifact_exists
+    artifact_type: windows.domain
+  - kind: artifact_exists
+    artifact_type: windows.host_role
+  - kind: artifact_exists
+    artifact_type: identity.user_ref
+  - kind: artifact_exists
+    artifact_type: windows.assessment_step
+    where: {phase: windows.enumeration}
