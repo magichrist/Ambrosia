@@ -78,7 +78,9 @@ class Scope(BaseModel):
         exclude = set(self.exclude_hosts) | set(self.exclude_cidrs)
         overlap = include & exclude
         if overlap:
-            raise ValueError(f"hosts/cidrs/domains appear in both include and exclude: {sorted(overlap)}")
+            raise ValueError(
+                f"hosts/cidrs/domains appear in both include and exclude: {sorted(overlap)}"
+            )
         return self
 
 
