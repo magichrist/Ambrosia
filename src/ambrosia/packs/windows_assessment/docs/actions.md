@@ -10,12 +10,19 @@ limitations.
 
 | Action ID | Declares target scope field | Required artifact (same target) | Output artifact types |
 |---|---|---|---|
-| `network.nmap.service_discovery` | `target` | none | `network.service`, `network.host`, `observation` |
-| `windows.smb.configuration_audit` | `target` | `network.service` where `service_name == smb` | `windows.domain`, `windows.host_role`, `observation` |
-| `windows.ldap.domain_inventory` | `target` | `network.service` where `service_name == ldap` | `windows.domain`, `observation` |
-| `windows.http.method_observation` | `target` | `network.service` where `service_name == http` | `observation` |
-| `windows.rdp.exposure_observation` | `target` | `network.service` where `service_name == rdp` | `observation` |
-| `windows.winrm.exposure_observation` | `target` | `network.service` where `service_name == winrm` | `observation` |
+| `network.nmap.service_discovery` | `target` | none | `network.service` |
+| `windows.smb.configuration_audit` | `target` | `network.service` where `service_name` is `smb`/`microsoft-ds` | `windows.domain`, `windows.host_role`, `observation` |
+| `windows.ldap.domain_inventory` | `target` | `network.service` where `service_name` is `ldap`/`ldaps` | `windows.domain`, `observation` |
+| `windows.http.method_observation` | `target` | `network.service` where `service_name` is `http`/`https`/`www` | `observation` |
+| `windows.rdp.exposure_observation` | `target` | `network.service` where `service_name` is `rdp`/`ms-wbt-server` | `observation` |
+| `windows.winrm.exposure_observation` | `target` | `network.service` where `service_name` is `winrm`/`wsman` | `observation` |
+
+Service prerequisites accept both the canonical label (`smb`, `rdp`, ...) and
+the name Nmap actually reports (`microsoft-ds`, `ms-wbt-server`, `wsman`,
+`https`, ...), so follow-up actions are offered on real scans as well as on
+hand-authored artifacts. Discovery emits typed `network.service` artifacts from
+structured XML only; it does not synthesise `network.host` or `observation`
+artifacts.
 
 ## How discovered artifacts drive further actions
 
