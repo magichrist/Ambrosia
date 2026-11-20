@@ -277,7 +277,9 @@ def test_not_applicable_missing_artifact() -> None:
 def test_not_applicable_platform() -> None:
     registry = _registry_with_pack()
     matcher = AvailabilityMatcher(registry)
-    context = _context(selected_target={"address": "10.0.0.1"}, available_tools=(), platform="linux")
+    context = _context(
+        selected_target={"address": "10.0.0.1"}, available_tools=(), platform="linux"
+    )
     policy = _policy()
     avail = matcher.evaluate("match.platform_only", context, policy)
     assert avail.status == "not_applicable"
@@ -287,8 +289,12 @@ def test_not_applicable_platform() -> None:
 def test_matched_artifact_ids_populated() -> None:
     registry = _registry_with_pack()
     matcher = AvailabilityMatcher(registry)
-    artifact = _artifact("art-1", "network.service", target_ref="10.0.0.1", value={"service": "smb"})
-    context = _context(selected_target={"address": "10.0.0.1"}, artifacts=(artifact,), available_tools=())
+    artifact = _artifact(
+        "art-1", "network.service", target_ref="10.0.0.1", value={"service": "smb"}
+    )
+    context = _context(
+        selected_target={"address": "10.0.0.1"}, artifacts=(artifact,), available_tools=()
+    )
     policy = _policy()
     # match.not_applicable requires network.service same_target -> now satisfied
     avail = matcher.evaluate("match.not_applicable", context, policy)
@@ -299,8 +305,12 @@ def test_matched_artifact_ids_populated() -> None:
 def test_target_scoped_artifact_does_not_match_other_target() -> None:
     registry = _registry_with_pack()
     matcher = AvailabilityMatcher(registry)
-    artifact = _artifact("art-1", "network.service", target_ref="10.0.0.2", value={"service": "smb"})
-    context = _context(selected_target={"address": "10.0.0.1"}, artifacts=(artifact,), available_tools=())
+    artifact = _artifact(
+        "art-1", "network.service", target_ref="10.0.0.2", value={"service": "smb"}
+    )
+    context = _context(
+        selected_target={"address": "10.0.0.1"}, artifacts=(artifact,), available_tools=()
+    )
     policy = _policy()
     avail = matcher.evaluate("match.not_applicable", context, policy)
     assert avail.status == "not_applicable"
