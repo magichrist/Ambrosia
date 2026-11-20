@@ -127,9 +127,7 @@ class AvailabilityMatcher:
     ) -> None:
         pack_id = self._registry.action_pack_id(definition.id)
         if pack_id is not None and not self._registry._pack_enabled(pack_id):  # noqa: SLF001
-            findings.append(
-                _Finding("not_applicable", f"pack {pack_id!r} is disabled")
-            )
+            findings.append(_Finding("not_applicable", f"pack {pack_id!r} is disabled"))
 
     def _check_platform(
         self,
@@ -217,7 +215,9 @@ class AvailabilityMatcher:
         findings: list[_Finding],
     ) -> list[str]:
         matched_ids: list[str] = []
-        target_address = _target_address(context.selected_target) if context.selected_target else None
+        target_address = (
+            _target_address(context.selected_target) if context.selected_target else None
+        )
 
         for req in definition.required_artifacts:
             matches = _matching_artifacts(context.artifacts, req, target_address)
@@ -247,9 +247,7 @@ class AvailabilityMatcher:
         for field_name in required:
             if field_name not in context.inputs:
                 missing.append(field_name)
-                findings.append(
-                    _Finding("needs_input", f"missing required input: {field_name}")
-                )
+                findings.append(_Finding("needs_input", f"missing required input: {field_name}"))
         return missing
 
     def _check_approval(
@@ -260,9 +258,7 @@ class AvailabilityMatcher:
     ) -> bool:
         required = any(effect in policy.require_approval_for for effect in definition.effects)
         if required and definition.approval_required:
-            findings.append(
-                _Finding("needs_approval", "approval required before execution")
-            )
+            findings.append(_Finding("needs_approval", "approval required before execution"))
             return True
         if required:
             findings.append(
