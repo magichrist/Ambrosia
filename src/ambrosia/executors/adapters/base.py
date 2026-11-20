@@ -11,7 +11,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-
 # ``ServiceValue.state`` (the artifact value model) accepts only these three
 # literals. Nmap can emit combined states such as ``open|filtered`` (UDP scans
 # and some filtered TCP scans), which would otherwise fail artifact validation.
