@@ -64,9 +64,7 @@ CORE_ECHO_ACTION = ActionDefinition(
     required_artifacts=[],
     input_schema={
         "type": "object",
-        "properties": {
-            "message": {"type": "string", "description": "Message to echo back."}
-        },
+        "properties": {"message": {"type": "string", "description": "Message to echo back."}},
         "required": ["message"],
         "additionalProperties": False,
     },
