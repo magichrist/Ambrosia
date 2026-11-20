@@ -1,589 +1,632 @@
-"""Ambrosia TUI application: the persistent adaptive workspace shell.
+"""Ambrosia v2 TUI application: the primary command-launcher interface.
 
-Layout
-------
-* status bar (docked top): Ambrosia, engagement, scope, target, running jobs
-* context rail (left): selected target, targets, last action
-* main content area: context-relevant views (dashboard, details, jobs, ...)
-* activity / timeline panel (right): recent actions, execution events
-* command palette (modal screen): global search triggered with ``/``
+Layout (single screen, regions toggled with CSS classes):
 
-The application calls application services (and the job engine) for all
-behaviour. It never performs business logic, queries SQLAlchemy directly, or
-launches subprocesses.
+* top bar          - app name, session, command count, running jobs, [q]uit
+* search bar       - live, debounced filtering; ``r`` toggles regex
+* results + preview- left results list, right preview of the highlighted command
+* execution view   - shown while a job runs; hidden again with ``b``
+
+The app depends only on the :mod:`ambrosia.v2` adapters (model, storage,
+session, executor) and never on the v1 TUI.
 """
 
 from __future__ import annotations
 
-import logging
+import asyncio
+import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, ListView
+from textual.screen import ModalScreen
+from textual.widgets import Button, Input, Label, Static
 
-from ambrosia.tui.services import (
-    ApprovalRequired,
-    ExecutionEvent,
-    ExecutionFinished,
-    ExecutionStarted,
-    TUIServiceAdapter,
+from ambrosia.executor import (
+    CommandResult,
+    ExecutableNotFoundError,
+    ShellExecutor,
+    build_argv,
 )
-from ambrosia.tui.views.action_details import ActionDetailsView
-from ambrosia.tui.views.artifact_browser import ArtifactBrowserView
-from ambrosia.tui.views.dashboard import DashboardView
-from ambrosia.tui.views.engagement_list import EngagementListView
-from ambrosia.tui.views.findings import FindingsView
-from ambrosia.tui.views.job_monitor import JobMonitorView
-from ambrosia.tui.views.preset_browser import PresetBrowserView
-from ambrosia.tui.views.target_scope import TargetScopeView
-from ambrosia.tui.widgets.action_list import ActionList
-from ambrosia.tui.widgets.activity_panel import ActivityPanel
-from ambrosia.tui.widgets.command_palette import CommandPalette
-from ambrosia.tui.widgets.context_rail import ContextRail
-from ambrosia.tui.widgets.modals import ConfirmDialog, DetailModal, HelpModal
-from ambrosia.tui.widgets.status_bar import StatusBar
+from ambrosia.model import Command
+from ambrosia.session import SessionState, SessionStore
+from ambrosia.storage import (
+    add_command,
+    load_commands,
+    remove_command,
+    save_commands,
+)
+from ambrosia.tui.widgets.execution_view import ExecutionView
+from ambrosia.tui.widgets.input_form import InputFormModal
+from ambrosia.tui.widgets.preview import PreviewPanel
+from ambrosia.tui.widgets.results import ResultsList
+from ambrosia.tui.widgets.search import SearchBar
 
 if TYPE_CHECKING:
-    from ambrosia.tui.views.base import BaseView
+    from textual.events import Key
 
-logger = logging.getLogger(__name__)
+SESSION_FILE = Path.home() / ".ambrosia" / "session.json"
 
-VIEW_DASHBOARD = "dashboard"
-VIEW_ENGAGEMENTS = "engagements"
-VIEW_TARGET_SCOPE = "target_scope"
-VIEW_JOBS = "jobs"
-VIEW_ARTIFACTS = "artifacts"
-VIEW_FINDINGS = "findings"
-VIEW_PRESETS = "presets"
-VIEW_ACTION_DETAILS = "action_details"
+
+def _searchable_text(command: Command) -> str:
+    """Concatenated name + description + tags + shell used for matching."""
+    return " ".join([command.name, command.description, " ".join(command.tags), command.shell])
 
 
 class AmbrosiaApp(App[None]):
-    """The Ambrosia adaptive workspace."""
+    """The v2 Textual application."""
 
     CSS = """
     Screen {
         layout: vertical;
     }
-    #status-bar {
+    #top-bar {
         dock: top;
         height: 3;
         padding: 0 1;
+        color: $text;
+        background: $panel;
     }
-    Horizontal#shell {
+    #search-bar {
+        height: 3;
+        padding: 0 1;
+        background: $surface;
+    }
+    #search-status {
+        height: 1;
+        padding: 0 1;
+        color: #ff6666;
+    }
+    #main-split {
+        height: 1fr;
+        layout: horizontal;
+    }
+    #results {
+        width: 1fr;
+        border-right: solid $primary;
+    }
+    #preview {
+        width: 56;
+        background: $panel;
+    }
+    #execution-view {
+        display: none;
+    }
+    #execution-view.visible {
+        display: block;
         height: 1fr;
     }
-    #context-rail {
-        width: 44;
-    }
-    #main {
-        width: 1fr;
-    }
-    #activity-panel {
-        width: 48;
-    }
-    Footer {
-        dock: bottom;
+    #main-split.hidden,
+    #top-bar.hidden,
+    #search-bar.hidden {
+        display: none;
     }
     """
 
     BINDINGS = [
-        Binding("/", "search", "Search", show=True),
+        Binding("/", "focus_search", "Search", show=True),
         Binding("tab", "focus_next", "Next region", show=True),
-        Binding("enter", "open", "Open / select", show=True),
-        Binding("escape", "go_back", "Back / close", show=True),
-        Binding("g", "engagement_switcher", "Engagement", show=True),
-        Binding("?", "help", "Help", show=True),
+        Binding("enter", "select", "Select / run", show=True),
+        Binding("escape", "go_back", "Clear / back", show=True),
+        Binding("r", "toggle_regex", "Regex", show=True),
+        Binding("n", "add_command", "New command", show=True),
+        Binding("e", "edit_command", "Edit command", show=True),
+        Binding("d", "delete_command", "Delete command", show=True),
+        Binding("s", "save_session", "Save session", show=True),
+        Binding("c", "cancel_job", "Cancel job", show=True),
         Binding("q", "quit_app", "Quit", show=True),
-        Binding("r", "refresh", "Refresh", show=True),
-        Binding("t", "target_scope", "Scope", show=True),
-        Binding("p", "preset_browser", "Presets", show=True),
-        Binding("j", "job_monitor", "Jobs", show=True),
-        Binding("f", "findings", "Findings", show=True),
-        Binding("a", "artifacts", "Artifacts", show=True),
+        Binding("?", "help", "Help", show=True),
     ]
 
-    current_engagement_id: reactive[str] = reactive("")
-    current_target_address: reactive[str] = reactive("")
-    status_text: reactive[str] = reactive("")
-    running_jobs: reactive[int] = reactive(0)
-    active_view: reactive[str] = reactive(VIEW_ENGAGEMENTS)
+    commands: reactive[list[Command]] = reactive([])
+    search_query: reactive[str] = reactive("")
+    regex_mode: reactive[bool] = reactive(False)
+    filtered: reactive[list[Command]] = reactive([])
+    selected_command: reactive[Command | None] = reactive(None)
+    running: reactive[bool] = reactive(False)
+    execution_visible: reactive[bool] = reactive(False)
+    regex_error: reactive[str | None] = reactive(None)
 
-    def __init__(self, services: TUIServiceAdapter) -> None:
+    def __init__(self, commands: list[Command] | None = None) -> None:
         super().__init__()
-        self._services = services
-        self._view_stack: list[str] = []
-        self._status_message = ""
-        self._current_view: BaseView | None = None
+        self.session = SessionState()
+        self.session_store = SessionStore(SESSION_FILE)
+        self.executor = ShellExecutor()
+        self._startup_commands = list(commands) if commands is not None else None
+        self._run_task: asyncio.Task[None] | None = None
+        self._search_debounce_task: asyncio.Task[None] | None = None
+        self._filter_task: asyncio.Task[None] | None = None
+        self._last_command: Command | None = None
+        self._last_values: dict[str, str] = {}
 
     # ------------------------------------------------------------------ compose
 
     def compose(self) -> ComposeResult:
-        yield StatusBar(id="status-bar")
+        yield Static(id="top-bar")
+        yield SearchBar(id="search-bar")
+        yield Static(id="search-status")
         yield Horizontal(
-            ContextRail(services=self._services, id="context-rail"),
-            Horizontal(id="main"),
-            ActivityPanel(services=self._services, id="activity-panel"),
-            id="shell",
+            ResultsList(id="results"),
+            PreviewPanel(id="preview"),
+            id="main-split",
         )
-        yield Footer()
+        yield ExecutionView(id="execution-view")
+
+    # ------------------------------------------------------------------ mount
 
     def on_mount(self) -> None:
-        self.status_bar().set_status("ready")
-        self.show_view(VIEW_ENGAGEMENTS)
+        self.session = self.session_store.load()
+        if self._startup_commands is not None:
+            self.commands = self._startup_commands
+        else:
+            try:
+                self.commands = load_commands()
+            except Exception:  # pragma: no cover - storage failure fallback
+                self.commands = []
+        self._recompute_filtered()
+        self._refresh_top_bar()
+        self.query_one("#search-bar", SearchBar).focus_input()
 
     # ------------------------------------------------------------------ reactive watchers
 
-    def watch_current_engagement_id(self, engagement_id: str) -> None:
-        self.status_bar().set_engagement(
-            self._engagement_name(engagement_id) or engagement_id, engagement_id
-        )
-        try:
-            scope = self._services.show_scope(engagement_id) if engagement_id else None
-        except Exception:  # pragma: no cover - defensive
-            scope = None
-        if scope is not None:
-            self.status_bar().set_scope(
-                len(scope.include_hosts), len(scope.include_cidrs), len(scope.include_domains)
-            )
-        self._context_rail().refresh_context()
-        self._activity().add_entry(f"[context] engagement {engagement_id or '(none)'}")
-        self.refresh_active_view()
+    def watch_search_query(self, _query: str) -> None:
+        self._recompute_filtered()
 
-    def watch_current_target_address(self, address: str | None) -> None:
-        self.status_bar().set_target(address)
-        self._context_rail().refresh_context()
-        self._activity().add_entry(f"[context] target {address or '(none)'}")
-        self.refresh_active_view()
+    def watch_regex_mode(self, _regex_mode: bool) -> None:
+        self._recompute_filtered()
+        self.query_one("#search-bar", SearchBar).set_regex_mode(self.regex_mode)
 
-    def watch_running_jobs(self, count: int) -> None:
-        self.status_bar().set_running_jobs(count)
-        self._activity().add_entry(f"[jobs] running jobs now {count}")
+    def watch_regex_error(self, error: str | None) -> None:
+        status = self.query_one("#search-status", Static)
+        if error:
+            status.update(error)
+        else:
+            status.update("")
 
-    def watch_active_view(self, name: str) -> None:
-        self.refresh_active_view()
+    def watch_filtered(self, filtered: list[Command]) -> None:
+        if self.selected_command is not None:
+            ids = {command.id for command in filtered}
+            if self.selected_command.id not in ids:
+                self.selected_command = None
+        results = self.query_one("#results", ResultsList)
+        if self._filter_task is not None:
+            self._filter_task.cancel()
+        self._filter_task = asyncio.create_task(results.set_commands(filtered))
+
+    def watch_selected_command(self, command: Command | None) -> None:
+        preview = self.query_one("#preview", PreviewPanel)
+        preview.set_command(command, self.session)
+
+    def watch_running(self, _running: bool) -> None:
+        self._refresh_top_bar()
+
+    def watch_execution_visible(self, visible: bool) -> None:
+        top_bar = self.query_one("#top-bar", Static)
+        search_bar = self.query_one("#search-bar", SearchBar)
+        main_split = self.query_one("#main-split", Horizontal)
+        execution = self.query_one("#execution-view", ExecutionView)
+        if visible:
+            top_bar.add_class("hidden")
+            search_bar.add_class("hidden")
+            main_split.add_class("hidden")
+            execution.remove_class("hidden")
+            execution.add_class("visible")
+            execution.focus_log()
+        else:
+            execution.remove_class("visible")
+            execution.add_class("hidden")
+            top_bar.remove_class("hidden")
+            search_bar.remove_class("hidden")
+            main_split.remove_class("hidden")
+            self.call_after_refresh(self.action_focus_results)
 
     # ------------------------------------------------------------------ helpers
 
-    def status_bar(self) -> StatusBar:
-        return self.query_one("#status-bar", StatusBar)
+    def _recompute_filtered(self) -> None:
+        self.filtered = self._build_filtered()
 
-    def _activity(self) -> ActivityPanel:
-        return self.query_one("#activity-panel", ActivityPanel)
+    def _build_filtered(self) -> list[Command]:
+        query = self.search_query
+        if not query:
+            self.regex_error = None
+            return list(self.commands)
+        if self.regex_mode:
+            try:
+                pattern = re.compile(query)
+            except re.error as exc:
+                self.regex_error = f"invalid regex: {exc}"
+                return list(self.commands)
+            self.regex_error = None
+            return [
+                command for command in self.commands if pattern.search(_searchable_text(command))
+            ]
+        self.regex_error = None
+        needle = query.lower()
+        return [command for command in self.commands if needle in _searchable_text(command).lower()]
 
-    def _context_rail(self) -> ContextRail:
-        return self.query_one("#context-rail", ContextRail)
-
-    def _main(self) -> Horizontal:
-        return self.query_one("#main", Horizontal)
-
-    def _engagement_name(self, engagement_id: str) -> str | None:
-        try:
-            engagement = self._services.get_engagement(engagement_id)
-            return engagement.name
-        except Exception:  # pragma: no cover - defensive
-            return None
-
-    def current_view(self) -> BaseView | None:
-        # Textual's Widget.remove() is asynchronous, so main.children can still
-        # contain a view scheduled for removal. Track the active view explicitly
-        # instead of relying on child order.
-        return self._current_view
-
-    def refresh_active_view(self) -> None:
-        view = self.current_view()
-        if view is None:
-            return
-        try:
-            self.call_after_refresh(view.safe_refresh)
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.debug("Failed to refresh active view: %s", exc)
-
-    # ------------------------------------------------------------------ navigation
-
-    def show_view(self, name: str, action_id: str | None = None) -> None:
-        """Swap the named view into the main content area.
-
-        A fresh widget is created on every navigation. Textual's ``remove()``
-        is asynchronous, so reusing a cached widget (or reusing a fixed id)
-        produced ``DuplicateIds`` errors on rapid navigation. Views read their
-        state from the app and the service adapter, so recreating them is safe.
-        """
-        main = self._main()
-        for child in list(main.children):
-            child.remove()
-        view: BaseView
-        if name == VIEW_ACTION_DETAILS and action_id is not None:
-            view = ActionDetailsView(self._services, action_id)
-        else:
-            view = self._create_view(name)
-        main.mount(view)
-        self._current_view = view
-        self.active_view = name
-        self._view_stack = [v for v in self._view_stack if v != name]
-        self._view_stack.append(name)
-        self.call_after_refresh(view.safe_refresh)
-        self._activity().add_entry(f"[view] {name}")
-
-    def _create_view(self, name: str) -> BaseView:
-        if name == VIEW_ENGAGEMENTS:
-            return EngagementListView(self._services)
-        if name == VIEW_TARGET_SCOPE:
-            return TargetScopeView(self._services)
-        if name == VIEW_JOBS:
-            return JobMonitorView(self._services)
-        if name == VIEW_ARTIFACTS:
-            return ArtifactBrowserView(self._services)
-        if name == VIEW_FINDINGS:
-            return FindingsView(self._services)
-        if name == VIEW_PRESETS:
-            return PresetBrowserView(self._services)
-        return DashboardView(self._services)
-
-    def open_action(self, action_id: str) -> None:
-        self.show_view(VIEW_ACTION_DETAILS, action_id=action_id)
-
-    # ------------------------------------------------------------------ execution
-
-    def execute_action(
-        self,
-        action_id: str,
-        inputs: dict[str, object] | None = None,
-        authorization_reference: str | None = None,
-    ) -> None:
-        """Run an action in a background worker so the UI stays responsive."""
-        self.run_worker(
-            self._execute_action_worker(action_id, inputs, authorization_reference),
-            name=f"run-{action_id}",
+    def _refresh_top_bar(self) -> None:
+        bar = self.query_one("#top-bar", Static)
+        running_count = 1 if self.running else 0
+        bar.update(
+            f"Ambrosia v2  [session: default]  [commands: {len(self.commands)}]  "
+            f"[running: {running_count}]  [q]uit"
         )
-
-    async def _execute_action_worker(
-        self,
-        action_id: str,
-        inputs: dict[str, object] | None = None,
-        authorization_reference: str | None = None,
-    ) -> None:
-        engagement_id = self.current_engagement_id
-        target_address = self.current_target_address
-        try:
-            async for raw_update in self._services.run_action(
-                action_id,
-                engagement_id=engagement_id,
-                target_address=target_address,
-                inputs=inputs,
-                authorization_reference=authorization_reference,
-            ):
-                update: dict[str, object] = raw_update
-                kind = str(update["kind"])
-                execution_id = str(update.get("execution_id", ""))
-                if kind == "started":
-                    self.running_jobs += 1
-                    self.status_bar().set_status(f"running {action_id}")
-                    self._activity().add_entry(f"[run] {action_id} started ({execution_id[:8]})")
-                    self.post_message(ExecutionStarted(execution_id))
-                elif kind == "event":
-                    self._activity().add_entry(
-                        f"[event] {update.get('event_kind')} {str(update.get('payload', {}))[:120]}"
-                    )
-                    payload = update.get("payload")
-                    payload_dict = payload if isinstance(payload, dict) else {}
-                    self.post_message(
-                        ExecutionEvent(
-                            execution_id,
-                            str(update.get("event_kind", "")),
-                            dict(payload_dict),
-                        )
-                    )
-                elif kind == "approval_required":
-                    self._activity().add_entry(
-                        f"[approval] awaiting decision ({str(update.get('approval_id', ''))[:8]})"
-                    )
-                    self.post_message(
-                        ApprovalRequired(execution_id, str(update.get("approval_id", "")))
-                    )
-                elif kind == "finished":
-                    self.running_jobs = max(0, self.running_jobs - 1)
-                    status = str(update.get("status", "unknown"))
-                    self.status_bar().set_status(f"{action_id} -> {status}")
-                    self._activity().add_entry(
-                        f"[done] {action_id} finished ({execution_id[:8]}) -> {status}"
-                    )
-                    self.post_message(ExecutionFinished(execution_id, status))
-                    # Refresh suggestions in place; never dump back to a menu.
-                    self.refresh_active_view()
-        except Exception as exc:  # pragma: no cover - surfaced to operator
-            self.running_jobs = max(0, self.running_jobs - 1)
-            self.status_bar().set_status(f"error: {exc}")
-            self._activity().add_entry(f"[error] {action_id}: {exc}")
-            self.post_message(ExecutionFinished("", "failed"))
-
-    def parse_inputs(self, raw: str | None) -> dict[str, object]:
-        """Parse a ``key=value,key2=value2`` string into typed inputs."""
-        inputs: dict[str, object] = {}
-        if not raw:
-            return inputs
-        for part in raw.split(","):
-            part = part.strip()
-            if not part:
-                continue
-            if "=" not in part:
-                continue
-            key, value = part.split("=", 1)
-            inputs[key.strip()] = value.strip()
-        return inputs
-
-    # ------------------------------------------------------------------ action handlers (bindings)
-
-    def action_search(self) -> None:
-        self.push_screen(CommandPalette(self._services), self._handle_palette_result)
-
-    def _handle_palette_result(self, result: dict[str, object] | None) -> None:
-        if result is None:
-            return
-        if result.get("kind") == "action":
-            self.open_action(str(result["id"]))
-
-    def action_open(self) -> None:
-        focused = self.focused
-        if focused is None:
-            return
-        # Action list (dashboard): open the selected action's details.
-        if isinstance(focused, ActionList):
-            action_id = focused.selected_action_id()
-            if action_id is not None:
-                self.open_action(action_id)
-            return
-        # List views: route by widget id.
-        if isinstance(focused, ListView):
-            list_id = focused.id or ""
-            highlighted = focused.highlighted_child
-            if highlighted is None or highlighted.id is None:
-                return
-            item_id = highlighted.id
-            if list_id == "engagements-list":
-                self.current_engagement_id = item_id
-                self.show_view(VIEW_DASHBOARD)
-            elif list_id == "jobs-list":
-                self._show_job_detail(item_id)
-            elif list_id == "artifacts-list":
-                self._show_artifact_detail(item_id)
-            elif list_id == "findings-list":
-                self._show_finding_detail(item_id)
-            elif list_id == "presets-list":
-                self._show_preset_detail(item_id)
-            elif list_id == "targets-list":
-                # Target items use the target id; resolve it to its address so
-                # availability checks and execution run against the selection.
-                try:
-                    targets = self._services.list_targets(self.current_engagement_id)
-                    for target in targets.targets:
-                        if target.id == item_id:
-                            self.current_target_address = target.address
-                            break
-                except Exception as exc:  # pragma: no cover - defensive
-                    logger.debug("Could not resolve selected target address: %s", exc)
-
-    def _show_preset_detail(self, preset_id: str) -> None:
-        try:
-            presets = self._services.list_presets().presets
-        except Exception:  # pragma: no cover - defensive
-            return
-        for preset in presets:
-            if preset.id == preset_id:
-                path = getattr(preset, "path", "") or ""
-                lines = [
-                    f"id: {preset.id}",
-                    f"version: {preset.version}",
-                    f"steps: {preset.step_count}",
-                    f"path: {path}",
-                ]
-                self.push_screen(DetailModal(f"Preset {preset.id}", "\n".join(lines)))
-                return
-
-    def _show_job_detail(self, job_id: str) -> None:
-        try:
-            show = self._services.job_show(job_id)
-        except Exception:  # pragma: no cover - defensive
-            return
-        lines = [
-            f"id: {show.job.id}",
-            f"status: {show.job.status}",
-            f"action: {show.job.action_id or show.job.preset_id or '-'}",
-            f"targets: {', '.join(show.job.target_refs) or '(none)'}",
-            f"started: {show.job.started_at or '-'}",
-            f"finished: {show.job.finished_at or '-'}",
-        ]
-        if show.job.error_code:
-            lines.append(f"error_code: {show.job.error_code}")
-            lines.append(f"error_message: {show.job.error_message}")
-        lines.append("")
-        lines.append("events:")
-        for event in show.events:
-            lines.append(f"  [{event.sequence}] {event.kind} {event.timestamp or ''}")
-        self.push_screen(DetailModal(f"Job {job_id[:8]}", "\n".join(lines)))
-
-    def _show_artifact_detail(self, artifact_id: str) -> None:
-        app = self.app  # set by Textual at mount
-        engagement_id = getattr(app, "current_engagement_id", "") or ""
-        for artifact in self._services.list_artifacts(engagement_id):
-            if artifact.id == artifact_id:
-                lines = [
-                    f"id: {artifact.id}",
-                    f"type: {artifact.type}",
-                    f"target_ref: {artifact.target_ref or '(none)'}",
-                    f"source_kind: {artifact.source_kind}",
-                    f"source_id: {artifact.source_id or '(none)'}",
-                    f"created_at: {artifact.created_at.isoformat()}",
-                    f"sensitivity: {artifact.sensitivity}",
-                    f"secret_ref: {artifact.secret_ref or '(none)'}",
-                    f"confidence: {artifact.confidence}",
-                ]
-                lines.append("")
-                lines.append("value:")
-                for key, val in (artifact.value or {}).items():
-                    lines.append(f"  {key}: {val}")
-                self.push_screen(DetailModal(f"Artifact {artifact.id[:8]}", "\n".join(lines)))
-                return
-
-    def _show_finding_detail(self, finding_id: str) -> None:
-        app = self.app  # set by Textual at mount
-        engagement_id = getattr(app, "current_engagement_id", "") or ""
-        for finding in self._services.list_findings(engagement_id):
-            if finding.id == finding_id:
-                lines = [
-                    f"id: {finding.id}",
-                    f"type: {finding.type}",
-                    f"target_ref: {finding.target_ref or '(none)'}",
-                    f"source_kind: {finding.source_kind}",
-                    f"created_at: {finding.created_at.isoformat()}",
-                ]
-                lines.append("")
-                lines.append("value:")
-                for key, val in (finding.value or {}).items():
-                    lines.append(f"  {key}: {val}")
-                self.push_screen(DetailModal(f"Finding {finding.id[:8]}", "\n".join(lines)))
-                return
-
-    def action_go_back(self) -> None:
-        if len(self.screen_stack) > 1:
-            self.pop_screen()
-            return
-        if len(self._view_stack) > 1:
-            self._view_stack.pop()
-            self.show_view(self._view_stack[-1])
-        else:
-            self.show_view(VIEW_DASHBOARD)
-
-    def action_engagement_switcher(self) -> None:
-        self.show_view(VIEW_ENGAGEMENTS)
-
-    def action_help(self) -> None:
-        self.push_screen(HelpModal())
-
-    def action_focus_next(self) -> None:
-        self.screen.focus_next()
-
-    def action_refresh(self) -> None:
-        self.refresh_active_view()
-        self.status_bar().set_status("refreshed")
-
-    def action_target_scope(self) -> None:
-        self.show_view(VIEW_TARGET_SCOPE)
-
-    def action_preset_browser(self) -> None:
-        self.show_view(VIEW_PRESETS)
-
-    def action_job_monitor(self) -> None:
-        self.show_view(VIEW_JOBS)
-
-    def action_findings(self) -> None:
-        self.show_view(VIEW_FINDINGS)
-
-    def action_artifacts(self) -> None:
-        self.show_view(VIEW_ARTIFACTS)
-
-    def dry_run_action(
-        self,
-        action_id: str,
-        inputs: dict[str, object] | None = None,
-    ) -> None:
-        """Show a sanitized execution plan without launching any process."""
-        self.run_worker(
-            self._dry_run_worker(action_id, inputs),
-            name=f"dry-run-{action_id}",
-        )
-
-    async def _dry_run_worker(
-        self,
-        action_id: str,
-        inputs: dict[str, object] | None = None,
-    ) -> None:
-        try:
-            plan = await self._services.dry_run_action(
-                action_id,
-                engagement_id=self.current_engagement_id,
-                target_address=self.current_target_address or None,
-                inputs=inputs,
-            )
-            lines = [f"{key}: {value}" for key, value in plan.items()]
-            self.push_screen(DetailModal(f"Dry run: {action_id}", "\n".join(lines)))
-        except Exception as exc:  # pragma: no cover - surfaced to operator
-            self.push_screen(DetailModal(f"Dry run failed: {action_id}", str(exc)))
-
-    def action_quit_app(self) -> None:
-        if self.running_jobs > 0:
-            self.push_screen(
-                ConfirmDialog(
-                    "Jobs are still running. Quit anyway?",
-                    confirm_label="Quit",
-                ),
-                self._handle_quit_confirm,
-            )
-            return
-        self.exit()
-
-    def _handle_quit_confirm(self, confirmed: bool | None) -> None:
-        if confirmed:
-            self.exit()
 
     # ------------------------------------------------------------------ message handlers
 
-    def _on_execution_started(self, message: ExecutionStarted) -> None:
-        self._activity().add_entry(f"[execution] {message.execution_id[:8]} started")
+    def on_command_highlighted(self, event: ResultsList.CommandHighlighted) -> None:
+        self.selected_command = event.command
+        event.stop()
 
-    def _on_execution_event(self, message: ExecutionEvent) -> None:
-        pass  # events already logged to the activity panel by the worker
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Debounce search input changes and apply them to the catalog filter."""
+        if event.input.id != "search-bar":
+            return
+        if self._search_debounce_task is not None:
+            self._search_debounce_task.cancel()
+        self._search_debounce_task = asyncio.create_task(self._emit_search())
 
-    def _on_execution_finished(self, message: ExecutionFinished) -> None:
-        self._activity().add_entry(f"[execution] {message.execution_id[:8]} -> {message.status}")
+    async def _emit_search(self) -> None:
+        try:
+            await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            return
+        search = self.query_one("#search-bar", SearchBar)
+        self.search_query = search.value
 
-    def _on_approval_required(self, message: ApprovalRequired) -> None:
-        self.status_bar().set_status("awaiting approval")
+    def on_execution_view_command_finished(self, event: ExecutionView.CommandFinished) -> None:
+        pass
+
+    # ------------------------------------------------------------------ actions
+
+    def action_focus_search(self) -> None:
+        self.query_one("#search-bar", SearchBar).focus_input()
+
+    def action_focus_results(self) -> None:
+        self.query_one("#results", ResultsList).focus()
+
+    def action_toggle_regex(self) -> None:
+        if self.execution_visible:
+            return
+        self.regex_mode = not self.regex_mode
+
+    async def action_select(self) -> None:
+        search = self.query_one("#search-bar", SearchBar)
+        if search.has_focus:
+            self.action_focus_results()
+            return
+        if self.execution_visible:
+            if self._last_command is not None:
+                await self._run_command(self._last_command, self._last_values)
+            return
+        results = self.query_one("#results", ResultsList)
+        command = results.selected_command()
+        if command is None:
+            return
+        self.selected_command = command
+        self._resolve_and_run(command)
+
+    def _resolve_and_run(self, command: Command) -> None:
+        required_ids = [input_.id for input_ in command.required_inputs()]
+        if self.session.has_all_required(command.id, required_ids):
+            self._confirm_run(command)
+        else:
+            self._open_input_form(command)
+
+    def _confirm_run(self, command: Command) -> None:
+        values = self.session.get_all(command.id)
+        argv = build_argv(command.shell, values)
+        modal = _ConfirmRunModal(command, argv)
+        self.push_screen(modal, lambda outcome: self._handle_confirm_run(outcome, command))
+
+    def _handle_confirm_run(self, outcome: str | None, command: Command) -> None:
+        if outcome == "run":
+            asyncio.create_task(self._run_command(command, self.session.get_all(command.id)))
+        elif outcome == "edit":
+            self._open_input_form(command)
+
+    def _open_input_form(self, command: Command) -> None:
+        fields = [
+            (input_.id, input_.prompt, input_.required, input_.secret) for input_ in command.inputs
+        ]
+        initial = self.session.get_all(command.id)
+        modal = InputFormModal(
+            f"Inputs for {command.name}",
+            fields,
+            initial=initial,
+            submit_label="Run",
+        )
+        self.push_screen(modal, lambda values: self._handle_input_form(values, command))
+
+    def _handle_input_form(self, values: dict[str, str] | None, command: Command) -> None:
+        if values is None:
+            return
+        self.session.set_all(command.id, values)
+        asyncio.create_task(self._run_command(command, values))
+
+    async def _run_command(self, command: Command, values: dict[str, str]) -> None:
+        self.session.set_all(command.id, values)
+        argv = build_argv(command.shell, values)
+        execution = self.query_one("#execution-view", ExecutionView)
+        execution.start(command.name, argv)
+        self.running = True
+        self.execution_visible = True
+        self._last_command = command
+        self._last_values = dict(values)
+
+        async def _run() -> None:
+            try:
+                result = await self.executor.run(command.shell, values, on_output=self._on_output)
+            except ExecutableNotFoundError as exc:
+                execution.write_line(str(exc))
+                result = CommandResult(
+                    exit_code=127,
+                    duration_ms=0,
+                    stdout="",
+                    stderr="",
+                    cancelled=False,
+                )
+            except asyncio.CancelledError:
+                self.running = False
+                self.execution_visible = False
+                raise
+            self.running = False
+            execution.finish(result.exit_code, result.duration_ms)
+
+        self._run_task = asyncio.create_task(_run())
+
+    async def _on_output(self, text: str) -> None:
+        self.query_one("#execution-view", ExecutionView).write_line(text)
+
+    def action_cancel_job(self) -> None:
+        if not self.running:
+            return
+        self.executor.cancel()
+        if self._run_task is not None:
+            self._run_task.cancel()
+
+    def action_go_back(self) -> None:
+        if self.execution_visible:
+            self.execution_visible = False
+        elif self.search_query:
+            self.search_query = ""
+
+    def action_add_command(self) -> None:
+        if self.execution_visible:
+            return
+        fields = [
+            ("id", "Command id", True, False),
+            ("name", "Name", True, False),
+            ("description", "Description", False, False),
+            ("tags", "Tags (comma-separated)", False, False),
+            ("shell", "Shell template ({{input_id}})", True, False),
+        ]
+        modal = InputFormModal("Add command", fields, submit_label="Add")
+        self.push_screen(modal, self._handle_add_command)
+
+    def _handle_add_command(self, values: dict[str, str] | None) -> None:
+        if not values:
+            return
+        command_id = values.get("id", "").strip()
+        name = values.get("name", "").strip()
+        shell = values.get("shell", "").strip()
+        if not command_id or not name or not shell:
+            self.notify("id, name, and shell are required")
+            return
+        tags = [tag.strip() for tag in values.get("tags", "").split(",") if tag.strip()]
+        command = Command(
+            id=command_id,
+            name=name,
+            description=values.get("description", ""),
+            tags=tags,
+            shell=shell,
+            inputs=[],
+        )
+        try:
+            add_command(command)
+        except ValueError as exc:
+            self.notify(str(exc))
+            return
+        self.commands = [*self.commands, command]
+        self._recompute_filtered()
+        self.notify("command added")
+
+    def action_edit_command(self) -> None:
+        if self.execution_visible:
+            return
+        results = self.query_one("#results", ResultsList)
+        command = results.selected_command()
+        if command is None:
+            return
+        fields = [
+            ("id", "Command id", True, False),
+            ("name", "Name", True, False),
+            ("description", "Description", False, False),
+            ("tags", "Tags (comma-separated)", False, False),
+            ("shell", "Shell template ({{input_id}})", True, False),
+        ]
+        initial = {
+            "id": command.id,
+            "name": command.name,
+            "description": command.description,
+            "tags": ", ".join(command.tags),
+            "shell": command.shell,
+        }
+        modal = InputFormModal("Edit command", fields, initial=initial, submit_label="Save")
+        self.push_screen(modal, lambda values: self._handle_edit_command(values, command))
+
+    def _handle_edit_command(self, values: dict[str, str] | None, command: Command) -> None:
+        if not values:
+            return
+        command_id = values.get("id", "").strip()
+        name = values.get("name", "").strip()
+        shell = values.get("shell", "").strip()
+        if not command_id or not name or not shell:
+            self.notify("id, name, and shell are required")
+            return
+        tags = [tag.strip() for tag in values.get("tags", "").split(",") if tag.strip()]
+        updated = Command(
+            id=command_id,
+            name=name,
+            description=values.get("description", ""),
+            tags=tags,
+            shell=shell,
+            inputs=command.inputs,
+        )
+        self.commands = [
+            updated if existing.id == command.id else existing for existing in self.commands
+        ]
+        try:
+            save_commands(self.commands)
+        except Exception as exc:  # noqa: BLE001 - surface storage failure
+            self.notify(f"save failed: {exc}")
+            return
+        self._recompute_filtered()
+        self.notify("command saved")
+
+    def action_delete_command(self) -> None:
+        if self.execution_visible:
+            return
+        results = self.query_one("#results", ResultsList)
+        command = results.selected_command()
+        if command is None:
+            return
+        modal = _ConfirmModal(f"Delete command {command.id}?", confirm_label="Delete")
         self.push_screen(
-            ConfirmDialog(
-                "Execution requires approval. Grant it?",
-                confirm_label="Grant",
-            ),
-            lambda confirmed: self._handle_approval(confirmed, message),
+            modal,
+            lambda confirmed: self._handle_delete_command(confirmed, command),
         )
 
-    async def _handle_approval(self, confirmed: bool | None, message: ApprovalRequired) -> None:
+    def _handle_delete_command(self, confirmed: bool | None, command: Command) -> None:
         if not confirmed:
-            await self._services.deny_approval(message.execution_id, message.approval_id)
-            self.status_bar().set_status("execution denied")
-            self.refresh_active_view()
             return
-        await self._services.grant_approval(message.execution_id, message.approval_id)
-        self.status_bar().set_status("approved — run again to execute")
-        self.refresh_active_view()
+        remove_command(command.id)
+        self.commands = [existing for existing in self.commands if existing.id != command.id]
+        self._recompute_filtered()
+        self.notify("command deleted")
+
+    def action_save_session(self) -> None:
+        self.session_store.save(self.session)
+        self.notify("session saved")
+
+    def action_quit_app(self) -> None:
+        if self.running:
+            modal = _ConfirmModal("Quit with a job still running?", confirm_label="Quit")
+            self.push_screen(modal, self._handle_quit_confirm)
+        else:
+            self._save_and_exit()
+
+    def _handle_quit_confirm(self, confirmed: bool | None) -> None:
+        if confirmed:
+            self._save_and_exit()
+
+    def _save_and_exit(self) -> None:
+        self.session_store.save(self.session)
+        self.exit()
+
+    def action_help(self) -> None:
+        self.push_screen(_HelpModal())
 
 
-__all__ = ["AmbrosiaApp", "build_app"]
+class _ConfirmModal(ModalScreen[bool]):
+    """Ask the operator to confirm an action (e.g. delete, quit while running)."""
+
+    def __init__(self, message: str, *, confirm_label: str = "Yes") -> None:
+        super().__init__()
+        self._message = message
+        self._confirm_label = confirm_label
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(self._message, id="confirm-message")
+            with Horizontal():
+                yield Button(self._confirm_label, id="confirm", variant="primary")
+                yield Button("No", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "confirm":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(False)
+            event.prevent_default()
+            event.stop()
 
 
-def build_app(services: TUIServiceAdapter) -> AmbrosiaApp:
-    """Build the TUI application around an (already wired) service adapter."""
-    return AmbrosiaApp(services)
+class _ConfirmRunModal(ModalScreen[str | None]):
+    """Confirm running a command with saved values; outcomes: "run", "edit", None."""
+
+    def __init__(self, command: Command, argv: list[str]) -> None:
+        super().__init__()
+        self._command = command
+        self._argv = argv
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(
+                f"Run `{' '.join(self._argv)}`? (saved values)",
+                id="confirm-message",
+            )
+            with Horizontal():
+                yield Button("Run", id="run", variant="primary")
+                yield Button("Edit inputs", id="edit")
+                yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        button_id = event.button.id
+        if button_id == "run":
+            self.dismiss("run")
+        elif button_id == "edit":
+            self.dismiss("edit")
+        else:
+            self.dismiss(None)
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+            event.prevent_default()
+            event.stop()
+
+
+class _HelpModal(ModalScreen[None]):
+    """Keyboard reference."""
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("Ambrosia v2 — keyboard reference", id="title")
+            yield Static(
+                "/      focus search bar and filter\n"
+                "Tab    move focus between search and results\n"
+                "Enter  select highlighted command / run\n"
+                "Esc    clear search / close modal / back\n"
+                "r      toggle regex mode\n"
+                "n      add a new command\n"
+                "e      edit the selected command\n"
+                "d      delete the selected command (confirm)\n"
+                "s      save session inputs\n"
+                "c      cancel the currently running job\n"
+                "b      back from the execution view (job keeps running)\n"
+                "q      quit (confirm if a job is running)\n"
+                "?      show this help\n",
+                id="help-text",
+            )
+            yield Button("Close", id="close", variant="primary")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close":
+            self.dismiss()
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss()
+            event.prevent_default()
+            event.stop()
+
+
+__all__ = ["AmbrosiaApp"]
