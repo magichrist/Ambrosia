@@ -11,7 +11,7 @@ storage-specific repository methods; they are not ORM instances.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime  # noqa: TC003 - SQLAlchemy resolves Mapped[] annotations at runtime
 from typing import Any
 from uuid import uuid4
 
