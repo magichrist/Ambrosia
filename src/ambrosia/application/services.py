@@ -19,6 +19,7 @@ from ambrosia.application.preset_service import PresetService
 from ambrosia.application.report_service import ReportService
 from ambrosia.application.scope_service import ScopeService
 from ambrosia.application.target_service import TargetService
+from ambrosia.application.workspace import workspace_dir
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -43,6 +44,7 @@ class ApplicationServices:
         registry: Registry,
         presets_dirs: tuple[str, ...] = (),
         engine: PresetEngine | None = None,
+        user_presets_dir: Path | None = None,
         engagement_repo: EngagementRepositoryProtocol | None = None,
         scope_repo: ScopeRepositoryProtocol | None = None,
         artifact_repo: object = None,
@@ -84,6 +86,7 @@ class ApplicationServices:
             registry=registry,
             presets_dirs=self.presets_dirs,
             engine=engine,
+            user_presets_dir=user_presets_dir or (workspace_dir() / "presets"),
             scope_repo=scope_repo,
             engagement_repo=engagement_repo,
             artifact_repo=artifact_repo,
@@ -115,6 +118,7 @@ def load_services(
     registry: Registry,
     presets_dirs: tuple[str, ...] = (),
     engine: PresetEngine | None = None,
+    user_presets_dir: Path | None = None,
 ) -> ApplicationServices:
     """Build production services backed by SQLAlchemy repositories.
 
@@ -141,6 +145,7 @@ def load_services(
         registry=registry,
         presets_dirs=presets_dirs,
         engine=engine,
+        user_presets_dir=user_presets_dir,
     )
 
 
