@@ -56,9 +56,7 @@ def _registry() -> Registry:
 
 def _preset(steps: list[PresetStep]) -> PresetDefinition:
     return PresetDefinition(
-        metadata=PresetMetadata(
-            id="unit.demo", name="Demo", version="1.0.0", description="d"
-        ),
+        metadata=PresetMetadata(id="unit.demo", name="Demo", version="1.0.0", description="d"),
         inputs={"target": PresetInput(type="target.host", required=True)},
         steps=steps,
     )
@@ -109,7 +107,13 @@ def test_cyclic_dependency_rejected() -> None:
 
 def test_self_dependency_via_output_reference_is_cycle() -> None:
     preset = _preset(
-        [_step("a", inputs={"x": "{{ steps.a.outputs.y }}"}, outputs={"y": {"source": "{{ steps.a.outputs.x }}"}})]
+        [
+            _step(
+                "a",
+                inputs={"x": "{{ steps.a.outputs.y }}"},
+                outputs={"y": {"source": "{{ steps.a.outputs.x }}"}},
+            )
+        ]
     )
     try:
         build_plan(preset, _registry())
@@ -140,7 +144,16 @@ def test_condition_without_predicate_rejected() -> None:
 
 
 def test_non_action_step_rejects_action() -> None:
-    preset = _preset([_step("c", type="condition", action="net.discover", when={"kind": "input_present", "input": "target"})])
+    preset = _preset(
+        [
+            _step(
+                "c",
+                type="condition",
+                action="net.discover",
+                when={"kind": "input_present", "input": "target"},
+            )
+        ]
+    )
     try:
         build_plan(preset, _registry())
     except InvalidReferenceError:
@@ -195,9 +208,7 @@ def test_effects_union() -> None:
 
 def test_required_inputs() -> None:
     preset = PresetDefinition(
-        metadata=PresetMetadata(
-            id="unit.demo", name="Demo", version="1.0.0", description="d"
-        ),
+        metadata=PresetMetadata(id="unit.demo", name="Demo", version="1.0.0", description="d"),
         inputs={
             "required_one": PresetInput(type="string", required=True),
             "with_default": PresetInput(type="string", required=True, default="x"),
@@ -240,7 +251,12 @@ def test_condition_branch_gating() -> None:
 def test_branch_to_unknown_step_rejected() -> None:
     preset = _preset(
         [
-            _step("cond", type="condition", action=None, when={"kind": "input_present", "input": "target"}),
+            _step(
+                "cond",
+                type="condition",
+                action=None,
+                when={"kind": "input_present", "input": "target"},
+            ),
         ]
     )
     try:
