@@ -96,9 +96,7 @@ def test_evaluate_artifact_exists() -> None:
         ("a1", "network.service", {"service": "smb", "port": 445}),
         ("a2", "network.service", {"service": "http", "port": 80}),
     )
-    predicate = parse_predicate(
-        {"kind": "artifact_exists", "artifact_type": "network.service"}
-    )
+    predicate = parse_predicate({"kind": "artifact_exists", "artifact_type": "network.service"})
     assert evaluate_predicate(predicate, artifacts=artifacts, inputs={}) is True
 
     predicate = parse_predicate(
@@ -119,9 +117,7 @@ def test_evaluate_artifact_exists() -> None:
     )
     assert evaluate_predicate(predicate, artifacts=artifacts, inputs={}) is False
 
-    predicate = parse_predicate(
-        {"kind": "artifact_exists", "artifact_type": "windows.domain"}
-    )
+    predicate = parse_predicate({"kind": "artifact_exists", "artifact_type": "windows.domain"})
     assert evaluate_predicate(predicate, artifacts=artifacts, inputs={}) is False
 
 
