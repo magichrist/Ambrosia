@@ -54,6 +54,7 @@ _JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
     "array": "array",
 }
 
+
 @dataclass(frozen=True)
 class LoadedPreset:
     """A preset document with its validated deterministic plan."""
@@ -76,9 +77,7 @@ class DryRunResult:
     resolved: dict[str, dict[str, object]] = field(default_factory=dict)
     # step id -> bound output name -> value (condition/output steps only)
     step_outputs: dict[str, dict[str, object]] = field(default_factory=dict)
-    requests: tuple[InputRequest | ArtifactSelectionRequest, ...] = field(
-        default_factory=tuple
-    )
+    requests: tuple[InputRequest | ArtifactSelectionRequest, ...] = field(default_factory=tuple)
     errors: tuple[PresetError, ...] = field(default_factory=tuple)
     active_steps: tuple[str, ...] = field(default_factory=tuple)
     condition_results: dict[str, bool] = field(default_factory=dict)
@@ -119,8 +118,7 @@ class PresetLoader:
     def _build(self, data: Any, source: str) -> LoadedPreset:
         if not isinstance(data, dict):
             raise PresetValidationError(  # noqa: TRY003
-                f"{source}: preset document must be a mapping, "
-                f"got {type(data).__name__}"
+                f"{source}: preset document must be a mapping, got {type(data).__name__}"
             )
         data = dict(data)
         branches = normalize_engine_step_keys(data)
@@ -198,9 +196,7 @@ class PresetLoader:
             binding_results: dict[str, object] = {}
             for name, binding in step.inputs.items():
                 expected_type = self._expected_type(step, name, definition)
-                payload: Any = (
-                    binding.value if binding.kind == "literal" else binding.reference
-                )
+                payload: Any = binding.value if binding.kind == "literal" else binding.reference
                 result = resolver.resolve(payload)
                 if isinstance(result, ResolvedValue):
                     if expected_type is not None:
@@ -234,9 +230,7 @@ class PresetLoader:
             resolved[step_id] = binding_results
 
             if step.type == "condition":
-                step_outputs[step_id] = {
-                    "result": condition_results.get(step_id, False)
-                }
+                step_outputs[step_id] = {"result": condition_results.get(step_id, False)}
                 bound_outputs[step_id] = step_outputs[step_id]
             elif step.type == "output":
                 bound: dict[str, object] = {}
@@ -292,11 +286,7 @@ class PresetLoader:
                 elif not condition_met and step_id not in else_ids:
                     active_here = False
 
-            if (
-                active_here
-                and step.when is not None
-                and step.type != "condition"
-            ):
+            if active_here and step.when is not None and step.type != "condition":
                 active_here = evaluate_predicate(
                     step.when,
                     artifacts=list(artifacts.values()),
@@ -307,9 +297,7 @@ class PresetLoader:
                 active.add(step_id)
         return active
 
-    def _expected_type(
-        self, step: StepNode, name: str, definition: PresetDefinition
-    ) -> str | None:
+    def _expected_type(self, step: StepNode, name: str, definition: PresetDefinition) -> str | None:
         input_decl = definition.inputs.get(name)
         if input_decl is not None:
             return str(input_decl.type)
