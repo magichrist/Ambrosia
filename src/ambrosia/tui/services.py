@@ -294,6 +294,7 @@ class TUIServiceAdapter:
         engagement_id: str,
         target_address: str | None = None,
         inputs: dict[str, object] | None = None,
+        authorization_reference: str | None = None,
     ) -> AsyncIterator[dict[str, object]]:
         """Create, validate, and run an execution, streaming events.
 
@@ -321,6 +322,20 @@ class TUIServiceAdapter:
             raise NotFoundError(f"action {action_id!r} is not registered")
 
         inputs = dict(inputs or {})
+
+        # High-impact operations require explicit authorization. Inject the
+        # reference into the execution inputs so the handler-level gate sees
+        # it too (defense in depth if an engine is called directly).
+        from ambrosia.policy.authorization import (  # noqa: PLC0415
+            AUTHORIZATION_INPUT,
+            AuthorizationService,
+        )
+
+        authorization = AuthorizationService().require_reference(
+            definition, authorization_reference
+        )
+        if authorization is not None:
+            inputs[AUTHORIZATION_INPUT] = authorization.reference
 
         execution_id = await self._engine.create_job(
             engagement_id=engagement_id,
