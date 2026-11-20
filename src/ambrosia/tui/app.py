@@ -91,13 +91,19 @@ class AmbrosiaApp(App[None]):
     """
 
     BINDINGS = [
-        Binding("/", "action_search", "Search", show=True),
-        Binding("tab", "action_focus_next", "Next region", show=True),
-        Binding("enter", "action_open", "Open / select", show=True),
-        Binding("escape", "action_go_back", "Back / close", show=True),
-        Binding("g", "action_engagement_switcher", "Engagement", show=True),
-        Binding("?", "action_help", "Help", show=True),
-        Binding("q", "action_quit_app", "Quit", show=True),
+        Binding("/", "search", "Search", show=True),
+        Binding("tab", "focus_next", "Next region", show=True),
+        Binding("enter", "open", "Open / select", show=True),
+        Binding("escape", "go_back", "Back / close", show=True),
+        Binding("g", "engagement_switcher", "Engagement", show=True),
+        Binding("?", "help", "Help", show=True),
+        Binding("q", "quit_app", "Quit", show=True),
+        Binding("r", "refresh", "Refresh", show=True),
+        Binding("t", "target_scope", "Scope", show=True),
+        Binding("p", "preset_browser", "Presets", show=True),
+        Binding("j", "job_monitor", "Jobs", show=True),
+        Binding("f", "findings", "Findings", show=True),
+        Binding("a", "artifacts", "Artifacts", show=True),
     ]
 
     current_engagement_id: reactive[str] = reactive("")
@@ -109,9 +115,9 @@ class AmbrosiaApp(App[None]):
     def __init__(self, services: TUIServiceAdapter) -> None:
         super().__init__()
         self._services = services
-        self._views: dict[str, BaseView] = {}
         self._view_stack: list[str] = []
         self._status_message = ""
+        self._current_view: BaseView | None = None
 
     # ------------------------------------------------------------------ compose
 
@@ -182,60 +188,60 @@ class AmbrosiaApp(App[None]):
             return None
 
     def current_view(self) -> BaseView | None:
-        main = self._main()
-        if not main.children:
-            return None
-        return main.children[0]  # type: ignore[return-value]
+        # Textual's Widget.remove() is asynchronous, so main.children can still
+        # contain a view scheduled for removal. Track the active view explicitly
+        # instead of relying on child order.
+        return self._current_view
 
     def refresh_active_view(self) -> None:
         view = self.current_view()
         if view is None:
             return
         try:
-            view.refresh_view()
+            self.call_after_refresh(view.safe_refresh)
         except Exception as exc:  # pragma: no cover - defensive
             logger.debug("Failed to refresh active view: %s", exc)
 
     # ------------------------------------------------------------------ navigation
 
     def show_view(self, name: str, action_id: str | None = None) -> None:
-        """Mount (or reuse) the named view in the main content area."""
+        """Swap the named view into the main content area.
+
+        A fresh widget is created on every navigation. Textual's ``remove()``
+        is asynchronous, so reusing a cached widget (or reusing a fixed id)
+        produced ``DuplicateIds`` errors on rapid navigation. Views read their
+        state from the app and the service adapter, so recreating them is safe.
+        """
         main = self._main()
-        if main.children:
-            main.children[0].remove()
+        for child in list(main.children):
+            child.remove()
         view: BaseView
         if name == VIEW_ACTION_DETAILS and action_id is not None:
-            view = ActionDetailsView(self._services, action_id, id="current-view")
+            view = ActionDetailsView(self._services, action_id)
         else:
-            cached = self._views.get(name)
-            if cached is None:
-                cached = self._create_view(name)
-                self._views[name] = cached
-            view = cached
-            view.id = "current-view"
+            view = self._create_view(name)
         main.mount(view)
+        self._current_view = view
         self.active_view = name
         self._view_stack = [v for v in self._view_stack if v != name]
         self._view_stack.append(name)
-        view.refresh_view()
+        self.call_after_refresh(view.safe_refresh)
         self._activity().add_entry(f"[view] {name}")
 
     def _create_view(self, name: str) -> BaseView:
-        if name == VIEW_DASHBOARD:
-            return DashboardView(self._services, id="current-view")
         if name == VIEW_ENGAGEMENTS:
-            return EngagementListView(self._services, id="current-view")
+            return EngagementListView(self._services)
         if name == VIEW_TARGET_SCOPE:
-            return TargetScopeView(self._services, id="current-view")
+            return TargetScopeView(self._services)
         if name == VIEW_JOBS:
-            return JobMonitorView(self._services, id="current-view")
+            return JobMonitorView(self._services)
         if name == VIEW_ARTIFACTS:
-            return ArtifactBrowserView(self._services, id="current-view")
+            return ArtifactBrowserView(self._services)
         if name == VIEW_FINDINGS:
-            return FindingsView(self._services, id="current-view")
+            return FindingsView(self._services)
         if name == VIEW_PRESETS:
-            return PresetBrowserView(self._services, id="current-view")
-        return DashboardView(self._services, id="current-view")
+            return PresetBrowserView(self._services)
+        return DashboardView(self._services)
 
     def open_action(self, action_id: str) -> None:
         self.show_view(VIEW_ACTION_DETAILS, action_id=action_id)
@@ -363,6 +369,36 @@ class AmbrosiaApp(App[None]):
                 self._show_artifact_detail(item_id)
             elif list_id == "findings-list":
                 self._show_finding_detail(item_id)
+            elif list_id == "presets-list":
+                self._show_preset_detail(item_id)
+            elif list_id == "targets-list":
+                # Target items use the target id; resolve it to its address so
+                # availability checks and execution run against the selection.
+                try:
+                    targets = self._services.list_targets(self.current_engagement_id)
+                    for target in targets.targets:
+                        if target.id == item_id:
+                            self.current_target_address = target.address
+                            break
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug("Could not resolve selected target address: %s", exc)
+
+    def _show_preset_detail(self, preset_id: str) -> None:
+        try:
+            presets = self._services.list_presets().presets
+        except Exception:  # pragma: no cover - defensive
+            return
+        for preset in presets:
+            if preset.id == preset_id:
+                path = getattr(preset, "path", "") or ""
+                lines = [
+                    f"id: {preset.id}",
+                    f"version: {preset.version}",
+                    f"steps: {preset.step_count}",
+                    f"path: {path}",
+                ]
+                self.push_screen(DetailModal(f"Preset {preset.id}", "\n".join(lines)))
+                return
 
     def _show_job_detail(self, job_id: str) -> None:
         try:
@@ -443,6 +479,56 @@ class AmbrosiaApp(App[None]):
 
     def action_help(self) -> None:
         self.push_screen(HelpModal())
+
+    def action_focus_next(self) -> None:
+        self.screen.focus_next()
+
+    def action_refresh(self) -> None:
+        self.refresh_active_view()
+        self.status_bar().set_status("refreshed")
+
+    def action_target_scope(self) -> None:
+        self.show_view(VIEW_TARGET_SCOPE)
+
+    def action_preset_browser(self) -> None:
+        self.show_view(VIEW_PRESETS)
+
+    def action_job_monitor(self) -> None:
+        self.show_view(VIEW_JOBS)
+
+    def action_findings(self) -> None:
+        self.show_view(VIEW_FINDINGS)
+
+    def action_artifacts(self) -> None:
+        self.show_view(VIEW_ARTIFACTS)
+
+    def dry_run_action(
+        self,
+        action_id: str,
+        inputs: dict[str, object] | None = None,
+    ) -> None:
+        """Show a sanitized execution plan without launching any process."""
+        self.run_worker(
+            self._dry_run_worker(action_id, inputs),
+            name=f"dry-run-{action_id}",
+        )
+
+    async def _dry_run_worker(
+        self,
+        action_id: str,
+        inputs: dict[str, object] | None = None,
+    ) -> None:
+        try:
+            plan = await self._services.dry_run_action(
+                action_id,
+                engagement_id=self.current_engagement_id,
+                target_address=self.current_target_address or None,
+                inputs=inputs,
+            )
+            lines = [f"{key}: {value}" for key, value in plan.items()]
+            self.push_screen(DetailModal(f"Dry run: {action_id}", "\n".join(lines)))
+        except Exception as exc:  # pragma: no cover - surfaced to operator
+            self.push_screen(DetailModal(f"Dry run failed: {action_id}", str(exc)))
 
     def action_quit_app(self) -> None:
         if self.running_jobs > 0:
