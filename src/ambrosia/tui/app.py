@@ -252,10 +252,11 @@ class AmbrosiaApp(App[None]):
         self,
         action_id: str,
         inputs: dict[str, object] | None = None,
+        authorization_reference: str | None = None,
     ) -> None:
         """Run an action in a background worker so the UI stays responsive."""
         self.run_worker(
-            self._execute_action_worker(action_id, inputs),
+            self._execute_action_worker(action_id, inputs, authorization_reference),
             name=f"run-{action_id}",
         )
 
@@ -263,6 +264,7 @@ class AmbrosiaApp(App[None]):
         self,
         action_id: str,
         inputs: dict[str, object] | None = None,
+        authorization_reference: str | None = None,
     ) -> None:
         engagement_id = self.current_engagement_id
         target_address = self.current_target_address
@@ -272,6 +274,7 @@ class AmbrosiaApp(App[None]):
                 engagement_id=engagement_id,
                 target_address=target_address,
                 inputs=inputs,
+                authorization_reference=authorization_reference,
             ):
                 update: dict[str, object] = raw_update
                 kind = str(update["kind"])
