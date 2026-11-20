@@ -71,9 +71,7 @@ def _step_text(step_id: str, action: str = "net.discover") -> str:
 
 def test_valid_preset_loads() -> None:
     loader = PresetLoader(_registry())
-    loaded = loader.load_text(
-        _preset_text(steps=_step_text("discover"))
-    )
+    loaded = loader.load_text(_preset_text(steps=_step_text("discover")))
     assert loaded.definition.metadata.id == "net.demo"
     assert loaded.plan.order == ("discover",)
     assert loaded.plan.effects == frozenset({"network_observe"})
@@ -121,9 +119,7 @@ def test_python_object_tag_rejected() -> None:
 def test_unknown_field_rejected() -> None:
     loader = PresetLoader(_registry())
     try:
-        loader.load_text(
-            _preset_text(extra="bogus_field: true", steps=_step_text("discover"))
-        )
+        loader.load_text(_preset_text(extra="bogus_field: true", steps=_step_text("discover")))
     except PresetValidationError:
         pass
     else:  # pragma: no cover - failure path
@@ -165,7 +161,9 @@ def test_duplicate_step_ids_via_loader_rejected() -> None:
     loader = PresetLoader(_registry())
     try:
         loader.load_text(
-            _preset_text(steps=_step_text("discover") + _step_text("discover", action="net.discover"))
+            _preset_text(
+                steps=_step_text("discover") + _step_text("discover", action="net.discover")
+            )
         )
     except DuplicateStepIdError:
         pass
@@ -198,9 +196,7 @@ def test_cycle_via_loader_rejected() -> None:
 def test_unresolved_action_via_loader_rejected() -> None:
     loader = PresetLoader(_registry())
     try:
-        loader.load_text(
-            _preset_text(steps=_step_text("discover", action="net.missing"))
-        )
+        loader.load_text(_preset_text(steps=_step_text("discover", action="net.missing")))
     except UnresolvedActionError:
         pass
     else:  # pragma: no cover - failure path
