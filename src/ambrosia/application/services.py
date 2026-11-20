@@ -126,6 +126,16 @@ def load_services(
     if not isinstance(storage, Storage):  # pragma: no cover - defensive
         message = "load_services requires an ambrosia.storage.Storage instance"
         raise TypeError(message)
+
+    # Production services must expose the built-in domain packs even when the
+    # caller supplied a bare registry. ``build_registry`` (CLI/TUI startup) has
+    # already registered them, so this is guarded and idempotent. Registration
+    # is metadata-only and never executes a tool.
+    if not registry.has("network.nmap.service_discovery"):
+        from ambrosia.packs.windows_assessment import register_pack
+
+        register_pack(registry)
+
     return ApplicationServices(
         session_scope=storage.session,
         registry=registry,
