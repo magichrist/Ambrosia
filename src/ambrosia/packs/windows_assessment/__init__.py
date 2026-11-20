@@ -22,8 +22,14 @@ registering anything.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from ambrosia.executors.process import ProcessExecutor
 from ambrosia.registry import PackEntry, Registry
 from ambrosia.registry.models import LoadResult, PackManifest
+
+if TYPE_CHECKING:
+    from ambrosia.domain.protocols import ActionHandler
 
 from . import actions, handlers
 
@@ -86,7 +92,7 @@ def load_manifest() -> PackManifest:
 def register_pack(
     registry: Registry,
     *,
-    executor: object | None = None,
+    executor: ActionHandler | None = None,
 ) -> LoadResult:
     """Register all pack actions with their handlers into ``registry``.
 
@@ -104,9 +110,12 @@ def register_pack(
     pack_id = manifest.metadata.id
 
     loaded_ids: list[str] = []
+    # Build the default executor once; handlers use it when no test executor is
+    # injected. Construction performs no tool execution.
+    effective_executor: ActionHandler = executor or ProcessExecutor(executable="nmap")
     for action in manifest.actions:
         handler_cls = _HANDLER_CLASSES[action.id]
-        handler = handler_cls(executor=executor)
+        handler = handler_cls(executor=effective_executor)
         registry.register(
             action,
             handler=handler,
