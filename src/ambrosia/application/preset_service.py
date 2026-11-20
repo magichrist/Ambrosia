@@ -41,7 +41,9 @@ if TYPE_CHECKING:
     from ambrosia.registry import Registry
 
 _REFERENCE_RE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
-_VALID_NAMESPACES = frozenset({"inputs", "context", "target", "artifacts", "steps", "preset", "secrets"})
+_VALID_NAMESPACES = frozenset(
+    {"inputs", "context", "target", "artifacts", "steps", "preset", "secrets"}
+)
 
 
 class PresetDTO(BaseModel):
@@ -186,14 +188,10 @@ class PresetService(_BaseService):
 
         ordered = self._topological_order(definition.steps)
         input_requests = sorted(
-            name
-            for name, inp in definition.inputs.items()
-            if inp.required and inp.default is None
+            name for name, inp in definition.inputs.items() if inp.required and inp.default is None
         )
 
-        steps: builtins.list[PlanStepDTO] = [
-            self._plan_step(step, definition) for step in ordered
-        ]
+        steps: builtins.list[PlanStepDTO] = [self._plan_step(step, definition) for step in ordered]
 
         return PresetPlanDTO(
             preset_id=definition.metadata.id,
@@ -346,9 +344,7 @@ class PresetService(_BaseService):
         )
 
     @staticmethod
-    def _check_cycles(
-        steps: builtins.list[PresetStep], errors: builtins.list[str]
-    ) -> None:
+    def _check_cycles(steps: builtins.list[PresetStep], errors: builtins.list[str]) -> None:
         by_id = {step.id: step for step in steps}
         visited: set[str] = set()
         stack: set[str] = set()
@@ -379,9 +375,7 @@ class PresetService(_BaseService):
         order: builtins.list[PresetStep] = []
         while remaining:
             ready = sorted(
-                sid
-                for sid in remaining
-                if all(dep in satisfied for dep in by_id[sid].needs)
+                sid for sid in remaining if all(dep in satisfied for dep in by_id[sid].needs)
             )
             if not ready:
                 break  # cycles were already rejected by validation
@@ -464,7 +458,9 @@ class PresetService(_BaseService):
             expression = match.group(1).strip()
             namespace = expression.split(".", 1)[0] if expression else ""
             if namespace not in _VALID_NAMESPACES:
-                warnings.append(f"{where}: unknown reference namespace {namespace!r} in {expression!r}")
+                warnings.append(
+                    f"{where}: unknown reference namespace {namespace!r} in {expression!r}"
+                )
         return warnings
 
     @staticmethod
@@ -474,7 +470,9 @@ class PresetService(_BaseService):
                 expression = match.group(1).strip()
                 namespace = expression.split(".", 1)[0] if expression else ""
                 if namespace not in _VALID_NAMESPACES:
-                    errors.append(f"{where}: unknown reference namespace {namespace!r} in {expression!r}")
+                    errors.append(
+                        f"{where}: unknown reference namespace {namespace!r} in {expression!r}"
+                    )
         elif isinstance(value, dict):
             for key, val in value.items():
                 PresetService._check_references(val, f"{where}[{key!r}]", errors)
