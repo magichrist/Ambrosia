@@ -146,18 +146,17 @@ def _resolve_engagement(explicit: str | None) -> str:
     if current is not None:
         return current
     raise MissingInputError(  # noqa: TRY003 - operator-facing message
-        "no engagement selected; pass --engagement or run "
-        "`ambrosia engagement use <id>`"
+        "no engagement selected; pass --engagement or run `ambrosia engagement use <id>`"
     )
 
 
 # ------------------------------------------------------------------ formatting
 
+
 def _human(value: Any) -> str:
     if isinstance(value, EngagementDTO):
-        return (
-            f'engagement "{value.name}" (id: {value.id}, status: {value.status})'
-            + (f", scope: {value.scope_id}" if value.scope_id else "")
+        return f'engagement "{value.name}" (id: {value.id}, status: {value.status})' + (
+            f", scope: {value.scope_id}" if value.scope_id else ""
         )
     if isinstance(value, EngagementListDTO):
         if not value.engagements:
@@ -186,9 +185,8 @@ def _human(value: Any) -> str:
         lines.append(f"  require_approval_for: {', '.join(value.require_approval_for)}")
         return "\n".join(lines)
     if isinstance(value, TargetDTO):
-        return (
-            f"target {value.address} ({value.kind}) id: {value.id}"
-            + (f", hostname: {value.hostname}" if value.hostname else "")
+        return f"target {value.address} ({value.kind}) id: {value.id}" + (
+            f", hostname: {value.hostname}" if value.hostname else ""
         )
     if isinstance(value, TargetListDTO):
         if not value.targets:
@@ -264,9 +262,7 @@ def _human(value: Any) -> str:
             lines.append("  preset inputs required: " + ", ".join(value.input_requests))
         lines.append("  steps:")
         for step in value.steps:
-            lines.append(
-                f"    {step.id:20} {step.type:10} {step.action or '-':35} {step.status}"
-            )
+            lines.append(f"    {step.id:20} {step.type:10} {step.action or '-':35} {step.status}")
             for reason in step.reasons:
                 lines.append(f"          - {reason}")
             if step.missing_inputs:
@@ -468,9 +464,7 @@ def actions_list(
     output: str = typer.Option("human", "--output", help="Output format: human or json."),
 ) -> ActionListDTO:
     """List registered actions."""
-    return get_services().action.list(
-        category=category, tag=tag, platform=platform
-    )
+    return get_services().action.list(category=category, tag=tag, platform=platform)
 
 
 @action_app.command("info")
@@ -490,9 +484,7 @@ def actions_check(
     engagement: str | None = typer.Option(
         None, "--engagement", "-e", help="Engagement id (defaults to current)."
     ),
-    target: str | None = typer.Option(
-        None, "--target", help="Target address for the scope check."
-    ),
+    target: str | None = typer.Option(None, "--target", help="Target address for the scope check."),
     output: str = typer.Option("human", "--output", help="Output format: human or json."),
 ) -> tuple[ActionCheckDTO, int]:
     """Check whether an action is available and why.
@@ -567,9 +559,7 @@ def preset_run(
     """Run a preset. Policy is enforced for every action step before execution."""
     services = get_services()
     engagement_id = _resolve_engagement(engagement)
-    return asyncio.run(
-        services.preset.run(preset_id, engagement_id=engagement_id, inputs=None)
-    )
+    return asyncio.run(services.preset.run(preset_id, engagement_id=engagement_id, inputs=None))
 
 
 # ------------------------------------------------------------------ jobs
