@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+from ambrosia.artifacts.lifecycle import create_artifact
 from ambrosia.domain.errors import (
     ConflictError,
     ExecutionCancelledError,
@@ -35,8 +36,10 @@ from ambrosia.domain.protocols import (
 from ambrosia.engine.job import valid_transition
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator, AsyncIterator
 
+    from ambrosia.domain.models import Artifact
+    from ambrosia.domain.protocols import ArtifactRepository
     from ambrosia.policy import PolicyEngine
     from ambrosia.registry import Registry
 
@@ -74,11 +77,13 @@ class JobEngine:
         registry: Registry,
         execution_repository: ExecutionRepository,
         policy_engine: PolicyEngine,
+        artifact_repository: ArtifactRepository | None = None,
         concurrency_limit: int = 2,
     ) -> None:
         self._registry = registry
         self._execution_repository = execution_repository
         self._policy_engine = policy_engine
+        self._artifact_repository = artifact_repository
         self._semaphore = asyncio.Semaphore(max(1, concurrency_limit))
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
 
@@ -303,11 +308,11 @@ class JobEngine:
         self._execution_repository.update(record)
 
         sequence = 0
-        # handler.execute is an async generator function; calling it returns an
-        # async generator (an AsyncIterator) directly. The protocol types it as
-        # async def -> AsyncIterator, which mypy reads as a coroutine, so we
-        # annotate as Any to keep the runtime type and satisfy the type checker.
-        iterator: Any = handler.execute(request, context)
+        # Handlers are async generators; the protocol exposes the iterable
+        # surface, but the engine also closes them on failure/cancel/timeout.
+        iterator = cast(
+            "AsyncGenerator[ExecutionEvent, None]", handler.execute(request, context)
+        )
         handler_failed = False
 
         try:
@@ -332,6 +337,45 @@ class JobEngine:
                             f"{timeout_seconds}s"
                         ) from exc
 
+                    # An ArtifactProducedEvent carries a typed artifact draft.
+                    # Persist it (with full provenance) before any consumer sees
+                    # the event, and surface persistence failures as a
+                    # FailedEvent instead of silently dropping the data.
+                    if (
+                        event.kind == "ArtifactProducedEvent"
+                        and self._artifact_repository is not None
+                    ):
+                        try:
+                            artifact = self._persist_produced_artifact(
+                                execution_id=execution_id,
+                                record=record,
+                                draft=cast("dict[str, Any]", event.payload),
+                            )
+                        except Exception as exc:  # noqa: BLE001 - convert to typed failure
+                            event = ExecutionEvent(
+                                kind="FailedEvent",
+                                execution_id=execution_id,
+                                payload={
+                                    "code": "artifact_persistence_failed",
+                                    "message": (
+                                        "failed to persist artifact of type "
+                                        f"{event.payload.get('type')!r} from execution "
+                                        f"{execution_id!r}"
+                                    ),
+                                    "retryable": False,
+                                    "error_type": type(exc).__name__,
+                                },
+                            )
+                        else:
+                            event = ExecutionEvent(
+                                kind="ArtifactProducedEvent",
+                                execution_id=execution_id,
+                                payload={
+                                    **event.payload,
+                                    "artifact_id": artifact.id,
+                                },
+                            )
+
                     sequence += 1
                     self._execution_repository.add_event(
                         execution_id=execution_id,
@@ -352,12 +396,12 @@ class JobEngine:
                 if handler_failed:
                     record.status = "failed"
                     record.error_code = (
-                        event.payload.get("code", "execution_error")
+                        str(event.payload.get("code", "execution_error"))
                         if event
                         else "execution_error"
                     )
                     record.error_message = (
-                        event.payload.get("message", "execution failed")
+                        str(event.payload.get("message", "execution failed"))
                         if event
                         else "execution failed"
                     )
@@ -478,6 +522,66 @@ class JobEngine:
         }
 
     # ------------------------------------------------------------------ internal
+
+    def _persist_produced_artifact(
+        self,
+        *,
+        execution_id: str,
+        record: ExecutionRecord,
+        draft: dict[str, Any],
+    ) -> Artifact:
+        """Validate and persist one ``ArtifactProducedEvent`` draft.
+
+        Provenance (engagement, execution, action/source, and target binding)
+        is stamped from the execution record; the draft supplies the typed
+        ``value`` plus optional confidence/sensitivity/metadata. The typed
+        value is validated by :func:`ambrosia.artifacts.create_artifact` before
+        the artifact is handed to the artifact repository.
+
+        Raises on any validation or storage error so :meth:`run_job` can emit a
+        ``FailedEvent`` instead of dropping the artifact.
+        """
+        repository = self._artifact_repository
+        if repository is None:  # pragma: no cover - guarded by the caller
+            raise RuntimeError("no artifact repository configured")  # noqa: TRY003
+
+        artifact_type = draft.get("type")
+        if not isinstance(artifact_type, str) or not artifact_type:
+            raise ValueError("artifact draft is missing a valid 'type'")  # noqa: TRY003
+        value = draft.get("value")
+        if not isinstance(value, dict):
+            raise TypeError(f"artifact draft {artifact_type!r} has no mapping value")  # noqa: TRY003
+
+        target_ref = draft.get("target_ref")
+        if not isinstance(target_ref, str) or not target_ref:
+            target_ref = record.target_refs[0] if record.target_refs else None
+
+        source_id = draft.get("source_id")
+        if not isinstance(source_id, str) or not source_id:
+            source_id = record.action_id
+
+        artifact = create_artifact(
+            engagement_id=record.engagement_id,
+            type=artifact_type,
+            value=dict(value),
+            source_kind="action",
+            source_id=source_id,
+            # The execution is authoritative for provenance, even if a draft
+            # happens to carry a different execution id.
+            source_execution_id=execution_id,
+            target_ref=target_ref,
+            confidence=draft.get("confidence"),
+            sensitivity=draft.get("sensitivity", "internal"),
+            secret_ref=draft.get("secret_ref"),
+            scope_binding=draft.get("scope_binding"),
+            supersedes=draft.get("supersedes"),
+            expires_at=draft.get("expires_at"),
+            metadata=draft.get("metadata"),
+        )
+        repository.add(artifact)
+        record.output_artifact_ids.append(artifact.id)
+        self._execution_repository.update(record)
+        return artifact
 
     def register_task(self, execution_id: str, task: asyncio.Task[None]) -> None:
         """Register a running task so :meth:`cancel_job` can terminate it.
