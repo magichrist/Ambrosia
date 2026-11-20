@@ -37,9 +37,7 @@ from ambrosia.storage.models import EngagementORM, ScopeORM
 
 def test_engagement_crud(session) -> None:
     repo = EngagementRepository(session)
-    created = repo.create(
-        Engagement(id="e1", name="lab", description="d", status="active")
-    )
+    created = repo.create(Engagement(id="e1", name="lab", description="d", status="active"))
     assert created.id == "e1"
     assert created.name == "lab"
     assert created.status == "active"
@@ -200,9 +198,7 @@ def test_target_finding_approval_evidence_repositories(session) -> None:
     assert len(finding_repo.list_for_engagement("e1")) == 1
 
     approval_repo = ApprovalRecordRepository(session)
-    ap = approval_repo.create(
-        engagement_id="e1", effect="remote_change", decision="pending"
-    )
+    ap = approval_repo.create(engagement_id="e1", effect="remote_change", decision="pending")
     assert approval_repo.get(ap.id).decision == "pending"
     approval_repo.update_decision(ap.id, decision="approved", decided_by="operator")
     assert approval_repo.get(ap.id).decision == "approved"
@@ -222,26 +218,20 @@ def test_no_orm_instances_escape_repositories(session) -> None:
     assert all(type(x) is Engagement for x in repo.list())
 
     scope_repo = ScopeRepository(session)
-    scope = scope_repo.create(
-        Scope(id="s1", engagement_id="e1", include_hosts=["192.0.2.10"])
-    )
+    scope = scope_repo.create(Scope(id="s1", engagement_id="e1", include_hosts=["192.0.2.10"]))
     assert type(scope) is Scope
     assert type(scope_repo.get_for_engagement("e1")) is Scope
 
     art_repo = ArtifactRepository(session)
     art = art_repo.add(
-        Artifact(
-            id="a1", engagement_id="e1", type="network.host", value={}, source_kind="operator"
-        )
+        Artifact(id="a1", engagement_id="e1", type="network.host", value={}, source_kind="operator")
     )
     assert type(art) is Artifact
     assert type(art_repo.get("a1")) is Artifact
     assert all(type(x) is Artifact for x in art_repo.list_for_engagement("e1"))
 
     exec_repo = ExecutionRepository(session)
-    ex = exec_repo.add(
-        ExecutionRecord(id="ex1", engagement_id="e1", status="draft")
-    )
+    ex = exec_repo.add(ExecutionRecord(id="ex1", engagement_id="e1", status="draft"))
     assert type(ex) is ExecutionRecord
     assert type(exec_repo.get("ex1")) is ExecutionRecord
 
