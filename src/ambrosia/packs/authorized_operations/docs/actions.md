@@ -12,6 +12,9 @@ tool output in execution history.
 | `windows.lateral.netexec_exec` | `netexec` | `remote_change` | `target` |
 | `windows.lateral.psexec` | `psexec.py` | `remote_change` | `target` |
 | `windows.ad.domain_enumeration` | `GetADUsers.py` | `authentication`, `remote_read` | `target` |
+| `windows.ad.asrep_roast` | `GetNPUsers.py` | `credential_access` | `target` |
+| `windows.ad.kerberoast` | `GetUserSPNs.py` | `credential_access` | `target` |
+| `windows.ad.sid_enumeration` | `lookupsid.py` | `authentication`, `remote_read` | `target` |
 | `windows.smb.ntlm_relay` | `ntlmrelayx.py` | `credential_access`, `remote_change` | `target` |
 
 ## Common inputs
@@ -27,6 +30,9 @@ tool output in execution history.
 - NetExec: `target`, `protocol` (`smb`/`ldap`/`http`), optional credentials.
 - NetExec exec / psexec: `target`, `command`, optional credentials/domain.
 - AD enumeration: `target`, optional `domain` and credentials.
+- AS-REP roast: `target` (DC IP), `domain`, optional credentials.
+- Kerberoast: `target`, optional `domain` and credentials.
+- SID enumeration: `target`, optional credentials/domain.
 - NTLM relay: `target` (relayed to `smb://<target>`).
 
 Executable names are fixed by each action definition and are never derived from
