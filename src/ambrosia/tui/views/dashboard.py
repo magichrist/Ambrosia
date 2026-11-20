@@ -51,11 +51,11 @@ class DashboardView(BaseView):
 
     # ------------------------------------------------------------------ public
 
-    def refresh_view(self) -> None:
+    async def refresh_view(self) -> None:
         """Recompute availability for the current engagement + target context."""
-        self.refresh_actions()
+        await self.refresh_actions()
 
-    def refresh_actions(self) -> None:
+    async def refresh_actions(self) -> None:
         """Recompute availability for the current engagement + target context."""
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
@@ -103,7 +103,7 @@ class DashboardView(BaseView):
                     actions.append((dto, check))
         actions.sort(key=lambda pair: (_STATUS_ORDER.get(pair[1].status, 9), pair[0].id))
         self._actions = actions
-        self._action_list.set_actions(actions)
+        await self._action_list.set_actions(actions)
 
     def selected_action(self) -> tuple[ActionDTO, ActionCheckDTO] | None:
         action_id = self._action_list.selected_action_id()
