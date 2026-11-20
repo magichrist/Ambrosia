@@ -61,11 +61,9 @@ def get_services() -> ApplicationServices:
                 workspace_root=Path.cwd(),
             )
         )
-        from ambrosia.actions.builtins import register_builtins
-        from ambrosia.registry import Registry
+        from ambrosia.registry.loader import build_registry
 
-        registry = Registry()
-        register_builtins(registry)
+        registry = build_registry()
         _services = load_services(
             storage=storage,
             registry=registry,
