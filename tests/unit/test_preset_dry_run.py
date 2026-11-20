@@ -22,9 +22,7 @@ from ambrosia.registry import Registry
 class _TracingHandler:
     """Handler that raises if invoked: dry-runs must never execute actions."""
 
-    async def execute(
-        self, request: object, context: object
-    ) -> Never:  # type: ignore[no-untyped-def]
+    async def execute(self, request: object, context: object) -> Never:  # type: ignore[no-untyped-def]
         raise AssertionError()
 
 
@@ -101,9 +99,7 @@ def test_dry_run_never_invokes_executor() -> None:
         ),
     )
     # No handler is invoked: this succeeds and resolves the binding.
-    result = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"target": "host.example.com"}
-    )
+    result = loader.dry_run(loaded.definition, loaded.plan, inputs={"target": "host.example.com"})
     assert result.resolved["discover"]["target"] == "host.example.com"
     assert result.errors == ()
     assert result.requests == ()
@@ -128,12 +124,8 @@ def test_dry_run_deterministic() -> None:
     )
     loader = PresetLoader(registry)
     loaded = loader.load_text(text)
-    first = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"target": "host.example.com"}
-    )
-    second = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"target": "host.example.com"}
-    )
+    first = loader.dry_run(loaded.definition, loaded.plan, inputs={"target": "host.example.com"})
+    second = loader.dry_run(loaded.definition, loaded.plan, inputs={"target": "host.example.com"})
     assert first.plan.order == second.plan.order
     assert first.plan.effects == second.plan.effects
     assert first.resolved == second.resolved
@@ -183,9 +175,7 @@ def test_secret_resolves_to_opaque_handle() -> None:
 """,
         ),
     )
-    result = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"target": "host.example.com"}
-    )
+    result = loader.dry_run(loaded.definition, loaded.plan, inputs={"target": "host.example.com"})
     value = result.resolved["discover"]["password"]
     assert isinstance(value, SecretHandle)
     assert value.ref == "vault.password"
@@ -209,9 +199,7 @@ def test_type_mismatch_recorded_as_error() -> None:
 """,
         ),
     )
-    result = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"port": "not-a-number"}
-    )
+    result = loader.dry_run(loaded.definition, loaded.plan, inputs={"port": "not-a-number"})
     assert len(result.errors) == 1
     error = result.errors[0]
     assert isinstance(error, TypeMismatchError)
@@ -219,7 +207,6 @@ def test_type_mismatch_recorded_as_error() -> None:
     assert error.details["input"] == "port"
     assert error.details["expected_type"] == "integer"
     assert error.details["actual_type"] == "string"
-
 
 
 def test_condition_gating_excludes_branch() -> None:
@@ -294,9 +281,7 @@ def test_step_output_reference_to_action_is_deferred() -> None:
 """,
         ),
     )
-    result = loader.dry_run(
-        loaded.definition, loaded.plan, inputs={"target": "host.example.com"}
-    )
+    result = loader.dry_run(loaded.definition, loaded.plan, inputs={"target": "host.example.com"})
     assert result.errors == ()
     deferred = result.resolved["later"]["target"]
     assert isinstance(deferred, DeferredStepOutput)
@@ -321,12 +306,18 @@ def test_artifact_selection_request_on_ambiguity() -> None:
     from ambrosia.presets.resolution import ResolutionContext, Resolver
 
     a1 = Artifact(
-        id="a1", engagement_id="eng", type="network.service",
-        value={"service": "smb"}, target_ref="host.example.com",
+        id="a1",
+        engagement_id="eng",
+        type="network.service",
+        value={"service": "smb"},
+        target_ref="host.example.com",
     )
     a2 = Artifact(
-        id="a2", engagement_id="eng", type="network.service",
-        value={"service": "smb"}, target_ref="host.example.com",
+        id="a2",
+        engagement_id="eng",
+        type="network.service",
+        value={"service": "smb"},
+        target_ref="host.example.com",
     )
 
     context = ResolutionContext(
@@ -346,4 +337,3 @@ def test_artifact_selection_request_on_ambiguity() -> None:
     assert picked.candidates == ("a1", "a2")
     assert picked.artifact_type == "network.service"
     assert picked.to_dict()["kind"] == "artifact_selection_request"
-
