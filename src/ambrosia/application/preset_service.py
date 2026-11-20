@@ -18,7 +18,8 @@ import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from ambrosia.application._base import _BaseService
-from ambrosia.domain.errors import NotFoundError, ValidationError
+from ambrosia.application.workspace import workspace_dir
+from ambrosia.domain.errors import ConflictError, NotFoundError, ValidationError
 from ambrosia.domain.models import ExecutionRecord
 from ambrosia.domain.preset import PresetDefinition, PresetStep
 from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
@@ -44,6 +45,8 @@ _REFERENCE_RE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 _VALID_NAMESPACES = frozenset(
     {"inputs", "context", "target", "artifacts", "steps", "preset", "secrets"}
 )
+# Namespaced, lowercase ids with dot-separated segments (e.g. network.basic-discovery).
+_PRESET_ID_RE = re.compile(r"^[a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+$")
 
 
 class PresetDTO(BaseModel):
@@ -59,6 +62,13 @@ class PresetDTO(BaseModel):
 
 class PresetListDTO(BaseModel):
     presets: list[PresetDTO]
+
+
+class PresetSaveDTO(BaseModel):
+    id: str
+    name: str
+    path: str
+    step_count: int
 
 
 class PresetValidateDTO(BaseModel):
@@ -102,6 +112,7 @@ class PresetService(_BaseService):
         registry: Registry,
         presets_dirs: builtins.list[Path],
         engine: PresetEngine | None = None,
+        user_presets_dir: Path | None = None,
         session_scope: Callable[[], AbstractContextManager[object | None]] = nullcontext,
         scope_repo: object = None,
         engagement_repo: object = None,
@@ -114,7 +125,12 @@ class PresetService(_BaseService):
             artifact_repo=artifact_repo,
         )
         self._registry = registry
-        self._presets_dirs = presets_dirs
+        # Saved presets must be visible to list/plan/run immediately, so the
+        # writable user directory is part of the discovery set.
+        self._user_presets_dir = user_presets_dir or (workspace_dir() / "presets")
+        self._presets_dirs = list(presets_dirs)
+        if self._user_presets_dir not in self._presets_dirs:
+            self._presets_dirs.append(self._user_presets_dir)
         self._engine = engine
 
     # ------------------------------------------------------------------ list
@@ -140,6 +156,90 @@ class PresetService(_BaseService):
                     path=str(path),
                 )
         return PresetListDTO(presets=[found[key] for key in sorted(found)])
+
+    # ------------------------------------------------------------------ save
+
+    def save(
+        self,
+        source: str,
+        *,
+        new_id: str | None = None,
+        name: str | None = None,
+    ) -> PresetSaveDTO:
+        """Fork a validated preset into the workspace user-presets directory.
+
+        ``source`` is either a preset YAML path or a registered preset id. The
+        target id must be new: existing ids are never silently overwritten
+        (favour explicit copy/fork with a fresh id). The saved document keeps
+        its engine-level ``then``/``else`` branches verbatim.
+        """
+        source_path = Path(source)
+        if not source_path.is_file():
+            _definition, source_path = self._find_preset(source)  # raises NotFoundError
+
+        validation = self.validate(str(source_path))
+        if not validation.valid:
+            raise ValidationError(  # noqa: TRY003 - operator-facing message
+                "cannot save invalid preset: " + "; ".join(validation.errors)
+            )
+
+        raw_text = source_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(raw_text)
+        if not isinstance(data, dict):
+            raise ValidationError(  # noqa: TRY003
+                f"preset {source_path} must contain a mapping"
+            )
+
+        metadata = data.get("metadata")
+        if not isinstance(metadata, dict):
+            raise ValidationError(  # noqa: TRY003 - schema requires metadata
+                f"preset {source_path} is missing metadata"
+            )
+
+        result_id = new_id or str(metadata.get("id", ""))
+        if not _PRESET_ID_RE.fullmatch(result_id):
+            raise ValidationError(  # noqa: TRY003
+                f"invalid preset id {result_id!r}: expected lowercase namespaced "
+                "segments separated by dots (e.g. network.my-discovery)"
+            )
+        if self._id_exists(result_id):
+            raise ConflictError(  # noqa: TRY003 - operator-facing message
+                f"preset id {result_id!r} already exists; choose a new id with --as"
+            )
+
+        metadata["id"] = result_id
+        if name is not None:
+            metadata["name"] = name
+        data["metadata"] = metadata
+
+        target = self._user_presets_dir / f"{result_id}.yaml"
+        if target.exists():  # pragma: no cover - guarded by _id_exists
+            raise ConflictError(f"preset file already exists: {target}")  # noqa: TRY003
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+        # Validate exactly what was written so a serialization surprise cannot
+        # leave an unloadable preset in the workspace.
+        saved = self._load_definition(target)
+        return PresetSaveDTO(
+            id=saved.metadata.id,
+            name=saved.metadata.name,
+            path=str(target),
+            step_count=len(saved.steps),
+        )
+
+    def _id_exists(self, preset_id: str) -> bool:
+        for directory in self._presets_dirs:
+            if not directory.is_dir():
+                continue
+            for path in sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")):
+                try:
+                    definition = self._load_definition(path)
+                except (OSError, yaml.YAMLError, ValidationError):
+                    continue
+                if definition.metadata.id == preset_id:
+                    return True
+        return False
 
     # ------------------------------------------------------------------ validate
 
@@ -494,6 +594,7 @@ class PresetService(_BaseService):
 __all__ = [
     "PresetDTO",
     "PresetListDTO",
+    "PresetSaveDTO",
     "PresetValidateDTO",
     "PlanStepDTO",
     "PresetPlanDTO",
