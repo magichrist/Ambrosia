@@ -37,6 +37,7 @@ PACK_ID = "windows-assessment"
 PACK_NAME = "Windows Assessment Pack"
 PACK_VERSION = "1.0.0"
 
+
 # Handler classes keyed by action ID. Each is instantiated with an (optional)
 # executor; when none is supplied the handler defaults to the process executor
 # backed by the allowlisted nmap executable.
@@ -52,8 +53,7 @@ def _handler_class_name(action_id: str) -> str:
 
 
 _HANDLER_CLASSES: dict[str, type[handlers.ReadOnlyToolHandler]] = {
-    action.id: getattr(handlers, _handler_class_name(action.id))
-    for action in actions.ALL_ACTIONS
+    action.id: getattr(handlers, _handler_class_name(action.id)) for action in actions.ALL_ACTIONS
 }
 
 
