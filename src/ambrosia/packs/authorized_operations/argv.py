@@ -126,6 +126,38 @@ def build_domain_enumeration_argv(inputs: dict[str, object]) -> list[str]:
     return argv
 
 
+def build_asrep_roast_argv(inputs: dict[str, object]) -> list[str]:
+    """Impacket ``GetNPUsers.py`` — enumerate AS-REP roastable accounts."""
+    domain = _require_str(inputs, "domain")
+    dc_ip = _require_str(inputs, "target")
+    argv = [f"{domain}/", "-dc-ip", dc_ip]
+    username = _optional_str(inputs, "username")
+    password = _optional_str(inputs, "password")
+    if username:
+        argv.extend(["-u", username])
+    if password:
+        argv.extend(["-p", password])
+    argv.extend(_extra_args(inputs))
+    return argv
+
+
+def build_kerberoast_argv(inputs: dict[str, object]) -> list[str]:
+    """Impacket ``GetUserSPNs.py`` — request service tickets for offline cracking."""
+    target = _impacket_target(inputs, _require_str(inputs, "target"))
+    argv = [target]
+    domain = _optional_str(inputs, "domain")
+    if domain:
+        argv.append(domain)
+    argv.extend(["-request"] + _extra_args(inputs))
+    return argv
+
+
+def build_sid_enumeration_argv(inputs: dict[str, object]) -> list[str]:
+    """Impacket ``lookupsid.py`` — enumerate domain SIDs/principals."""
+    target = _impacket_target(inputs, _require_str(inputs, "target"))
+    return [target, *_extra_args(inputs)]
+
+
 def build_ntlm_relay_argv(inputs: dict[str, object]) -> list[str]:
     """Impacket ``ntlmrelayx.py`` NTLM relay against an SMB target."""
     target = _require_str(inputs, "target")
@@ -138,11 +170,14 @@ def build_ntlm_relay_argv(inputs: dict[str, object]) -> list[str]:
 
 
 __all__ = [
+    "build_asrep_roast_argv",
     "build_domain_enumeration_argv",
+    "build_kerberoast_argv",
     "build_netexec_argv",
     "build_netexec_exec_argv",
     "build_ntlm_relay_argv",
     "build_psexec_argv",
     "build_samdump2_argv",
+    "build_sid_enumeration_argv",
     "build_secretsdump_argv",
 ]
