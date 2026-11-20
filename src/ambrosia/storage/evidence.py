@@ -25,7 +25,9 @@ class EvidenceStore:
     """
 
     def __init__(self, root_dir: str | os.PathLike[str] | None = None) -> None:
-        self.root_dir = Path(root_dir) if root_dir is not None else Path.home() / ".ambrosia" / "evidence"
+        self.root_dir = (
+            Path(root_dir) if root_dir is not None else Path.home() / ".ambrosia" / "evidence"
+        )
         self.root_dir.mkdir(parents=True, exist_ok=True)
 
     def store_file(
