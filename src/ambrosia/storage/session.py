@@ -60,7 +60,7 @@ def _resolve_db_url(db_url: str, workspace_root: Path | None) -> str:
     if ":memory:" in db_url:
         return db_url
     prefix = "sqlite:///"
-    relative_path = db_url[len(prefix):]
+    relative_path = db_url[len(prefix) :]
     if Path(relative_path).is_absolute():
         return db_url
     if workspace_root is not None:
