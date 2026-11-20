@@ -35,16 +35,41 @@ class TargetScopeView(BaseView):
             yield Button("Refresh", id="refresh-scope")
 
     def on_mount(self) -> None:
-        self.refresh_view()
+        # Defer until composed children are available in the DOM.
+        self.call_after_refresh(self.safe_refresh)
 
-    def refresh_view(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "refresh-scope":
+            self.call_after_refresh(self.safe_refresh)
+            return
+        if event.button.id == "add-target":
+            address_input = self.query_one("#target-address", Input)
+            address = address_input.value.strip()
+            if not address:
+                self.query_one("#scope-header", Static).update("Enter a host / IP / domain first.")
+                return
+            engagement_id = getattr(self.app, "current_engagement_id", "") or ""
+            if not engagement_id:
+                self.query_one("#scope-header", Static).update("Open an engagement first.")
+                return
+            try:
+                self.services.add_target(engagement_id, address)
+            except Exception as exc:  # pragma: no cover - surfaced to operator
+                self.query_one("#scope-header", Static).update(f"Could not add target: {exc}")
+                return
+            address_input.value = ""
+            self.call_after_refresh(self.safe_refresh)
+            # Make the new target the active context for availability checks.
+            self.workspace.current_target_address = address
+
+    async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
         header = self.query_one("#scope-header", Static)
         if not engagement_id:
             header.update("No engagement selected")
             self.query_one("#scope-body", Static).update("Open an engagement to view its scope.")
-            self.query_one("#targets-list", ListView).clear()
+            await self.query_one("#targets-list", ListView).clear()
             return
         scope: ScopeDTO | None = None
         try:
@@ -76,10 +101,10 @@ class TargetScopeView(BaseView):
         except Exception:  # pragma: no cover - services unavailable
             targets = None
         target_list = self.query_one("#targets-list", ListView)
-        target_list.clear()
+        await target_list.clear()
         if targets is not None:
             for target in targets.targets:
-                target_list.append(
+                await target_list.append(
                     ListItem(
                         Static(f"{target.address}  ({target.kind})  {target.id[:8]}"),
                         id=target.id,
