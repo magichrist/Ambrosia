@@ -98,9 +98,7 @@ class PolicyEngine:
         )
 
         if classification.blocked:
-            reason = "effects not allowed by scope: " + ", ".join(
-                sorted(classification.blocked)
-            )
+            reason = "effects not allowed by scope: " + ", ".join(sorted(classification.blocked))
             decision = PolicyDecision(
                 execution_id=execution_id or "",
                 action_id=action.id,
@@ -162,9 +160,7 @@ class PolicyEngine:
     def deny_approval(
         self, approval_id: str, *, decided_by: str, reason: str | None = None
     ) -> ApprovalRecord:
-        return self._approvals.deny(
-            approval_id, decided_by=decided_by, reason=reason
-        )
+        return self._approvals.deny(approval_id, decided_by=decided_by, reason=reason)
 
     def get_approval(self, approval_id: str) -> ApprovalRecord | None:
         return self._approvals.get(approval_id)
