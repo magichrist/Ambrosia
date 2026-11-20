@@ -20,6 +20,7 @@ from ambrosia.executors.adapters.base import (
     NmapParseResult,
     NmapService,
     ToolAdapter,
+    normalize_nmap_state,
 )
 
 if TYPE_CHECKING:
@@ -32,14 +33,7 @@ class NmapAdapter(ToolAdapter):
     executable = "nmap"
     name = "nmap"
 
-    def build_argv(
-        self,
-        *,
-        target: str,
-        ports: str,
-        scripts: str | None = None,
-        version_detection: bool = True,
-    ) -> list[str]:
+    def build_argv(self, **inputs: object) -> list[str]:
         """Build an Nmap argv array that emits XML to stdout.
 
         ``-oX -`` requests XML on stdout (structured, machine-readable).
@@ -47,19 +41,36 @@ class NmapAdapter(ToolAdapter):
         ``-sV`` enables version detection for service identification. Only the
         declared ports are scanned, keeping the scan bounded to the authorized
         target and port list.
+
+        Inputs are validated at runtime because the adapter contract accepts
+        generic ``object`` values; invalid inputs raise :class:`ValueError`
+        before any argv is produced.
         """
+        target = inputs.get("target")
+        ports = inputs.get("ports")
+        if not isinstance(target, str) or not target:
+            msg = "nmap adapter requires a non-empty 'target' string"
+            raise ValueError(msg)
+        if not isinstance(ports, str) or not ports:
+            msg = "nmap adapter requires a non-empty 'ports' string"
+            raise ValueError(msg)
+
+        scripts = inputs.get("scripts")
+        scripts_arg = str(scripts) if scripts is not None else None
+        version_detection = bool(inputs.get("version_detection", True))
+
         argv: list[str] = [
             "-oX",
             "-",
             "-Pn",
             "-p",
-            str(ports),
-            str(target),
+            ports,
+            target,
         ]
         if version_detection:
             argv.insert(2, "-sV")
-        if scripts:
-            argv.extend(["--script", scripts])
+        if scripts_arg:
+            argv.extend(["--script", scripts_arg])
         return argv
 
     def parse_output(self, stdout: str, stderr: str = "") -> NmapParseResult:
@@ -115,11 +126,27 @@ class NmapAdapter(ToolAdapter):
             for port_elem in ports_elem.findall("port"):
                 services.append(NmapAdapter._parse_port(port_elem, address))
 
+        # Host-level NSE output lives in <hostscript>, not under <ports>. Keep
+        # it as opaque evidence text alongside port-level scripts so handlers
+        # can consume it without treating it as commands.
+        host_scripts: dict[str, str] = {}
+        hostscript_elem = host_elem.find("hostscript")
+        if hostscript_elem is not None:
+            for script_elem in hostscript_elem.findall("script"):
+                script_id = script_elem.get("id")
+                if script_id is None:
+                    continue
+                output = script_elem.get("output")
+                if output is None:
+                    output = (script_elem.text or "").strip()
+                host_scripts[script_id] = output
+
         return NmapHost(
             address=address,
             hostnames=hostnames,
             services=services,
             os_matches=os_matches,
+            scripts=host_scripts,
         )
 
     @staticmethod
@@ -132,7 +159,12 @@ class NmapAdapter(ToolAdapter):
             port = 0
 
         state_elem = port_elem.find("state")
-        state = state_elem.get("state", "unknown") if state_elem is not None else "unknown"
+        raw_state = (
+            state_elem.get("state", "unknown") if state_elem is not None else "unknown"
+        )
+        # Normalise combined states (e.g. "open|filtered") onto the artifact
+        # vocabulary while retaining the raw observation.
+        state = normalize_nmap_state(raw_state)
 
         service_name = None
         product = None
@@ -158,6 +190,7 @@ class NmapAdapter(ToolAdapter):
             port=port,
             protocol=protocol,
             state=state,
+            raw_state=raw_state,
             service_name=service_name,
             product=product,
             version=version,
