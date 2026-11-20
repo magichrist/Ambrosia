@@ -52,7 +52,19 @@ class ContextSnapshot(BaseModel):
     generated_at: datetime = Field(default_factory=_utc_now)
     sequence: int = 0
 
-    def namespace(self, name: Literal["engagement", "scope", "target", "selected_target", "artifacts", "facts", "last_execution", "user"]) -> dict[str, object]:
+    def namespace(
+        self,
+        name: Literal[
+            "engagement",
+            "scope",
+            "target",
+            "selected_target",
+            "artifacts",
+            "facts",
+            "last_execution",
+            "user",
+        ],
+    ) -> dict[str, object]:
         mapping: dict[str, dict[str, object]] = {
             "engagement": self.namespaces.engagement,
             "scope": self.namespaces.scope,
