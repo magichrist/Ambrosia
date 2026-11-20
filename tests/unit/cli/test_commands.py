@@ -332,3 +332,61 @@ def test_json_output_on_error() -> None:
     assert result.exit_code == NOT_FOUND
     data = json.loads(result.output)
     assert data["error"]["code"] == "not_found"
+
+
+def test_preset_save_forks_workflow(tmp_path) -> None:
+    preset = tmp_path / "source.yaml"
+    preset.write_text(
+        """api_version: ambrosia/v1
+kind: preset
+metadata:
+  id: test.source-workflow
+  name: Source Workflow
+  version: 1.0.0
+  description: A workflow to fork.
+steps:
+  - id: echo
+    action: core.echo
+    inputs:
+      message: hello
+""",
+        encoding="utf-8",
+    )
+    user_dir = tmp_path / "user-presets"
+    set_services(
+        ApplicationServices(
+            session_scope=nullcontext,
+            registry=_make_registry(),
+            presets_dirs=(str(tmp_path),),
+            user_presets_dir=user_dir,
+            engagement_repo=FakeEngagementRepository(),
+            scope_repo=FakeScopeRepository(),
+            artifact_repo=FakeArtifactRepository(),
+            execution_repo=FakeExecutionRepository(),
+            target_repo=FakeTargetRepository(),
+        )
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "preset",
+            "save",
+            str(preset),
+            "--as",
+            "test.saved-workflow",
+            "--name",
+            "Saved Workflow",
+            "--output",
+            "json",
+        ],
+    )
+    assert result.exit_code == OK, result.output
+    payload = json.loads(result.output)
+    assert payload["id"] == "test.saved-workflow"
+    assert payload["name"] == "Saved Workflow"
+    assert (user_dir / "test.saved-workflow.yaml").is_file()
+
+    # Saved preset is discoverable without restarting the process.
+    listed = runner.invoke(app, ["preset", "list", "--output", "json"])
+    assert "test.saved-workflow" in [p["id"] for p in json.loads(listed.output)["presets"]]
