@@ -64,9 +64,7 @@ class ScopeChecker:
                     reason=f"address {address!r} is in excluded CIDR {cidr!r}",
                 )
 
-        has_include = bool(
-            scope.include_hosts or scope.include_cidrs or scope.include_domains
-        )
+        has_include = bool(scope.include_hosts or scope.include_cidrs or scope.include_domains)
 
         # Exact host match.
         for host in scope.include_hosts:
@@ -176,9 +174,7 @@ class ScopeChecker:
                     resolved_addresses=resolved,
                 )
 
-        has_include = bool(
-            scope.include_hosts or scope.include_cidrs or scope.include_domains
-        )
+        has_include = bool(scope.include_hosts or scope.include_cidrs or scope.include_domains)
         if not has_include:
             return ScopeCheckResult(
                 in_scope=False,
