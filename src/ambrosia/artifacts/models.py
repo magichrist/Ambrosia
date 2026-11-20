@@ -72,9 +72,7 @@ class HostRoleValue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     host_ref: str = Field(min_length=1)
-    role: Literal[
-        "domain_controller", "member_server", "workstation", "standalone_server"
-    ]
+    role: Literal["domain_controller", "member_server", "workstation", "standalone_server"]
 
 
 class UserRefValue(BaseModel):
