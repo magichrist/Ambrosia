@@ -32,14 +32,21 @@ class FindingsView(BaseView):
             yield Button("Back", id="back-findings")
 
     def on_mount(self) -> None:
-        self.refresh_view()
+        # Defer until composed children are available in the DOM.
+        self.call_after_refresh(self.safe_refresh)
 
-    def refresh_view(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "refresh-findings":
+            self.call_after_refresh(self.safe_refresh)
+        elif event.button.id == "back-findings":
+            self.workspace.action_go_back()
+
+    async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
         body = self.query_one("#findings-body", Static)
         findings_list = self.query_one("#findings-list", ListView)
-        findings_list.clear()
+        await findings_list.clear()
         self._findings = []
         if not engagement_id:
             body.update("No engagement selected.")
@@ -54,7 +61,7 @@ class FindingsView(BaseView):
                 f"{finding.id[:8]}  {finding.type}  "
                 f"source={finding.source_kind or '-'}  target={finding.target_ref or '-'}"
             )
-            findings_list.append(ListItem(Static(label), id=finding.id))
+            await findings_list.append(ListItem(Static(label), id=finding.id))
         if not self._findings:
             body.update("No findings recorded yet.")
         else:
