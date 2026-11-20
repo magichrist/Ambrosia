@@ -21,9 +21,7 @@ def _sha256(path: Path) -> str:
 
 
 def test_evidence_metadata_content_hash_round_trip(tmp_path) -> None:
-    db_config = StorageConfig(
-        db_url=f"sqlite:///{tmp_path / 'ev.db'}", workspace_root=tmp_path
-    )
+    db_config = StorageConfig(db_url=f"sqlite:///{tmp_path / 'ev.db'}", workspace_root=tmp_path)
     store = EvidenceStore(tmp_path / "evidence")
     storage = Storage(config=db_config)
 
@@ -77,9 +75,7 @@ def test_evidence_metadata_content_hash_round_trip(tmp_path) -> None:
 
 
 def test_evidence_generated_ids_are_unique(tmp_path) -> None:
-    db_config = StorageConfig(
-        db_url=f"sqlite:///{tmp_path / 'ev2.db'}", workspace_root=tmp_path
-    )
+    db_config = StorageConfig(db_url=f"sqlite:///{tmp_path / 'ev2.db'}", workspace_root=tmp_path)
     store = EvidenceStore(tmp_path / "evidence2")
     storage = Storage(config=db_config)
 
