@@ -91,11 +91,7 @@ class ApprovalService:
         return self._records.get(approval_id)
 
     def get_for_execution(self, execution_id: str) -> list[ApprovalRecord]:
-        return [
-            record
-            for record in self._records.values()
-            if record.execution_id == execution_id
-        ]
+        return [record for record in self._records.values() if record.execution_id == execution_id]
 
     # ------------------------------------------------------------------ transitions
 
@@ -122,7 +118,9 @@ class ApprovalService:
         self._records[updated.id] = updated
         return updated
 
-    def deny(self, approval_id: str, *, decided_by: str, reason: str | None = None) -> ApprovalRecord:
+    def deny(
+        self, approval_id: str, *, decided_by: str, reason: str | None = None
+    ) -> ApprovalRecord:
         """Transition ``pending`` -> ``denied``."""
         record = self._records.get(approval_id)
         if record is None:
