@@ -61,11 +61,17 @@ def _json(result) -> dict:
 
 
 def test_engagement_create_json_schema_stable() -> None:
-    result = runner.invoke(
-        app, ["engagement", "create", "schema-lab", "--output", "json"]
-    )
+    result = runner.invoke(app, ["engagement", "create", "schema-lab", "--output", "json"])
     data = _json(result)
-    assert set(data) == {"id", "name", "description", "status", "created_at", "updated_at", "scope_id"}
+    assert set(data) == {
+        "id",
+        "name",
+        "description",
+        "status",
+        "created_at",
+        "updated_at",
+        "scope_id",
+    }
     assert isinstance(data["id"], str)
     assert data["name"] == "schema-lab"
     assert data["status"] == "active"
@@ -103,9 +109,7 @@ def test_actions_list_json_schema_stable() -> None:
 
 
 def test_scope_show_json_schema_stable() -> None:
-    result = runner.invoke(
-        app, ["scope", "show", "--engagement", "eng-1", "--output", "json"]
-    )
+    result = runner.invoke(app, ["scope", "show", "--engagement", "eng-1", "--output", "json"])
     data = _json(result)
     assert set(data) == {
         "id",
