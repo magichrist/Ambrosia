@@ -44,7 +44,11 @@ def test_show_unknown_engagement_raises() -> None:
 def test_show_no_scope_raises() -> None:
     eng_repo = FakeEngagementRepository()
     scope_repo = FakeScopeRepository()
-    eng_repo.create(__import__("ambrosia.domain.models", fromlist=["Engagement"]).Engagement(id="eng-1", name="lab"))
+    eng_repo.create(
+        __import__("ambrosia.domain.models", fromlist=["Engagement"]).Engagement(
+            id="eng-1", name="lab"
+        )
+    )
 
     service = ScopeService(
         session_scope=nullcontext, scope_repo=scope_repo, engagement_repo=eng_repo
@@ -63,9 +67,7 @@ def test_update_rejects_include_exclude_overlap() -> None:
         session_scope=nullcontext, scope_repo=scope_repo, engagement_repo=eng_repo
     )
     with pytest.raises(ValidationError):
-        service.update(
-            "eng-1", include_hosts=["10.0.0.1"], exclude_hosts=["10.0.0.1"]
-        )
+        service.update("eng-1", include_hosts=["10.0.0.1"], exclude_hosts=["10.0.0.1"])
 
 
 def test_update_adds_fields() -> None:
