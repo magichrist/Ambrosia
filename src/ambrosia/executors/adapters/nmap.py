@@ -159,9 +159,7 @@ class NmapAdapter(ToolAdapter):
             port = 0
 
         state_elem = port_elem.find("state")
-        raw_state = (
-            state_elem.get("state", "unknown") if state_elem is not None else "unknown"
-        )
+        raw_state = state_elem.get("state", "unknown") if state_elem is not None else "unknown"
         # Normalise combined states (e.g. "open|filtered") onto the artifact
         # vocabulary while retaining the raw observation.
         state = normalize_nmap_state(raw_state)
