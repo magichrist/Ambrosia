@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: Context-driven automation workbench for authorized Windows and Active Directory security assessment
 Author: Ambrosia
 Requires-Python: >=3.12
+License-File: LICENSE
 Requires-Dist: textual<1,>=0.86
 Requires-Dist: typer[all]<1,>=0.12
 Requires-Dist: pydantic<3,>=2.10
@@ -18,3 +19,4 @@ Requires-Dist: hypothesis<7,>=6.100; extra == "dev"
 Requires-Dist: mypy<2,>=1.13; extra == "dev"
 Requires-Dist: ruff<1,>=0.8; extra == "dev"
 Requires-Dist: build<2,>=1.2; extra == "dev"
+Dynamic: license-file
