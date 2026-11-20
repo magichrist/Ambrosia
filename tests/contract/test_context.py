@@ -49,9 +49,12 @@ def _make_service(
 # Snapshot namespaces
 # ---------------------------------------------------------------------------
 
+
 def test_snapshot_exposes_all_namespaces() -> None:
     service, _, _ = _make_service()
-    target = service.add_target(Target(engagement_id="eng-1", address="dc01.corp.local", kind="domain"))
+    target = service.add_target(
+        Target(engagement_id="eng-1", address="dc01.corp.local", kind="domain")
+    )
     artifact = service.create_artifact(
         type="network.host",
         value={"hostname": "dc01", "ip_addresses": ["10.0.0.1"]},
@@ -69,8 +72,14 @@ def test_snapshot_exposes_all_namespaces() -> None:
     ns = snapshot.namespaces
 
     expected = {
-        "engagement", "scope", "target", "selected_target", "artifacts",
-        "facts", "last_execution", "user",
+        "engagement",
+        "scope",
+        "target",
+        "selected_target",
+        "artifacts",
+        "facts",
+        "last_execution",
+        "user",
     }
     assert set(ns.model_dump().keys()) == expected
     assert snapshot.engagement_id == "eng-1"
@@ -83,7 +92,9 @@ def test_snapshot_exposes_all_namespaces() -> None:
 
 def test_selected_target_namespace() -> None:
     service, _, _ = _make_service()
-    target = service.add_target(Target(engagement_id="eng-1", address="dc01.corp.local", kind="domain"))
+    target = service.add_target(
+        Target(engagement_id="eng-1", address="dc01.corp.local", kind="domain")
+    )
     service.select_target(target.id)
     snapshot = service.get_snapshot()
     assert target.id in snapshot.namespaces.selected_target
@@ -92,6 +103,7 @@ def test_selected_target_namespace() -> None:
 # ---------------------------------------------------------------------------
 # Artifacts are queried from the repository, not duplicated in a mutable dict
 # ---------------------------------------------------------------------------
+
 
 def test_service_holds_no_own_artifact_copy() -> None:
     service, artifact_repo, _ = _make_service()
@@ -124,6 +136,7 @@ def test_service_holds_no_own_artifact_copy() -> None:
 # ---------------------------------------------------------------------------
 # Derived facts keep target provenance (no cross-host leakage)
 # ---------------------------------------------------------------------------
+
 
 def test_fact_provenance_and_no_cross_host_leak() -> None:
     service, artifact_repo, _ = _make_service()
@@ -162,6 +175,7 @@ def test_fact_provenance_and_no_cross_host_leak() -> None:
 # Target scoping prevents cross-host artifact matches
 # ---------------------------------------------------------------------------
 
+
 def test_match_action_requirements_respects_same_target() -> None:
     service, artifact_repo, _ = _make_service()
     target_a = service.add_target(Target(engagement_id="eng-1", address="10.0.0.1", kind="ip"))
@@ -191,6 +205,7 @@ def test_match_action_requirements_respects_same_target() -> None:
 # ---------------------------------------------------------------------------
 # Supersession and expiry behavior
 # ---------------------------------------------------------------------------
+
 
 def test_superseded_and_expired_excluded_from_snapshot() -> None:
     service, artifact_repo, _ = _make_service()
@@ -226,6 +241,7 @@ def test_superseded_and_expired_excluded_from_snapshot() -> None:
 # ---------------------------------------------------------------------------
 # Context event serialization
 # ---------------------------------------------------------------------------
+
 
 def test_context_event_serialization_round_trip() -> None:
     event = ContextEvent(
