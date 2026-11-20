@@ -8,11 +8,12 @@ from textual.containers import Vertical
 from textual.widgets import Button, Label, ListItem, ListView, Static
 
 from ambrosia.tui.views.base import BaseView
+from ambrosia.tui.widgets.modals import InputFormModal
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
-    from ambrosia.application.preset_service import PresetDTO
+    from ambrosia.application.preset_service import PresetDTO, PresetSaveDTO
     from ambrosia.tui.services import TUIServiceAdapter
 
 
@@ -32,6 +33,7 @@ class PresetBrowserView(BaseView):
                 yield Button("Refresh", id="refresh-presets")
                 yield Button("Validate selected", id="validate-preset")
                 yield Button("Plan selected (dry run)", id="plan-preset")
+                yield Button("Save a copy...", id="save-preset")
                 yield Button("Back", id="back-presets")
 
     def on_mount(self) -> None:
@@ -45,6 +47,9 @@ class PresetBrowserView(BaseView):
             return
         if button_id == "back-presets":
             self.workspace.action_go_back()
+            return
+        if button_id == "save-preset":
+            self._open_save_dialog()
             return
         preset_id = self.selected_preset_id()
         if preset_id is None:
@@ -79,6 +84,39 @@ class PresetBrowserView(BaseView):
                 body.update("\n".join(lines))
         except Exception as exc:  # pragma: no cover - surfaced to operator
             body.update(f"Preset operation failed: {exc}")
+
+    def _open_save_dialog(self) -> None:
+        preset_id = self.selected_preset_id()
+        if preset_id is None:
+            self.query_one("#presets-body", Static).update("Select a preset to save first.")
+            return
+        self.workspace.push_screen(
+            InputFormModal(
+                f"Save a copy of {preset_id}",
+                [
+                    ("id", "New preset id (namespaced)", True),
+                    ("name", "Display name (optional)", False),
+                ],
+                submit_label="Save",
+            ),
+            lambda values: self._handle_save(preset_id, values),
+        )
+
+    def _handle_save(self, source_id: str, values: dict[str, str] | None) -> None:
+        if not values:
+            return
+        new_id = values.get("id", "").strip()
+        if not new_id:
+            return
+        name = values.get("name", "").strip() or None
+        body = self.query_one("#presets-body", Static)
+        try:
+            saved: PresetSaveDTO = self.services.save_preset(source_id, new_id=new_id, name=name)
+        except Exception as exc:  # pragma: no cover - surfaced to operator
+            body.update(f"Could not save preset: {exc}")
+            return
+        body.update(f"Saved {saved.id} to {saved.path}")
+        self.call_after_refresh(self.safe_refresh)
 
     async def refresh_view(self) -> None:
         body = self.query_one("#presets-body", Static)
