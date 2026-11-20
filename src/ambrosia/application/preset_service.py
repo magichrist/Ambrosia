@@ -30,6 +30,8 @@ from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cas
 from ambrosia.domain.protocols import (  # noqa: TC001 - used at runtime via cast()
     ScopeRepository as ScopeRepositoryProtocol,
 )
+from ambrosia.presets.errors import PresetValidationError
+from ambrosia.presets.normalize import normalize_engine_step_keys
 
 if TYPE_CHECKING:
     import builtins
@@ -315,6 +317,14 @@ class PresetService(_BaseService):
             raise ValidationError(  # noqa: TRY003 - operator-facing message
                 f"preset {path} must contain a mapping, not {type(data).__name__}"
             )
+        # Condition steps carry engine-level ``then``/``else`` branch keys that
+        # the strict domain model does not serialize. Strip them exactly as the
+        # PresetLoader does so shipped branch presets validate here too; genuine
+        # typos are still rejected by ``extra="forbid"``.
+        try:
+            normalize_engine_step_keys(data)
+        except PresetValidationError as exc:
+            raise ValidationError(str(exc)) from exc  # noqa: TRY003
         return PresetDefinition.model_validate(data)
 
     def _find_preset(self, preset_id: str) -> tuple[PresetDefinition, Path]:
