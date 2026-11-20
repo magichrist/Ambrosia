@@ -9,7 +9,7 @@
     <address addr="10.0.0.10" addrtype="ipv4"/>
     <hostnames><hostname name="dc01.corp.local" type="PTR"/></hostnames>
     <ports>
-      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="smb" product="Samba" version="4.6.2" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2019 Datacenter 1809 (Windows Server 2019 Datacenter 6.3)
+      <port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="microsoft-ds" product="Samba" version="4.6.2" extrainfo=""/><script id="smb-os-discovery" output="OS: Windows Server 2019 Datacenter 1809 (Windows Server 2019 Datacenter 6.3)
 Computer name: DC01
 NetBIOS computer name: DC01
 Domain name: CORP.LOCAL
@@ -17,8 +17,8 @@ Forest name: CORP.LOCAL
 FQDN: DC01.corp.local
 "/><script id="smb-security-mode" output="account_used: guest&lt;br /&gt;authentication_level: user&lt;br /&gt;"/><script id="smb-protocols" output="1.0&lt;br /&gt;2.0&lt;br /&gt;2.1&lt;br /&gt;3.0&lt;br /&gt;3.11&lt;br /&gt;"/></port>
       <port protocol="tcp" portid="80"><state state="open" reason="syn-ack"/><service name="http" product="Microsoft IIS" version="10.0" extrainfo=""/><script id="http-methods" output="Supported Methods: GET, HEAD, POST, OPTIONS"/></port>
-      <port protocol="tcp" portid="3389"><state state="open" reason="syn-ack"/><service name="rdp" product="Microsoft" version="RDP" extrainfo=""/><script id="rdp-enum-encryption" output="Security layer: SSL"/></port>
-      <port protocol="tcp" portid="5985"><state state="open" reason="syn-ack"/><service name="winrm" product="Microsoft" version="HTTPAPI" extrainfo=""/><script id="winrm-info" output="Auth: Kerberos, Negotiate"/></port>
+      <port protocol="tcp" portid="3389"><state state="open" reason="syn-ack"/><service name="ms-wbt-server" product="Microsoft" version="RDP" extrainfo=""/><script id="rdp-enum-encryption" output="Security layer: SSL"/></port>
+      <port protocol="tcp" portid="5985"><state state="open" reason="syn-ack"/><service name="wsman" product="Microsoft" version="HTTPAPI" extrainfo=""/><script id="winrm-info" output="Auth: Kerberos, Negotiate"/></port>
       <port protocol="tcp" portid="135"><state state="filtered" reason="no-response"/><service name="msrpc"/></port>
     </ports>
   </host>
