@@ -129,7 +129,7 @@ def test_service_discovery_produces_typed_service_artifacts() -> None:
         source_id="network.nmap.service_discovery",
     )
     assert isinstance(artifact, ServiceArtifact)
-    assert artifact.value.service_name == "smb"
+    assert artifact.value.service_name == "microsoft-ds"
     assert artifact.value.port == 445
     assert artifact.value.state == "open"
 
