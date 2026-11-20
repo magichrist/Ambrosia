@@ -33,11 +33,11 @@ class ActionList(ListView):
         self._services = services
         self._actions: list[tuple[ActionDTO, ActionCheckDTO]] = []
 
-    def set_actions(self, actions: list[tuple[ActionDTO, ActionCheckDTO]]) -> None:
+    async def set_actions(self, actions: list[tuple[ActionDTO, ActionCheckDTO]]) -> None:
         self._actions = list(actions)
-        self.clear()
+        await self.clear()
         for dto, check in self._actions:
-            self.append(self._make_item(dto, check))
+            await self.append(self._make_item(dto, check))
 
     def _make_item(self, dto: ActionDTO, check: ActionCheckDTO) -> ListItem:
         text = Text()
