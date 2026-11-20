@@ -66,9 +66,7 @@ class ActionDetailsView(BaseView):
         """Prefer typed form values; fall back to the free-form key=value field."""
         if self._typed_inputs:
             return dict(self._typed_inputs)
-        return self.workspace.parse_inputs(
-            self.query_one("#details-inputs", Input).value
-        )
+        return self.workspace.parse_inputs(self.query_one("#details-inputs", Input).value)
 
     def _open_typed_inputs(self) -> None:
         definition = self.services.action_definition(self._action_id)
@@ -99,9 +97,7 @@ class ActionDetailsView(BaseView):
             return
         self._typed_inputs = {key: value for key, value in values.items() if value != ""}
         summary = ", ".join(self._typed_inputs) or "(none)"
-        self.query_one("#details-header", Static).update(
-            f"{self._action_id} — inputs: {summary}"
-        )
+        self.query_one("#details-header", Static).update(f"{self._action_id} — inputs: {summary}")
 
     async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
