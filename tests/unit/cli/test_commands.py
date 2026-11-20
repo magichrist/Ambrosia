@@ -78,9 +78,7 @@ def _make_registry() -> Registry:
             platforms=[],
             dependencies=[ToolDependency(name="nonexistent-tool-12345")],
             effects=["network_observe"],
-            executor=ExecutorReference(
-                kind="process", executable="nonexistent-tool-12345"
-            ),
+            executor=ExecutorReference(kind="process", executable="nonexistent-tool-12345"),
         )
     )
     return registry
@@ -185,9 +183,7 @@ def test_target_add_and_list() -> None:
 
 
 def test_target_invalid_address_exits_validation() -> None:
-    result = runner.invoke(
-        app, ["target", "add", "not an address", "--engagement", "eng-1"]
-    )
+    result = runner.invoke(app, ["target", "add", "not an address", "--engagement", "eng-1"])
     assert result.exit_code == VALIDATION_ERROR
 
 
@@ -274,9 +270,7 @@ def test_preset_list_and_validate(tmp_path) -> None:
     # Services use builtin_presets dir by default via load_services, but our fake
     # services point presets_dirs at tmp_path via the fixture factory. Validate a
     # file path directly instead.
-    result = runner.invoke(
-        app, ["preset", "validate", "tests/fixtures/packs/does-not-exist.yml"]
-    )
+    result = runner.invoke(app, ["preset", "validate", "tests/fixtures/packs/does-not-exist.yml"])
     assert result.exit_code == NOT_FOUND
 
 
@@ -326,9 +320,7 @@ def test_report_export_unknown_engagement_exits_not_found() -> None:
 
 
 def test_json_output_is_valid_json() -> None:
-    result = runner.invoke(
-        app, ["engagement", "create", "json-lab", "--output", "json"]
-    )
+    result = runner.invoke(app, ["engagement", "create", "json-lab", "--output", "json"])
     assert result.exit_code == OK
     data = json.loads(result.output)
     assert data["name"] == "json-lab"
@@ -336,9 +328,7 @@ def test_json_output_is_valid_json() -> None:
 
 
 def test_json_output_on_error() -> None:
-    result = runner.invoke(
-        app, ["engagement", "use", "nope", "--output", "json"]
-    )
+    result = runner.invoke(app, ["engagement", "use", "nope", "--output", "json"])
     assert result.exit_code == NOT_FOUND
     data = json.loads(result.output)
     assert data["error"]["code"] == "not_found"
