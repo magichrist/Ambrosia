@@ -10,7 +10,9 @@ All notable changes to this project are documented here. Format follows
 
 - **Opt-in authorized operations pack** (ADR-0012, `docs/authorized-operations.md`):
   argv-based wrappers for installed Impacket `secretsdump.py`/`psexec.py`/
-  `GetADUsers.py`/`ntlmrelayx.py`, NetExec (`netexec`), and `samdump2`. Never
+  `GetADUsers.py`/`GetNPUsers.py`/`GetUserSPNs.py`/`lookupsid.py`/
+  `ntlmrelayx.py`, NetExec (`netexec`), and `samdump2`. Ten actions covering
+  credentials, SMB/NTLM, lateral movement, and Active Directory. Never
   registered by default. No tools are installed or downloaded.
 - **Layered authorization gating**: explicit pack registration, scope effect
   allowlisting, a per-run authorization reference (CLI `--authorization`, TUI
