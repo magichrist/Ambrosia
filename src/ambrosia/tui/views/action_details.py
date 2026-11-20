@@ -8,6 +8,7 @@ from textual.containers import Vertical
 from textual.widgets import Button, Input, Label, Static
 
 from ambrosia.tui.views.base import BaseView
+from ambrosia.tui.widgets.modals import InputFormModal
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -29,6 +30,7 @@ class ActionDetailsView(BaseView):
         self._action_id = action_id
         self._dto: ActionDTO | None = None
         self._check: ActionCheckDTO | None = None
+        self._typed_inputs: dict[str, object] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(id="details-header")
@@ -38,12 +40,70 @@ class ActionDetailsView(BaseView):
         with Vertical():
             yield Button("Run", id="run-action", variant="primary")
             yield Button("Dry run (preview)", id="dry-run-action")
+            yield Button("Typed inputs...", id="typed-inputs")
             yield Button("Back", id="back-action")
 
     def on_mount(self) -> None:
-        self.refresh_view()
+        # Defer until composed children are available in the DOM.
+        self.call_after_refresh(self.safe_refresh)
 
-    def refresh_view(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        button_id = event.button.id
+        if button_id == "back-action":
+            self.workspace.action_go_back()
+            return
+        if button_id == "typed-inputs":
+            self._open_typed_inputs()
+            return
+        inputs = self._collect_inputs()
+        if button_id == "run-action":
+            self.workspace.execute_action(self._action_id, inputs)
+            self.workspace.status_bar().set_status(f"queued {self._action_id}")
+        elif button_id == "dry-run-action":
+            self.workspace.dry_run_action(self._action_id, inputs)
+
+    def _collect_inputs(self) -> dict[str, object]:
+        """Prefer typed form values; fall back to the free-form key=value field."""
+        if self._typed_inputs:
+            return dict(self._typed_inputs)
+        return self.workspace.parse_inputs(
+            self.query_one("#details-inputs", Input).value
+        )
+
+    def _open_typed_inputs(self) -> None:
+        definition = self.services.action_definition(self._action_id)
+        schema = definition.input_schema if definition is not None else {}
+        properties = schema.get("properties", {}) if isinstance(schema, dict) else {}
+        raw_required = schema.get("required", []) if isinstance(schema, dict) else []
+        required = set(raw_required) if isinstance(raw_required, (list, tuple)) else set()
+        fields: list[tuple[str, str, bool]] = []
+        if isinstance(properties, dict):
+            for name, prop in properties.items():
+                label = name
+                if isinstance(prop, dict):
+                    label = str(prop.get("title") or prop.get("description") or name)
+                fields.append((name, label, name in required))
+        if not fields:
+            self.workspace.push_screen(
+                InputFormModal(self._action_id, [("value", "Value", False)], submit_label="Save"),
+                self._handle_typed_inputs,
+            )
+            return
+        self.workspace.push_screen(
+            InputFormModal(self._action_id, fields, submit_label="Save"),
+            self._handle_typed_inputs,
+        )
+
+    def _handle_typed_inputs(self, values: dict[str, str] | None) -> None:
+        if values is None:
+            return
+        self._typed_inputs = {key: value for key, value in values.items() if value != ""}
+        summary = ", ".join(self._typed_inputs) or "(none)"
+        self.query_one("#details-header", Static).update(
+            f"{self._action_id} — inputs: {summary}"
+        )
+
+    async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
         target_address = getattr(app, "current_target_address", None) or None
