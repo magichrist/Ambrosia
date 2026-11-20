@@ -19,7 +19,14 @@ by default. See `docs/authorized-operations.md`.
 
 Ambrosia is built for **authorized** assessment and general automation. The default built-in pack performs bounded discovery and read-only configuration observation only. It deliberately does **not** include credential dumping or replay, hash-based remote access, password spraying, lateral movement, unauthorized remote command execution, persistence, stealth/evasion, destructive actions, or exfiltration. Secrets are represented as opaque references, never as plaintext values in YAML, the database, logs, previews, or reports.
 
-A separate, **opt-in** `authorized-operations` pack (ADR-0012) can wrap installed high-impact tools for engagements that explicitly authorize them. It is never registered by default and is governed by four independent gates: explicit registration, scope effect allowlisting, a per-run authorization reference, and engine approval. See `docs/authorized-operations.md`.
+A separate, **opt-in** `authorized-operations` pack (ADR-0012) wraps 46 installed
+Windows/AD assessment tools covering RDP, identity/user extraction, vulnerability
+scans, Windows spec/details, network/protocol, credentials, Kerberos, and lateral
+movement. It is never registered by default. Actions are classified by declared
+effects: read-only probes run under scope policy, while high-impact actions
+require explicit registration, scope effect allowlisting, a per-run authorization
+reference, and engine approval. See `docs/authorized-operations.md` and the
+[coverage matrix](src/ambrosia/packs/authorized_operations/docs/coverage.md).
 
 You must define an explicit scope before any network action is available. Policy and scope are checked again immediately before execution on every path (CLI, TUI, and presets).
 
