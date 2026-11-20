@@ -1,3 +1,5 @@
+LICENSE
+README.md
 pyproject.toml
 src/ambrosia/__init__.py
 src/ambrosia/__main__.py
@@ -53,6 +55,10 @@ src/ambrosia/executors/adapters/__init__.py
 src/ambrosia/executors/adapters/base.py
 src/ambrosia/executors/adapters/nmap.py
 src/ambrosia/packs/__init__.py
+src/ambrosia/packs/authorized_operations/__init__.py
+src/ambrosia/packs/authorized_operations/actions.py
+src/ambrosia/packs/authorized_operations/argv.py
+src/ambrosia/packs/authorized_operations/handlers.py
 src/ambrosia/packs/windows_assessment/__init__.py
 src/ambrosia/packs/windows_assessment/actions.py
 src/ambrosia/packs/windows_assessment/handlers.py
@@ -60,6 +66,7 @@ src/ambrosia/phases/__init__.py
 src/ambrosia/phases/catalog.py
 src/ambrosia/policy/__init__.py
 src/ambrosia/policy/approvals.py
+src/ambrosia/policy/authorization.py
 src/ambrosia/policy/decisions.py
 src/ambrosia/policy/effects.py
 src/ambrosia/policy/engine.py
