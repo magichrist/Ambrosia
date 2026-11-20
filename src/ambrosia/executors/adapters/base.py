@@ -12,6 +12,31 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 
+# ``ServiceValue.state`` (the artifact value model) accepts only these three
+# literals. Nmap can emit combined states such as ``open|filtered`` (UDP scans
+# and some filtered TCP scans), which would otherwise fail artifact validation.
+_NMAP_STATE_LITERALS = ("open", "closed", "filtered")
+
+
+def normalize_nmap_state(raw: str) -> str:
+    """Map a raw Nmap port state onto the artifact state vocabulary.
+
+    Exact ``open``/``closed``/``filtered`` states are preserved. Combined states
+    are resolved to the most informative accepted value (``open|filtered`` ->
+    ``open``, ``closed|filtered`` -> ``closed``); everything else is reported as
+    ``filtered``. The original value is retained in ``NmapService.raw_state`` so
+    no observation is silently lost.
+    """
+    lowered = raw.strip().lower()
+    if lowered in _NMAP_STATE_LITERALS:
+        return lowered
+    if "open" in lowered:
+        return "open"
+    if "closed" in lowered:
+        return "closed"
+    return "filtered"
+
+
 @dataclass(frozen=True)
 class NmapService:
     """A single service entry parsed from Nmap XML output."""
@@ -25,6 +50,8 @@ class NmapService:
     version: str | None = None
     scripts: dict[str, str] = field(default_factory=dict)
     """Raw NSE script output keyed by script id (never parsed as commands)."""
+    raw_state: str | None = None
+    """Original Nmap state string before normalisation (e.g. ``open|filtered``)."""
 
 
 @dataclass(frozen=True)
@@ -35,6 +62,8 @@ class NmapHost:
     hostnames: list[str] = field(default_factory=list)
     services: list[NmapService] = field(default_factory=list)
     os_matches: list[str] = field(default_factory=list)
+    scripts: dict[str, str] = field(default_factory=dict)
+    """Host-level NSE script output (``<hostscript>``), keyed by script id."""
 
 
 @dataclass(frozen=True)
@@ -79,4 +108,5 @@ __all__ = [
     "NmapParseResult",
     "NmapService",
     "ToolAdapter",
+    "normalize_nmap_state",
 ]
