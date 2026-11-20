@@ -1,17 +1,12 @@
 [project]
 name = "ambrosia"
 version = "0.1.0"
-description = "Context-driven automation workbench for authorized Windows and Active Directory security assessment"
+description = "Fast TUI-first command launcher and executor workbench for authorized use"
 requires-python = ">=3.12"
 authors = [{ name = "Ambrosia" }]
 dependencies = [
     "textual>=0.86,<1",
     "typer[all]>=0.12,<1",
-    "pydantic>=2.10,<3",
-    "pydantic-settings>=2.4,<3",
-    "sqlalchemy>=2.0,<3",
-    "alembic>=1.13,<2",
-    "pyyaml>=6,<8",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-ambrosia = "ambrosia.cli.main:app"
+ambrosia = "ambrosia.cli:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
@@ -54,6 +49,7 @@ ignore = ["E501", "B008", "ANN401", "ARG001", "ARG002", "ARG003", "RET504", "TRY
     "S105",    # hardcoded password string (fake credentials in fixtures)
     "S106",    # hardcoded password function arg
     "S108",    # hardcoded temp file (test fixtures)
+    "S604",    # false positive on the `Command.shell` dataclass field; tests mock subprocess, never shell=True
     "ANN001",  # missing type annotation for function argument
     "ANN002",  # missing type annotation for *args
     "ANN003",  # missing type annotation for **kwargs
