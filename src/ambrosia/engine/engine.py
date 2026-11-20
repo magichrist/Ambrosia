@@ -43,9 +43,7 @@ if TYPE_CHECKING:
     from ambrosia.policy import PolicyEngine
     from ambrosia.registry import Registry
 
-_SECRET_KEYS = frozenset(
-    {"password", "passwd", "secret", "token", "key", "credential", "hash"}
-)
+_SECRET_KEYS = frozenset({"password", "passwd", "secret", "token", "key", "credential", "hash"})
 
 
 def _utc_now_naive() -> datetime:
@@ -158,8 +156,7 @@ class JobEngine:
 
         if not valid_transition(record.status, "validated"):
             raise ConflictError(  # noqa: TRY003
-                f"cannot validate execution {execution_id!r} in status "
-                f"{record.status!r}"
+                f"cannot validate execution {execution_id!r} in status {record.status!r}"
             )
 
         record.status = "validated"
@@ -231,8 +228,7 @@ class JobEngine:
 
         if not valid_transition(record.status, "ready"):
             raise ConflictError(  # noqa: TRY003
-                f"cannot move execution {execution_id!r} to ready from "
-                f"status {record.status!r}"
+                f"cannot move execution {execution_id!r} to ready from status {record.status!r}"
             )
         record.status = "ready"
         self._execution_repository.update(record)
@@ -245,14 +241,11 @@ class JobEngine:
         if record is None:
             raise NotFoundError(f"execution {execution_id!r} not found")  # noqa: TRY003
 
-        self._policy_engine.deny_approval(
-            approval_id, decided_by=decided_by, reason=reason
-        )
+        self._policy_engine.deny_approval(approval_id, decided_by=decided_by, reason=reason)
 
         if not valid_transition(record.status, "blocked"):
             raise ConflictError(  # noqa: TRY003
-                f"cannot block execution {execution_id!r} from status "
-                f"{record.status!r}"
+                f"cannot block execution {execution_id!r} from status {record.status!r}"
             )
         record.status = "blocked"
         self._execution_repository.update(record)
@@ -276,8 +269,7 @@ class JobEngine:
 
         if record.status != "ready":
             raise ConflictError(  # noqa: TRY003
-                f"cannot run execution {execution_id!r} in status "
-                f"{record.status!r}"
+                f"cannot run execution {execution_id!r} in status {record.status!r}"
             )
 
         if record.action_id is None:
@@ -310,9 +302,7 @@ class JobEngine:
         sequence = 0
         # Handlers are async generators; the protocol exposes the iterable
         # surface, but the engine also closes them on failure/cancel/timeout.
-        iterator = cast(
-            "AsyncGenerator[ExecutionEvent, None]", handler.execute(request, context)
-        )
+        iterator = cast("AsyncGenerator[ExecutionEvent, None]", handler.execute(request, context))
         handler_failed = False
 
         try:
@@ -320,9 +310,7 @@ class JobEngine:
                 while True:
                     try:
                         if timeout_seconds is not None:
-                            event = await asyncio.wait_for(
-                                anext(iterator), timeout=timeout_seconds
-                            )
+                            event = await asyncio.wait_for(anext(iterator), timeout=timeout_seconds)
                         else:
                             event = await anext(iterator)
                     except StopAsyncIteration:
@@ -333,8 +321,7 @@ class JobEngine:
                         except Exception:  # noqa: S110
                             pass
                         raise ExecutionTimeoutError(  # noqa: TRY003
-                            f"execution {execution_id!r} timed out after "
-                            f"{timeout_seconds}s"
+                            f"execution {execution_id!r} timed out after {timeout_seconds}s"
                         ) from exc
 
                     # An ArtifactProducedEvent carries a typed artifact draft.
@@ -505,9 +492,7 @@ class JobEngine:
         return {
             "execution_id": execution_id,
             "action_id": record.action_id,
-            "executable": (
-                definition.executor.executable if definition.executor else None
-            ),
+            "executable": (definition.executor.executable if definition.executor else None),
             "argv": [str(a) for a in argv],
             "argv_redacted": True,
             "outcome": outcome,
