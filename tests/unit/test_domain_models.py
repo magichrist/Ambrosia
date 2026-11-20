@@ -18,6 +18,7 @@ def _future() -> datetime:
 # Target
 # ---------------------------------------------------------------------------
 
+
 def test_valid_target_ip() -> None:
     target = Target(engagement_id="eng-1", address="10.0.0.1", kind="ip")
     assert target.address == "10.0.0.1"
@@ -60,6 +61,7 @@ def test_target_empty_address_rejected() -> None:
 # Observation
 # ---------------------------------------------------------------------------
 
+
 def test_valid_observation() -> None:
     obs = Observation(
         engagement_id="eng-1",
@@ -90,6 +92,7 @@ def test_observation_secret_evidence_rejected() -> None:
 # ---------------------------------------------------------------------------
 # Finding
 # ---------------------------------------------------------------------------
+
 
 def test_valid_finding() -> None:
     finding = Finding(
