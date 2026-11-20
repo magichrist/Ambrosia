@@ -32,6 +32,7 @@ async def _collect(handler, request, context) -> list:
 # ---------------------------------------------------------------------------
 # Fake stream / process helpers for monkeypatched subprocess tests
 
+
 class _StreamReader:
     def __init__(self, data: bytes) -> None:
         self._data = data
@@ -73,6 +74,7 @@ class _FakeProcess:
 # ---------------------------------------------------------------------------
 # argv preserved as separate arguments
 
+
 @pytest.mark.asyncio
 async def test_argv_preserved_as_separate_arguments(monkeypatch) -> None:
     """argv is passed as separate args (no shell)."""
@@ -97,6 +99,7 @@ async def test_argv_preserved_as_separate_arguments(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # shell metacharacters passed as data
 
+
 @pytest.mark.asyncio
 async def test_shell_metacharacters_passed_as_data(monkeypatch) -> None:
     """Shell metacharacters in argv are passed as data, not interpreted."""
@@ -119,6 +122,7 @@ async def test_shell_metacharacters_passed_as_data(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # executable allowlisting
 
+
 @pytest.mark.asyncio
 async def test_executable_is_allowlisted_not_from_inputs(monkeypatch) -> None:
     """The executable comes from the allowlist, never from untrusted inputs."""
@@ -140,6 +144,7 @@ async def test_executable_is_allowlisted_not_from_inputs(monkeypatch) -> None:
 
 # ---------------------------------------------------------------------------
 # secret redaction
+
 
 @pytest.mark.asyncio
 async def test_secret_redaction_in_stdout(monkeypatch) -> None:
@@ -171,6 +176,7 @@ async def test_secret_redaction_in_stdout(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_secret_redaction_in_stderr(monkeypatch) -> None:
     """Secret values in stderr are redacted."""
+
     async def _fake_create_subprocess_exec(*argv, **kwargs):
         return _FakeProcess(stderr=b"ERROR: token=supersecret\n")
 
@@ -183,16 +189,14 @@ async def test_secret_redaction_in_stderr(monkeypatch) -> None:
     events = await _collect(executor, request, _context())
 
     for event in events:
-        if (
-            event.kind == "OutputChunkEvent"
-            and event.payload.get("stream") == "stderr"
-        ):
+        if event.kind == "OutputChunkEvent" and event.payload.get("stream") == "stderr":
             assert "supersecret" not in event.payload["text"]
             assert "[REDACTED]" in event.payload["text"]
 
 
 # ---------------------------------------------------------------------------
 # output cap
+
 
 @pytest.mark.asyncio
 async def test_output_cap_truncates(monkeypatch) -> None:
@@ -209,7 +213,8 @@ async def test_output_cap_truncates(monkeypatch) -> None:
     events = await _collect(executor, request, _context())
 
     truncated = [
-        e for e in events
+        e
+        for e in events
         if e.kind == "OutputChunkEvent" and "truncated" in e.payload.get("text", "")
     ]
     assert len(truncated) >= 1, "expected a truncation event"
@@ -217,6 +222,7 @@ async def test_output_cap_truncates(monkeypatch) -> None:
 
 # ---------------------------------------------------------------------------
 # timeout / cancellation terminate subprocess
+
 
 @pytest.mark.asyncio
 async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
@@ -265,6 +271,7 @@ async def test_missing_argv_produces_failed_event() -> None:
 
 # ---------------------------------------------------------------------------
 # FakeExecutor
+
 
 @pytest.mark.asyncio
 async def test_fake_executor_records_calls() -> None:
