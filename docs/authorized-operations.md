@@ -1,34 +1,38 @@
 # Authorized operations pack — safety case
 
-The `authorized-operations` pack wraps installed Windows/AD red-team binaries
-(Impacket, NetExec, samdump2) through Ambrosia's shell-free argv executor. It is
-an **opt-in** capability that deliberately reverses the read-only default for
+The `authorized-operations` pack wraps installed Windows/AD assessment binaries
+through Ambrosia's shell-free argv executor. It is an **opt-in** capability for
 engagements that explicitly authorize high-impact testing. This document is the
 "separately reviewed design and documented safety case" required by
 `00_MASTER_PLAN.md` §3/§10.4 before such capabilities can exist.
 
 ## 1. Scope of the capability
 
-| Capability | Action id | Installed binary |
+The pack covers 46 actions across eight Windows assessment fields. The complete
+action/binary/effect/gate matrix lives at
+`src/ambrosia/packs/authorized_operations/docs/coverage.md`. The fields are:
+
+| Field | Representative binaries | Example action |
 |---|---|---|
-| SAM/NTDS credential extraction | `windows.credentials.secretsdump` | `secretsdump.py` |
-| Offline SAM hive hash extraction | `windows.credentials.samdump2` | `samdump2` |
-| SMB/AD authentication and enumeration | `windows.smb.netexec` | `netexec` |
-| Remote command execution (NetExec) | `windows.lateral.netexec_exec` | `netexec` |
-| Remote command execution (Impacket) | `windows.lateral.psexec` | `psexec.py` |
-| AD user enumeration | `windows.ad.domain_enumeration` | `GetADUsers.py` |
-| AD AS-REP roast | `windows.ad.asrep_roast` | `GetNPUsers.py` |
-| AD Kerberoast | `windows.ad.kerberoast` | `GetUserSPNs.py` |
-| AD SID enumeration | `windows.ad.sid_enumeration` | `lookupsid.py` |
-| NTLM → SMB relay | `windows.smb.ntlm_relay` | `ntlmrelayx.py` |
+| RDP | `nmap`, `ncrack`, `xfreerdp`, `wmiexec.py` | `windows.rdp.bruteforce` |
+| Identity / user extraction | `ldapsearch`, `sharphound`, `adfind`, `GetADUsers.py` | `windows.identity.ldap_query` |
+| Vulnerability scans | `nmap`, `nuclei` | `windows.vuln.nmap_vuln_scan` |
+| Windows spec & details | `nmap`, `netexec`, `smbclient`, `wmiexec.py` | `windows.system.os_discovery` |
+| Network / protocol | `nbtscan`, `responder`, `dig` | `windows.network.netbios_scan` |
+| Credentials | `secretsdump.py`, `samdump2` | `windows.credentials.secretsdump` |
+| Kerberos | `getTGT.py`, `getST.py` | `windows.kerberos.tgt_request` |
+| Lateral movement / relay | `netexec`, `psexec.py`, `wmiexec.py`, `atexec.py`, `dcomexec.py`, `evil-winrm`, `ntlmrelayx.py` | `windows.lateral.wmiexec` |
 
 Ambrosia does **not** install, download, bundle, or execute these tools during
 registration or import. The operator must have them on PATH on the machine
 running the assessment. Availability is a metadata/PATH check only.
 
-## 2. Four independent gates
+## 2. Independent gates
 
-A high-impact run requires all of the following:
+Actions are classified by declared `effects`. Read-only actions
+(`network_observe`, `remote_read`) are governed only by scope and effect
+allowlisting. High-impact actions (`authentication`, `credential_access`,
+`remote_change`) additionally require all of the following:
 
 1. **Explicit opt-in registration.** `build_registry()` and production service
    startup never register this pack. The operator must call
@@ -40,9 +44,10 @@ A high-impact run requires all of the following:
    them until the operator explicitly widens `allowed_effects`.
 3. **Per-run authorization reference.** `AuthorizationService` (application
    layer) and `require_request_authorization` (handler layer) both require a
-   non-empty authorization reference for every run. CLI uses `--authorization`;
-   the TUI has an "Authorization reference" input in action details. The
-   reference is included in the sanitized event summary for attribution.
+   non-empty authorization reference for every high-impact run. Read-only
+   actions do not require it. CLI uses `--authorization`; the TUI has an
+   "Authorization reference" input in action details. The reference is included
+   in the sanitized event summary for attribution.
 4. **Approval state.** The engine's `request_approval()` requires an explicit
    approval grant for `credential_access`/`remote_change` actions before a job
    can reach `ready`.
