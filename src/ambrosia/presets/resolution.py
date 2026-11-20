@@ -95,9 +95,7 @@ def _actual_type_name(value: object) -> str:
     return type(value).__name__
 
 
-def check_type(
-    value: object, expected_type: str
-) -> TypeMismatchInfo | None:
+def check_type(value: object, expected_type: str) -> TypeMismatchInfo | None:
     """Return a type mismatch info when ``value`` does not match ``expected_type``.
 
     Namespaced semantic types (``target.host``, ``network.service``,
@@ -108,9 +106,7 @@ def check_type(
     if allowed is None:
         return None
     if expected in ("integer", "number") and isinstance(value, bool):
-        return TypeMismatchInfo(
-            destination="", expected_type=expected, actual_type="boolean"
-        )
+        return TypeMismatchInfo(destination="", expected_type=expected, actual_type="boolean")
     if not isinstance(value, allowed):
         return TypeMismatchInfo(
             destination="",
@@ -123,9 +119,7 @@ def check_type(
 def _where_matches(artifact: Artifact, where: dict[str, object] | None) -> bool:
     if not where:
         return True
-    return all(
-        artifact.value.get(key) == value for key, value in where.items()
-    )
+    return all(artifact.value.get(key) == value for key, value in where.items())
 
 
 def _traverse(root: dict[str, object] | None, path: tuple[str, ...]) -> Any:
@@ -276,9 +270,7 @@ class Resolver:
 
     def _resolve_step_output(self, path: tuple[str, ...]) -> ResolutionResult:
         # steps.<step_id>.outputs.<output>...
-        outputs_indexes = [
-            index for index, segment in enumerate(path) if segment == "outputs"
-        ]
+        outputs_indexes = [index for index, segment in enumerate(path) if segment == "outputs"]
         if not outputs_indexes:
             raise InvalidReferenceError(  # noqa: TRY003
                 f"invalid steps reference {'.'.join(path)!r}: expected "
