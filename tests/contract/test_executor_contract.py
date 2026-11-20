@@ -91,6 +91,7 @@ def _make_engine(concurrency_limit=2):
 # ---------------------------------------------------------------------------
 # argv preserved as separate arguments
 
+
 @pytest.mark.asyncio
 async def test_argv_is_separate_arguments_not_a_shell_string(monkeypatch) -> None:
     captured: list[list[str]] = []
@@ -131,6 +132,7 @@ async def test_argv_is_separate_arguments_not_a_shell_string(monkeypatch) -> Non
 # ---------------------------------------------------------------------------
 # shell metacharacters passed as data
 
+
 @pytest.mark.asyncio
 async def test_shell_metacharacters_are_data_not_interpreted(monkeypatch) -> None:
     captured: list[list[str]] = []
@@ -170,6 +172,7 @@ async def test_shell_metacharacters_are_data_not_interpreted(monkeypatch) -> Non
 
 # ---------------------------------------------------------------------------
 # cancellation terminates subprocess
+
 
 @pytest.mark.asyncio
 async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
@@ -223,6 +226,7 @@ async def test_cancellation_terminates_subprocess(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 # output cap
 
+
 @pytest.mark.asyncio
 async def test_output_cap_works(monkeypatch) -> None:
     big = b"x" * 10000
@@ -272,7 +276,8 @@ async def test_output_cap_works(monkeypatch) -> None:
     events = await _collect(executor, request, _context())
 
     truncated = [
-        e for e in events
+        e
+        for e in events
         if e.kind == "OutputChunkEvent" and "truncated" in e.payload.get("text", "")
     ]
     assert len(truncated) >= 1
@@ -280,6 +285,7 @@ async def test_output_cap_works(monkeypatch) -> None:
 
 # ---------------------------------------------------------------------------
 # secret redaction in stdout/stderr
+
 
 @pytest.mark.asyncio
 async def test_secret_redaction_stdout_stderr(monkeypatch) -> None:
@@ -352,6 +358,7 @@ async def test_secret_redactor_redacts_dict() -> None:
 # ---------------------------------------------------------------------------
 # dry-run does not start subprocess
 
+
 @pytest.mark.asyncio
 async def test_dry_run_launches_no_process() -> None:
     fake = FakeExecutor()
@@ -371,9 +378,7 @@ async def test_dry_run_launches_no_process() -> None:
         target_refs=["10.0.0.1"],
     )
 
-    plan = await engine.dry_run(
-        execution_id, scope=_scope(), address="10.0.0.1", port=80
-    )
+    plan = await engine.dry_run(execution_id, scope=_scope(), address="10.0.0.1", port=80)
 
     assert plan["dry_run"] is True
     assert plan["executable"] == "fake-tool"
@@ -383,6 +388,7 @@ async def test_dry_run_launches_no_process() -> None:
 
 # ---------------------------------------------------------------------------
 # DryRunPlanner produces a sanitized plan
+
 
 def test_dry_run_planner_produces_plan() -> None:
     planner = DryRunPlanner()
@@ -410,6 +416,7 @@ def test_dry_run_planner_produces_plan() -> None:
 
 # ---------------------------------------------------------------------------
 # concurrent job limit
+
 
 @pytest.mark.asyncio
 async def test_concurrent_job_limit() -> None:
@@ -462,9 +469,7 @@ async def test_concurrent_job_limit() -> None:
 
     # Launch all three concurrently; the engine semaphore (limit=1) ensures
     # only one runs at a time.
-    results = await asyncio.gather(
-        *[_run_one(i) for i in ids], return_exceptions=True
-    )
+    results = await asyncio.gather(*[_run_one(i) for i in ids], return_exceptions=True)
     for result in results:
         if isinstance(result, Exception):
             raise result
