@@ -33,14 +33,32 @@ class JobMonitorView(BaseView):
             yield Button("Back", id="back-jobs")
 
     def on_mount(self) -> None:
-        self.refresh_view()
+        # Defer until composed children are available in the DOM.
+        self.call_after_refresh(self.safe_refresh)
 
-    def refresh_view(self) -> None:
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        button_id = event.button.id
+        if button_id == "refresh-jobs":
+            self.call_after_refresh(self.safe_refresh)
+        elif button_id == "back-jobs":
+            self.workspace.action_go_back()
+        elif button_id == "cancel-job":
+            job_id = self.selected_job_id()
+            if job_id is None:
+                self.query_one("#jobs-body", Static).update("Select an execution to cancel.")
+                return
+            self.workspace.run_worker(
+                self.services.cancel_job(job_id), name=f"cancel-{job_id}"
+            )
+            self.query_one("#jobs-body", Static).update(f"Cancelling {job_id[:8]} ...")
+            self.call_after_refresh(self.safe_refresh)
+
+    async def refresh_view(self) -> None:
         app = self.app  # set by Textual at mount
         engagement_id = getattr(app, "current_engagement_id", "") or ""
         body = self.query_one("#jobs-body", Static)
         job_list = self.query_one("#jobs-list", ListView)
-        job_list.clear()
+        await job_list.clear()
         self._jobs = []
         if not engagement_id:
             body.update("No engagement selected.")
@@ -53,7 +71,7 @@ class JobMonitorView(BaseView):
         self._jobs = list(dto.jobs)
         for job in self._jobs:
             label = f"{job.id[:8]}  {job.status:12}  {job.action_id or job.preset_id or '-'}"
-            job_list.append(ListItem(Static(label), id=job.id))
+            await job_list.append(ListItem(Static(label), id=job.id))
         if not self._jobs:
             body.update("No executions yet.")
         else:
