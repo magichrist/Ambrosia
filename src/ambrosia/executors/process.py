@@ -64,9 +64,8 @@ class ProcessExecutor:
         execution_id = request.execution_id
 
         argv_inputs = request.inputs.get("argv")
-        if (
-            not isinstance(argv_inputs, list)
-            or not all(isinstance(arg, str) for arg in argv_inputs)
+        if not isinstance(argv_inputs, list) or not all(
+            isinstance(arg, str) for arg in argv_inputs
         ):
             yield ExecutionEvent(
                 kind="FailedEvent",
@@ -118,9 +117,7 @@ class ProcessExecutor:
 
             queue: asyncio.Queue[ExecutionEvent | None] = asyncio.Queue()
 
-            async def _pump(
-                stream: asyncio.StreamReader, stream_name: str
-            ) -> None:
+            async def _pump(stream: asyncio.StreamReader, stream_name: str) -> None:
                 try:
                     nonlocal total_bytes, capped
                     while True:
