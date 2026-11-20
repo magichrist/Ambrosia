@@ -49,9 +49,7 @@ def test_export_writes_json(tmp_path) -> None:
     artifact_repo = FakeArtifactRepository()
     execution_repo = FakeExecutionRepository()
     eng_repo.create(__engagement("eng-1"))
-    target_repo.create(
-        engagement_id="eng-1", address="10.0.0.1", target_type="ip"
-    )
+    target_repo.create(engagement_id="eng-1", address="10.0.0.1", target_type="ip")
     service = ReportService(
         session_scope=nullcontext,
         engagement_repo=eng_repo,
