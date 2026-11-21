@@ -1,0 +1,21 @@
+name: NBTScan
+description: NetBIOS name scanner for Linux.
+tags:
+  - windows
+  - netbios
+  - enumeration
+  - nbtscan
+shell: "nbtscan -r {{target}}/{{subnet}}"
+inputs:
+  - id: target
+    prompt: "Target network address"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "network address for NBNS scan"
+  - id: subnet
+    prompt: "Subnet mask (CIDR)"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "CIDR notation (e.g. 24)"

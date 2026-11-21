@@ -1,0 +1,27 @@
+name: Impacket PsExec
+description: Execute commands remotely via Impacket PsExec.
+tags:
+  - windows
+  - impacket
+  - psexec
+  - execution
+shell: "impacket-psexec {{username}}:{{password}}@{{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: username
+    prompt: "Username"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "authenticated username"
+  - id: password
+    prompt: "Password"
+    type: secret
+    required: true
+    secret: true
+    validation_hint: "user password"

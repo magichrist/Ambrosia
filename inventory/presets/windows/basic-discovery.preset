@@ -1,0 +1,22 @@
+name: Basic Service Discovery
+description: Discover services on an explicitly scoped target (read-only).
+tags:
+  - discovery
+  - network
+  - read-only
+  - builtin
+shell: "nmap -sV -p {{ports}} {{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: ports
+    prompt: "Ports (comma-separated)"
+    type: string
+    required: false
+    secret: false
+    default: "80,443,445,3389"
+    validation_hint: "comma-separated port numbers"

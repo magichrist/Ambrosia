@@ -1,0 +1,15 @@
+name: WinRM Exposure Observation
+description: Check WinRM ports (5985, 5986) exposure on target (read-only).
+tags:
+  - windows
+  - winrm
+  - read-only
+  - builtin
+shell: "nmap -p 5985,5986 {{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"

@@ -1,0 +1,9 @@
+name: Disable Restricted Admin
+description: Disable Restricted Admin mode for RDP via registry.
+tags:
+  - windows
+  - registry
+  - rdp
+  - restricted-admin
+shell: 'reg add HKLM\System\CurrentControlSet\Control\Lsa /t REG_DWORD /v DisableRestrictedAdmin /d 0x0 /f'
+inputs: []

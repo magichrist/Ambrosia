@@ -1,0 +1,20 @@
+name: Winexe
+description: Execute commands remotely via Winexe.
+tags:
+  - windows
+  - winexe
+  - execution
+shell: "winexe -U {{username}} //{{target}} cmd.exe"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: username
+    prompt: "Username"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "authenticated username"

@@ -1,0 +1,21 @@
+name: CrackMapExec SMB Execute
+description: Execute a command via CrackMapExec on SMB target.
+tags:
+  - windows
+  - smb
+  - crackmapexec
+  - execution
+shell: "crackmapexec smb {{target}} -x '{{command}}'"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: command
+    prompt: "Command to execute"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "command to run on the target"

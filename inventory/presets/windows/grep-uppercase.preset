@@ -1,0 +1,15 @@
+name: Grep Uppercase Pattern
+description: Find uppercase pattern sequences in files.
+tags:
+  - grep
+  - search
+  - pattern
+  - read-only
+shell: "grep -RInEoI '[A-Z].[A-Z]..[A-Z]{3}.' {{path}}"
+inputs:
+  - id: path
+    prompt: "Path to search"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "directory or file path to search"

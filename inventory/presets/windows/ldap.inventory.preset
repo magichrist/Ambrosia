@@ -1,0 +1,15 @@
+name: LDAP Domain Inventory
+description: Read-only LDAP domain inventory on target.
+tags:
+  - windows
+  - ldap
+  - read-only
+  - builtin
+shell: 'ldapsearch -x -H ldap://{{target}} -s base -b "" "(objectClass=*)" *'
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"

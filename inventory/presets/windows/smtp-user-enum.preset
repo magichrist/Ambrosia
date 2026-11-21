@@ -1,0 +1,15 @@
+name: SMTP User Enum
+description: Enumerate SMTP users on target.
+tags:
+  - windows
+  - smtp
+  - enumeration
+  - user-enum
+shell: "smtp-user-enum -t {{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "SMTP server IP or hostname"

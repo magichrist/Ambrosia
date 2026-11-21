@@ -1,0 +1,9 @@
+name: Enable RDP
+description: Enable Remote Desktop via registry on Windows target.
+tags:
+  - windows
+  - registry
+  - rdp
+  - enabling
+shell: 'reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f'
+inputs: []

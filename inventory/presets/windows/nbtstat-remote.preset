@@ -1,0 +1,15 @@
+name: NBTStat Remote
+description: Query NetBIOS name table of remote Windows device.
+tags:
+  - windows
+  - netbios
+  - nbtstat
+  - enumeration
+shell: "nbtstat -a {{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP address"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "remote device IP address"
