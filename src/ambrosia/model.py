@@ -28,6 +28,7 @@ class CommandInput:
     required: bool = True
     secret: bool = False
     default: str | None = None
+    validation_hint: str = ""
 
     def to_dict(self) -> dict[str, str | bool | None]:
         """Serialize this input to a JSON-friendly dict."""
@@ -38,6 +39,7 @@ class CommandInput:
             "required": self.required,
             "secret": self.secret,
             "default": self.default,
+            "validation_hint": self.validation_hint,
         }
 
     @classmethod
@@ -52,6 +54,7 @@ class CommandInput:
             required=bool(data.get("required", True)),
             secret=bool(data.get("secret", False)),
             default=default,
+            validation_hint=str(data.get("validation_hint", "")),
         )
 
 
@@ -70,6 +73,9 @@ class Command:
     tags: list[str] = field(default_factory=list)
     shell: str = ""
     inputs: list[CommandInput] = field(default_factory=list)
+    category: str = ""
+    favorite: bool = False
+    pinned: bool = False
 
     def input_by_id(self, input_id: str) -> CommandInput | None:
         """Return the input with ``input_id``, or ``None`` if not present."""
@@ -95,6 +101,9 @@ class Command:
             "tags": list(self.tags),
             "shell": self.shell,
             "inputs": [input_.to_dict() for input_ in self.inputs],
+            "category": self.category,
+            "favorite": self.favorite,
+            "pinned": self.pinned,
         }
 
     @classmethod
@@ -117,4 +126,7 @@ class Command:
             tags=tags,
             shell=str(data.get("shell", "")),
             inputs=inputs,
+            category=str(data.get("category", "")),
+            favorite=bool(data.get("favorite", False)),
+            pinned=bool(data.get("pinned", False)),
         )
