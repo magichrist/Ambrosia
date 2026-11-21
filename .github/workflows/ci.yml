@@ -42,15 +42,7 @@ jobs:
 
       # 4. Unit tests
       - name: Unit tests
-        run: pytest tests/unit -q
-
-      # 5. Contract tests
-      - name: Contract tests
-        run: pytest tests/contract -q
-
-      # 6. TUI smoke tests
-      - name: TUI smoke tests
-        run: pytest tests/tui -q
+        run: pytest tests/ -q
 
       # 7. Dependency audit (informational until the baseline is triaged)
       - name: Dependency audit
