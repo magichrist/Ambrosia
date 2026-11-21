@@ -52,3 +52,98 @@ def test_json_persistence_round_trip(tmp_path) -> None:
 
 def test_missing_session_file_loads_empty(tmp_path) -> None:
     assert SessionStore(tmp_path / "nonexistent.json").load().get_all("x") == {}
+
+
+def test_mark_dirty_and_mark_clean() -> None:
+    session = SessionState()
+    assert session.is_dirty is False
+
+    session.mark_dirty()
+    assert session.is_dirty is True
+
+    session.mark_clean()
+    assert session.is_dirty is False
+
+
+def test_set_and_set_all_mark_dirty() -> None:
+    session = SessionState()
+    assert session.is_dirty is False
+
+    session.set("nmap", "target", "127.0.0.1")
+    assert session.is_dirty is True
+
+    session.mark_clean()
+    session.set_all("nmap", {"outfile": "scan.txt"})
+    assert session.is_dirty is True
+
+
+def test_clear_resets_values() -> None:
+    session = SessionState()
+    session.set("nmap", "target", "127.0.0.1")
+    session.set("nmap", "outfile", "scan.txt")
+
+    session.clear()
+
+    assert session.get_all("nmap") == {}
+    assert session.get("nmap", "target") is None
+
+
+def test_to_dict_excludes_secrets() -> None:
+    session = SessionState()
+    session.register_secret_inputs("vault", {"password", "token"})
+    session.set("vault", "password", "s3cret")
+    session.set("vault", "host", "10.0.0.1")
+    session.set("web", "target", "example.com")
+
+    assert session.to_dict() == {
+        "vault": {"password": "s3cret", "host": "10.0.0.1"},
+        "web": {"target": "example.com"},
+    }
+    assert session.to_dict(exclude_secrets=True) == {
+        "vault": {"host": "10.0.0.1"},
+        "web": {"target": "example.com"},
+    }
+
+
+def test_save_excludes_secrets_by_default(tmp_path) -> None:
+    path = tmp_path / "session.json"
+    session = SessionState()
+    session.register_secret_inputs("vault", {"password"})
+    session.set("vault", "password", "s3cret")
+    session.set("vault", "host", "10.0.0.1")
+
+    store = SessionStore(path)
+    store.save(session)
+
+    restored = store.load()
+    assert restored.get("vault", "host") == "10.0.0.1"
+    assert restored.get("vault", "password") is None
+
+
+def test_save_includes_secrets_when_requested(tmp_path) -> None:
+    path = tmp_path / "session.json"
+    session = SessionState()
+    session.register_secret_inputs("vault", {"password"})
+    session.set("vault", "password", "s3cret")
+
+    store = SessionStore(path)
+    store.save(session, exclude_secrets=False)
+
+    restored = store.load()
+    assert restored.get("vault", "password") == "s3cret"
+
+
+def test_save_is_atomic_and_leaves_no_temp_files(tmp_path) -> None:
+    path = tmp_path / "session.json"
+    store = SessionStore(path)
+    store.save(SessionState())
+
+    temp_files = [
+        entry
+        for entry in tmp_path.iterdir()
+        if entry.name.startswith(path.name + ".") and entry.suffix == ".tmp"
+    ]
+    assert temp_files == []
+
+    store.save(SessionState())
+    assert tmp_path.joinpath("session.json").exists()
