@@ -5,10 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rich.text import Text
+from textual.containers import Vertical
 from textual.message import Message
-from textual.widgets import ListItem, ListView, Static
+from textual.widgets import Label, ListItem, ListView
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from ambrosia.model import Command
 
 
@@ -40,16 +43,7 @@ class ResultsList(ListView):
             await self.append(self._make_item(command))
 
     def _make_item(self, command: Command) -> ListItem:
-        text = Text()
-        text.append(command.name, style="bold")
-        if command.description:
-            text.append(f"  — {command.description}")
-        if command.tags:
-            text.append(f"  [tags: {', '.join(command.tags)}]")
-        text.append("\n    ")
-        text.append("shell: ", style="dim")
-        text.append(command.shell)
-        return ListItem(Static(text), id=command.id)
+        return _CommandListItem(command)
 
     def selected_command(self) -> Command | None:
         """Return the highlighted command, or ``None`` if nothing is selected."""
@@ -70,6 +64,52 @@ class ResultsList(ListView):
         command = self._commands.get(item_id)
         if command is not None:
             self.post_message(self.CommandHighlighted(command))
+
+
+class _CommandListItem(ListItem):
+    """A single results row: a name line and a detail line.
+
+    The ListItem carries ``"favorite"``, ``"pinned"``, or ``"normal"`` CSS
+    classes so ``app.py`` can style rows differently per category.
+    """
+
+    def __init__(self, command: Command) -> None:
+        classes: list[str] = []
+        if command.favorite:
+            classes.append("favorite")
+        if command.pinned:
+            classes.append("pinned")
+        if not classes:
+            classes.append("normal")
+        super().__init__(id=command.id, classes=" ".join(classes))
+        self._command = command
+
+    def compose(self) -> ComposeResult:
+        command = self._command
+
+        name = Text()
+        if command.favorite:
+            name.append("★ ", style="bold yellow")
+        if command.pinned:
+            name.append("▲ ", style="bold blue")
+        name.append(command.name, style="bold")
+        if command.description:
+            name.append(f"  — {command.description}", style="dim")
+        if command.tags:
+            name.append(f"  [tags: {', '.join(command.tags)}]", style="dim cyan")
+        if command.category:
+            name.append(f"  [{command.category}]", style="magenta")
+
+        shell = command.shell
+        if len(shell) > 60:
+            shell = shell[:57] + "..."
+        detail = Text()
+        detail.append("shell: ", style="dim")
+        detail.append(shell, style="dim")
+
+        with Vertical():
+            yield Label(name, classes="name-line")
+            yield Label(detail, classes="detail-line")
 
 
 __all__ = ["ResultsList"]
