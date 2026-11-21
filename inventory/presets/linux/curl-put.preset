@@ -1,0 +1,27 @@
+name: Curl PUT Upload
+description: Upload a file via HTTP PUT method.
+tags:
+  - curl
+  - http
+  - upload
+  - put
+shell: "curl -T {{file}} {{target}}/{{route}}"
+inputs:
+  - id: file
+    prompt: "Path to file to upload"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "local file path to upload"
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "web server IP or hostname"
+  - id: route
+    prompt: "Upload route/path"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "destination route on the server"

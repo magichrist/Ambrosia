@@ -1,0 +1,15 @@
+name: HTTP Method Observation
+description: Read-only HTTP method observation on a Linux target.
+tags:
+  - linux
+  - http
+  - read-only
+  - builtin
+shell: "curl -sI http://{{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"

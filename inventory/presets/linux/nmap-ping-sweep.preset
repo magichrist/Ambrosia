@@ -1,0 +1,21 @@
+name: Nmap Ping Sweep
+description: Ping sweep to discover live hosts.
+tags:
+  - nmap
+  - discovery
+  - network
+  - read-only
+shell: "nmap -sn {{target}}/{{subnet}}"
+inputs:
+  - id: target
+    prompt: "Target network address"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "network address for ping sweep"
+  - id: subnet
+    prompt: "Subnet mask (CIDR)"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "CIDR notation (e.g. 24)"

@@ -1,0 +1,21 @@
+name: SSH Version Check
+description: Read-only SSH banner/version observation on target.
+tags:
+  - linux
+  - ssh
+  - read-only
+  - builtin
+shell: "ssh -o BatchMode=yes -o ConnectTimeout=5 {{user}}@{{target}} 'SSH_VERSION_CHECK'"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "must be an IP address or hostname within scope"
+  - id: user
+    prompt: "SSH username"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "SSH login username"

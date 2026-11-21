@@ -1,0 +1,15 @@
+name: Nmap HTTP Methods
+description: Enumerate HTTP methods supported by web server.
+tags:
+  - nmap
+  - http
+  - enumeration
+  - read-only
+shell: "nmap -p80 --script=http-methods {{target}} -sV"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "web server IP or hostname"

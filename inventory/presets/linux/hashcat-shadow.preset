@@ -1,0 +1,21 @@
+name: Hashcat Shadow
+description: Crack /etc/shadow hash with hashcat.
+tags:
+  - linux
+  - hashcat
+  - cracking
+  - shadow
+shell: "hashcat -m 1800 -a 0 {{pass_hash}} {{wordlist}}"
+inputs:
+  - id: pass_hash
+    prompt: "Shadow password hash"
+    type: secret
+    required: true
+    secret: true
+    validation_hint: "shadow hash entry to crack"
+  - id: wordlist
+    prompt: "Path to wordlist"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "path to the wordlist file"

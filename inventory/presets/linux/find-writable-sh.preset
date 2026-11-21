@@ -1,0 +1,9 @@
+name: Find Writable Shell Scripts
+description: Find world-writable shell scripts on Linux.
+tags:
+  - linux
+  - find
+  - privilege-escalation
+  - enumeration
+shell: "find / -type f -name '*.sh' -perm 777"
+inputs: []

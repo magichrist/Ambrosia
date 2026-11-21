@@ -1,0 +1,27 @@
+name: Crunch
+description: Generate wordlist with Crunch.
+tags:
+  - linux
+  - crunch
+  - wordlist
+  - generation
+shell: "crunch {{min}} {{max}} -t {{pattern}}"
+inputs:
+  - id: min
+    prompt: "Minimum length"
+    type: integer
+    required: true
+    secret: false
+    validation_hint: "minimum password length"
+  - id: max
+    prompt: "Maximum length"
+    type: integer
+    required: true
+    secret: false
+    validation_hint: "maximum password length"
+  - id: pattern
+    prompt: "Pattern (%% for digits)"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "crunch pattern (e.g. Name%%%)"

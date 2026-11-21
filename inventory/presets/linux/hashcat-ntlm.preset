@@ -1,0 +1,21 @@
+name: Hashcat NTLM
+description: Crack NTLM hash with hashcat.
+tags:
+  - linux
+  - hashcat
+  - cracking
+  - ntlm
+shell: "hashcat -m 1000 -a 0 {{hash}} {{wordlist}}"
+inputs:
+  - id: hash
+    prompt: "NTLM hash"
+    type: secret
+    required: true
+    secret: true
+    validation_hint: "NTLM hash to crack"
+  - id: wordlist
+    prompt: "Path to wordlist"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "path to the wordlist file"

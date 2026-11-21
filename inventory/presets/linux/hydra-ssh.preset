@@ -1,0 +1,27 @@
+name: Hydra SSH
+description: Brute-force SSH login with Hydra.
+tags:
+  - linux
+  - hydra
+  - ssh
+  - brute-force
+shell: "hydra -l {{username}} -P {{passlist}} ssh://{{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "SSH server IP or hostname"
+  - id: username
+    prompt: "Username"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "username to attempt"
+  - id: passlist
+    prompt: "Path to password list"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "path to the password wordlist"

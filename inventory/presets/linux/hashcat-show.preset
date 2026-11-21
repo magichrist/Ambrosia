@@ -1,0 +1,15 @@
+name: Hashcat Show
+description: Show cracked passwords from hashcat pot file.
+tags:
+  - linux
+  - hashcat
+  - cracking
+  - show
+shell: "hashcat -m 1000 {{hash_file}} --show"
+inputs:
+  - id: hash_file
+    prompt: "Path to hash file"
+    type: path
+    required: true
+    secret: false
+    validation_hint: "path to the hash file"

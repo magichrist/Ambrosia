@@ -1,0 +1,15 @@
+name: DNSenum
+description: Enumerate DNS information for target domain.
+tags:
+  - dns
+  - enumeration
+  - network
+  - read-only
+shell: "dnsenum {{target}}"
+inputs:
+  - id: target
+    prompt: "Target domain"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "domain name to enumerate"
