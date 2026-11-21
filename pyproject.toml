@@ -1,12 +1,13 @@
 [project]
 name = "ambrosia"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast TUI-first command launcher and executor workbench for authorized use"
 requires-python = ">=3.12"
 authors = [{ name = "Ambrosia" }]
 dependencies = [
     "textual>=0.86,<1",
     "typer[all]>=0.12,<1",
+    "pyyaml>=6,<8",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +18,7 @@ dev = [
     "mypy>=1.13,<2",
     "ruff>=0.8,<1",
     "build>=1.2,<2",
+    "types-PyYAML>=6,<7",
 ]
 
 [project.scripts]
