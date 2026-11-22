@@ -64,26 +64,35 @@ ambrosia --export-file my-backup.json
 
 | Key | Action |
 |-----|--------|
-| `/` | focus search bar |
-| `Tab` | cycle focus (search → results → execution view) |
-| `Enter` | select highlighted command / run again in execution view |
-| `Esc` | clear search / close modal / back |
-| `f` | cycle search mode (substring → fuzzy → regex) |
-| `]` | cycle category filter |
-| `F` | toggle favorites-only filter |
-| `r` | toggle regex mode |
-| `n` | add a new command |
-| `e` | edit the selected command |
-| `d` | delete the selected command (confirm) |
-| `p` | toggle pinned on the selected command |
+| `/` | focus the search bar |
+| `↑` / `↓` | move through results while still typing in search |
+| `Tab` | cycle focus (search → explorer → inspector) |
+| `Enter` | select highlighted preset / run it |
+| `Esc` | clear filters / close modal / back |
+| `ctrl+r` | cycle search mode while typing (substring → fuzzy → regex) |
+| `r` | cycle search mode when the explorer has focus |
+| `n` | add a new preset |
+| `e` | edit the selected preset |
+| `d` | delete the selected preset (confirm) |
+| `f` | toggle favorite on the selected preset |
+| `p` | toggle pinned on the selected preset |
 | `s` | save session inputs |
 | `h` | toggle execution history logging (opt-in) |
-| `S` | toggle scope allowlist (opt-in) |
-| `c` | cancel the running job |
+| `S` | toggle scope policy (opt-in) |
+| `c` | copy the compiled command / cancel the running job |
+| `x` | quick run: run immediately and show a minimal result in the inspector |
 | `g` | run the last command again |
-| `b` | back from the execution view |
-| `q` | quit (confirm if a job is running) |
+| `b` / `←` | back from the execution view |
+| `ctrl+q` | quit (confirm if a job is running) |
 | `?` | show help |
+
+The workstation has three panels: a **sidebar** (library views and tag filters),
+an **explorer** (live search and ranked results), and an
+**inspector** (full preset detail plus Run/Favorite/Pin controls). Search result
+rows show only `name: description`; hover a row for tags, path, shell, and
+inputs. Empty search shows all presets. Search matches whole words and word
+fragments (`win` finds `windows`), and supports `name:`, `cmd:`, `tag:`, and
+`path:` qualifiers.
 
 ---
 
@@ -150,7 +159,7 @@ inputs:
 ## Configuration
 
 - `~/.ambrosia/commands.json` — command catalog (JSON)
-- `~/.ambrosia/session.json` — remembered inputs per command (auto-saved)
+- Session values are kept **in memory only** for the current run (shared by input name across presets) and wiped on quit; `~/.ambrosia/session.json` is not used by the TUI
 - `~/.ambrosia/sessions/<name>.json` — named session files
 - `~/.ambrosia/scope.json` — opt-in scope allowlist/denylist (CIDR-based)
 - `~/.ambrosia/history.jsonl` — opt-in execution history log (JSONL)

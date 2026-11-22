@@ -1,102 +1,98 @@
 # Ambrosia v2 — TUI Design
 
-The TUI is the primary (and effectively only) interface. It is a single Textual application with three regions and a modal input form.
+The TUI is the primary interface. It is a single Textual application with a
+three-panel workstation, a full-screen execution view, and modal dialogs.
 
 ## Layout
 
 ```
-╔══════════════════════════════════════════════════════════════════════════╗
-║ Ambrosia v2  [session: default]  [commands: 47]  [running: 0]  [q]uit ║
-╠══════════════════════════════════════════════════════════════════════════╣
-║ [ search: smb______________________________ ] [regex: off]              ║
-╠══════════════════════════════════════════════════════════════════════════╣
-║ RESULTS                                                              ║   ║
-║  ▸ windows version check smb                                          ║   ║
-║    uses crackmapexac smb to get windows version                       ║   ║
-║    tags: smb windows crackmapexec                                     ║   ║
-║    shell: crackmapexac smb {{ip}}                                     ║   ║
-║                                                                       ║   ║
-║    ad kerberoast                                                      ║   ║ PREVIEW
-║    request service tickets for offline cracking                       ║   ║
-║    tags: ad kerberos impacket                                         ║   ║ ← full shell,
-║    shell: GetUserSPNs.py ... {{dc}} {{domain}}/{{user}}               ║   ║   inputs
-║                                                                       ║   ║
-║ RESULTS                                                              ║   ║
-╚══════════════════════════════════════════════════════════════════════════╝
+┌──────────────────────────────────────────────────────────────────────────┐
+│ AMBROSIA / PRESET WORKSTATION  ● READY  PRESETS 47  RESULTS 12 [?][^Q] │
+├──────────────┬───────────────────────────────────┬──────────────────────┤
+│ LIBRARY      │ [SUBSTRING] search ...            │ PRESET INSPECTOR     │
+│ [ALL]        │ search mode: substring (ctrl+r)   │ nmap scan            │
+│ [FAVORITES]  │                                   │ id: windows.nmap     │
+│ [PINNED]     │ nmap scan: Discover open ports    │ description ...      │
+│ [RECENT]     │ whois lookup: Look up domain      │ path: pr.windows     │
+│ TAGS         │                                   │ tags: [nmap] [...,]  │
+│ ○ OR ● AND   │                                   │ shell                │
+│ ☐ nmap [12]  │                                   │ nmap -sV {{target}}  │
+│ ☐ smb  [8]   │                                   │ inputs               │
+│              │                                   │ [target] Target: ... │
+│              │                                   │ [ RUN ] [FAV] [PIN]  │
+│              │                                   │                      │
+├──────────────┴───────────────────────────────────┴──────────────────────┤
+│ /:search Tab:focus Enter:run Esc:back ^R:mode x:quick c:copy g:again…│
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Top bar**: app name, session name, command count, running jobs count, quit hint.
-- **Search bar**: live filtering. `Tab` or `Enter` to move to results. `r` toggles regex mode.
-- **Results list**: filtered commands. Each row shows name, description, tags, shell template. The highlighted row's full detail shows in the preview panel.
-- **Preview panel** (right): full shell template, input list with prompts and types, saved session value if any.
+- **Top bar**: session status (`READY`/`RUNNING`), preset/result counts, and
+  active tag/scope indicators.
+- **Sidebar**: `ALL`, `FAVORITES`, `PINNED`, `RECENT` library views and tag
+  checkboxes with an OR/AND mode toggle.
+- **Explorer**: debounced live search and ranked results. Rows are intentionally
+  compact — `name: description` only. Hovering a row shows a tooltip with the
+  full preset: id, path, tags, shell template, and inputs.
+- **Inspector**: full detail for the highlighted preset plus `RUN`, `FAVORITE`,
+  and `PIN` buttons. It is populated automatically from the first result, so
+  `Enter` works without an initial arrow key.
 
 ## Keyboard bindings
 
 | Key | Action |
 |-----|--------|
-| `/` or typing | focus search bar and filter |
-| `Tab` | move focus between search and results |
-| `Enter` | select highlighted command → resolve inputs / run |
-| `Esc` | clear search / close modal / back |
-| `r` | toggle regex mode on the search |
-| `n` | add a new command (opens input modal) |
-| `e` | edit the selected command |
-| `d` | delete the selected command (confirm) |
-| `s` | save session inputs for selected command (auto-saved on run) |
-| `c` | cancel the currently running job |
-| `q` | quit (confirm if a job is running) |
-| `?` | help |
+| `/` | focus the search bar |
+| `↑` / `↓` | move the result highlight while typing (no Enter needed) |
+| `Tab` | cycle focus: search → explorer → inspector |
+| `Enter` | select / run the highlighted preset |
+| `Esc` | clear filters / close modal / back |
+| `ctrl+r` | cycle search mode while typing |
+| `r` | cycle search mode when the explorer has focus |
+| `n` / `e` / `d` | add / edit / delete a preset |
+| `f` / `p` | toggle favorite / pinned on the selected preset |
+| `i` / `E` | import / export presets |
+| `s` | save the session |
+| `h` / `S` | toggle history logging / scope policy |
+| `c` | copy the compiled command or cancel the running job |
+| `x` | quick run (stays on the workstation; minimal result in the inspector) |
+| `g` | run the last command again |
+| `b` / `←` | back from the execution view |
+| `ctrl+q` / `?` | quit / help |
 
 ## Search behavior
 
-- As the operator types, the results list filters immediately (debounced ~50ms).
-- Plain text: case-insensitive substring match across name + description + tags + shell.
-- Regex mode (`/pattern/` or toggled with `r`): full Python `re.search` against the same concatenated text. Invalid regex shows an inline error instead of crashing.
-- Empty search shows all commands.
+- Filtering is debounced (~75 ms). Empty search shows all presets.
+- Modes: substring (default), fuzzy (character subsequence), and regex.
+- Free text matches whole words and word fragments: `win` finds `windows`, and
+  a match at a word boundary ranks ahead of a match buried inside a word.
+- Qualifiers: `name:`, `cmd:`, `tag:`, `path:`. Qualifiers and free text are
+  ANDed; free text matches across name, command, tags, path, and description.
+- Invalid regex is reported inline in the search status line instead of
+  silently returning zero results.
 
-## Selecting and running a command
+## Selecting and running a preset
 
-1. Operator highlights a command and presses `Enter`.
-2. The app checks session state for that command's inputs:
-   - **All required inputs present**: show a confirmation line "Run `crackmapexec smb 10.0.0.5`? (saved values)" — Enter runs, `e` edits inputs first.
-   - **Some inputs missing**: open the input form with saved values pre-filled; empty required fields highlighted.
-3. Input form: one line per input (`prompt: [ value ]`), secret inputs masked. `Enter` on the last field or `Run` button submits.
-4. On submit: values are stored in session state, argv is built, subprocess spawns.
+1. The first result is selected automatically; arrow keys or clicking change it.
+2. `Enter` (or the inspector's `RUN` button) resolves inputs from the in-memory
+   session. Values are shared by input name across presets: setting `target`
+   once means every other preset with a `target` input reuses it.
+   - all required inputs present → confirmation modal with `Run` / `Edit inputs` / `Cancel`;
+   - missing required inputs → input form pre-filled with shared values.
+3. Secret inputs are masked.
+4. On submit, argv is built and the subprocess starts in the execution view.
+5. The session lasts only until you quit (`ctrl+q`); it is never written to disk
+   and all values are wiped on exit.
 
 ## Execution view
 
-When a command runs, the TUI switches to a live-output view:
-
-```
-╔══════════════════════════════════════════════════════════════════════════╗
-║ running: windows version check smb  [c]ancel  [b]ack                  ║
-╠══════════════════════════════════════════════════════════════════════════╣
-║ crackmapexec smb 10.0.0.5                                             ║
-║                                                                       ║
-║ SMB         10.0.0.5      445    WINSERVER01   [+] Windows Server   ║
-║                                                                       ║
-║ (streaming output...)                                                 ║
-╚══════════════════════════════════════════════════════════════════════════╝
-```
-
-- `c` cancels the job (terminates subprocess, reaps it).
-- `b` returns to the results list (job keeps running in background; can be re-attached later if implemented).
-- When the process exits, show exit code and duration, then offer "run again" or "back".
-
-## Session state
-
-- Keyed by command `id`.
-- Stores `{ input_id: value }` for inputs the operator has provided.
-- Persisted optionally to `~/.ambrosia/session.json` (or workspace-local `.ambrosia/session.json`) on exit and loaded on start.
-- Secret inputs can be marked to not persist (operator choice).
-
-## Adding / editing a command
-
-A modal form collects: id, name, description, tags (comma-separated), shell template, and inputs (each: id, prompt, type, required, secret). Validation: id and name required, shell must contain at least one input reference or be a fixed command.
+While a job runs, the top bar and workstation are hidden and the execution view
+fills the screen: a running header, the compiled command, a scrolling live log,
+a colour-coded status line (exit code and duration), and a `Run again` button.
+`c` cancels the job; `b` or `←` returns to the workstation while the job keeps
+running.
 
 ## What the TUI does NOT do
 
-- No policy enforcement, scope checking, or approval state.
-- No artifact tracking or provenance.
-- No engagement/database concepts.
-- No YAML preset loading or dry-run planning.
+- No artifact tracking, provenance, or engagement/database concepts.
+- No YAML preset authoring inside the TUI (use the CLI / `.preset` files).
+- No dry-run planning or workflow execution.
