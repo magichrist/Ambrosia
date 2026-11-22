@@ -8,69 +8,85 @@ from rich.text import Text
 from textual.message import Message
 from textual.widgets import ListItem, ListView, Static
 
-from ambrosia.tui.design import PHOSPHOR, TEXT_MUTED
+from ambrosia.model import Command
+from ambrosia.tui.design import GUMMY_LIGHT_PINK, GUMMY_PINK, PHOSPHOR, TEXT_MUTED
 from ambrosia.tui.ids import safe_widget_id
+from ambrosia.workflow import Workflow
 
 if TYPE_CHECKING:
-    from ambrosia.model import Command
     from ambrosia.tui.matching import SearchResult
+
+ExplorerItem = Command | Workflow
 
 
 class PresetExplorer(ListView):
-    """A list of matching presets; the highlighted row feeds the inspector."""
+    """A list of matching presets and workflows; the highlighted row feeds the inspector."""
 
-    class PresetHighlighted(Message):
-        """Posted when a different preset row is highlighted."""
+    class ItemHighlighted(Message):
+        """Posted when a different result row is highlighted."""
 
-        def __init__(self, command: Command) -> None:
+        def __init__(self, item: ExplorerItem) -> None:
             super().__init__()
-            self.command = command
+            self.item = item
 
-    class PresetActivated(Message):
-        """Posted when Enter is pressed on a preset row."""
+    class ItemActivated(Message):
+        """Posted when Enter is pressed on a result row."""
 
-        def __init__(self, command: Command) -> None:
+        def __init__(self, item: ExplorerItem) -> None:
             super().__init__()
-            self.command = command
+            self.item = item
 
     def __init__(self, id: str | None = None) -> None:
         super().__init__(id=id)
         self._results: list[SearchResult] = []
-        self._commands: dict[str, Command] = {}
+        self._items: dict[str, ExplorerItem] = {}
         self._item_counter = 0
 
     async def set_results(self, results: list[SearchResult]) -> None:
-        """Replace the displayed presets with ranked search results."""
+        """Replace the displayed results with ranked matches."""
         self._results = list(results)
-        self._commands = {}
+        self._items = {}
         self._item_counter = 0
         await self.clear()
         for result in results:
-            command = result.command
-            # Unique widget ids: presets from different directories may share
-            # a command id, and duplicate ids raise DuplicateIds in Textual.
-            item_id = safe_widget_id(f"preset_{command.id}_{self._item_counter}")
+            item = result.item
+            kind = "workflow" if isinstance(item, Workflow) else "preset"
+            # Unique widget ids: different directories may reuse an id, and
+            # duplicate ids raise DuplicateIds in Textual.
+            item_id = safe_widget_id(f"{kind}_{item.name}_{self._item_counter}")
             self._item_counter += 1
-            self._commands[item_id] = command
-            await self.append(self._make_item(command, item_id))
+            self._items[item_id] = item
+            await self.append(self._make_item(item, item_id))
         # Highlight the best match so the inspector is populated and Enter can
-        # run immediately without requiring an initial arrow key.
+        # work immediately without requiring an initial arrow key.
         self.index = 0 if results else None
 
-    def _make_item(self, command: Command, item_id: str) -> ListItem:
-        # Compact row: just "name: description". Full detail lives in the
-        # inspector and in the hover tooltip.
-        label = Text()
-        label.append(command.name, style=f"bold {PHOSPHOR}")
-        label.append(": ", style=TEXT_MUTED)
-        label.append(command.description or command.shell or command.id, style=TEXT_MUTED)
-        item = ListItem(Static(label), id=item_id)
-        item.tooltip = self._tooltip_text(command)
-        return item
+    def _make_item(self, item: ExplorerItem, item_id: str) -> ListItem:
+        if isinstance(item, Workflow):
+            label = Text()
+            label.append(item.name, style=f"bold {GUMMY_PINK}")
+            label.append(" [workflow] ", style=f"bold {GUMMY_LIGHT_PINK}")
+            label.append(": ", style=TEXT_MUTED)
+            label.append(
+                f"{len(item.phase_names())} phases, {item.command_count()} commands",
+                style=TEXT_MUTED,
+            )
+            tooltip = self._workflow_tooltip(item)
+        else:
+            # Compact row: just "name: description". Full detail lives in the
+            # inspector and in the hover tooltip.
+            label = Text()
+            label.append(item.name, style=f"bold {PHOSPHOR}")
+            label.append(": ", style=TEXT_MUTED)
+            label.append(item.description or item.shell or item.id, style=TEXT_MUTED)
+            tooltip = self._command_tooltip(item)
+        row = ListItem(Static(label), id=item_id)
+        row.tooltip = tooltip
+        return row
 
     @staticmethod
-    def _tooltip_text(command: Command) -> Text:
-        """Build the full-detail text shown when hovering a result row."""
+    def _command_tooltip(command: Command) -> Text:
+        """Build the full-detail text shown when hovering a preset row."""
         tip = Text()
         tip.append(command.name, style="bold")
         tip.append(f"\nid: {command.id}", style=TEXT_MUTED)
@@ -88,28 +104,42 @@ class PresetExplorer(ListView):
                 tip.append(f"\n  [{input_.id}]{required}{secret} {input_.prompt}", style=TEXT_MUTED)
         return tip
 
-    def selected_command(self) -> Command | None:
-        """Return the highlighted command, or ``None`` when nothing is selected."""
+    @staticmethod
+    def _workflow_tooltip(workflow: Workflow) -> Text:
+        """Build the full-detail text shown when hovering a workflow row."""
+        tip = Text()
+        tip.append(workflow.name, style="bold")
+        tip.append(f"\nid: {workflow.id}", style=TEXT_MUTED)
+        if workflow.description:
+            tip.append(f"\n\n{workflow.description}", style=TEXT_MUTED)
+        for phase in workflow.phase_names():
+            tip.append(f"\n\n{phase}:", style=f"bold {GUMMY_PINK}")
+            for command_id in workflow.command_ids(phase):
+                tip.append(f"\n  {command_id}", style=TEXT_MUTED)
+        return tip
+
+    def selected_item(self) -> ExplorerItem | None:
+        """Return the highlighted item, or ``None`` when nothing is selected."""
         item = self.highlighted_child
         if item is None or item.id is None:
             return None
-        return self._commands.get(item.id)
+        return self._items.get(item.id)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is None or event.item.id is None:
             return
-        command = self._commands.get(event.item.id)
-        if command is not None:
-            self.post_message(self.PresetHighlighted(command))
+        item = self._items.get(event.item.id)
+        if item is not None:
+            self.post_message(self.ItemHighlighted(item))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Translate ListView's Enter into an explicit preset activation."""
+        """Translate ListView's Enter into an explicit item activation."""
         if event.item is None or event.item.id is None:
             return
-        command = self._commands.get(event.item.id)
-        if command is not None:
-            self.post_message(self.PresetActivated(command))
+        item = self._items.get(event.item.id)
+        if item is not None:
+            self.post_message(self.ItemActivated(item))
         event.stop()
 
 
-__all__ = ["PresetExplorer"]
+__all__ = ["ExplorerItem", "PresetExplorer"]

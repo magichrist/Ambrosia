@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
     from ambrosia.model import Command
+    from ambrosia.workflow import Workflow
 
 
 class PresetInspector(Widget):
@@ -70,6 +71,7 @@ class PresetInspector(Widget):
 
     def __init__(self, id: str | None = None) -> None:
         super().__init__(id=id)
+        self._title = Label("PRESET INSPECTOR", id="inspector-title")
         self._content = Static(id="inspector-content")
         self._quick_status = Static(id="inspector-quick-status")
         self._run_button = Button("RUN", id="configure-run", variant="primary")
@@ -77,7 +79,7 @@ class PresetInspector(Widget):
         self._pin_button = Button("PIN", id="inspector-pin")
 
     def compose(self) -> ComposeResult:
-        yield Label("PRESET INSPECTOR", id="inspector-title")
+        yield self._title
         yield self._content
         yield self._quick_status
         with Horizontal(id="inspector-actions"):
@@ -91,6 +93,7 @@ class PresetInspector(Widget):
 
     def set_command(self, command: Command | None, values: dict[str, str]) -> None:
         """Render full detail for ``command``, or a placeholder when ``None``."""
+        self._title.update("PRESET INSPECTOR")
         self._quick_status.update("")
         if command is None:
             self._content.update("No preset selected.")
@@ -143,6 +146,44 @@ class PresetInspector(Widget):
             text.append(display, style=GUMMY_GREEN if saved else TEXT_MUTED)
             if input_.validation_hint:
                 text.append(f"\n      hint: {input_.validation_hint}", style=TEXT_MUTED)
+        self._content.update(text)
+
+    def set_workflow(self, workflow: Workflow) -> None:
+        """Render a workflow's phases and command chain.
+
+        Workflows are definitions, not directly runnable commands, so the
+        preset-specific actions are disabled while one is selected.
+        """
+        self._title.update("WORKFLOW INSPECTOR")
+        self._quick_status.update("")
+        self._run_button.disabled = True
+        self._favorite_button.disabled = True
+        self._pin_button.disabled = True
+
+        text = Text()
+        text.append(workflow.name, style=f"bold {GUMMY_PINK}")
+        text.append("\n")
+        text.append(f"id: {workflow.id}", style=TEXT_MUTED)
+        text.append("\n")
+        text.append("type: workflow", style=TEXT_MUTED)
+        if workflow.description:
+            text.append(f"\n\n{workflow.description}", style=TEXT_MUTED)
+
+        text.append(
+            f"\n\nphases ({len(workflow.phase_names())}) · "
+            f"{workflow.command_count()} commands",
+            style="bold",
+        )
+        if not workflow.phase_names():
+            text.append("\n(no phases)", style=TEXT_MUTED)
+        for phase in workflow.phase_names():
+            text.append(f"\n\n{phase}", style=f"bold {GUMMY_LIGHT_PINK}")
+            for command_id in workflow.command_ids(phase):
+                text.append(f"\n  {command_id}", style=PHOSPHOR)
+        text.append(
+            "\n\nsearch an id with cmd: to find and run its preset",
+            style=TEXT_MUTED,
+        )
         self._content.update(text)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

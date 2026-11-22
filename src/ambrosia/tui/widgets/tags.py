@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from textual.containers import VerticalScroll
@@ -60,6 +61,9 @@ class TagBrowser(Widget):
         self._tag_checkboxes: dict[str, Checkbox] = {}
         self._id_to_tag: dict[str, str] = {}
         self._mode = "or"
+        # Removing and re-mounting checkboxes is async; serialize refresh calls
+        # so quick successive updates cannot collide on duplicate widget ids.
+        self._refresh_lock = asyncio.Lock()
 
     def compose(self) -> ComposeResult:
         yield Label("TAGS", id="tag-title")
@@ -70,21 +74,25 @@ class TagBrowser(Widget):
 
     def set_tags(self, tag_counts: dict[str, int], active_tags: list[str] | None = None) -> None:
         """Populate the tag list from ``tag_counts`` (tag -> preset count)."""
-        self._tag_checkboxes = {}
-        self._id_to_tag = {}
-        container = self.query_one("#tag-list", VerticalScroll)
-        container.remove_children()
-        for tag, count in sorted(tag_counts.items()):
-            widget_id = safe_widget_id(f"tag-{tag}")
-            checkbox = Checkbox(
-                f"{tag}  [{count}]",
-                id=widget_id,
-                value=tag in (active_tags or []),
-                classes="tag-row",
-            )
-            self._tag_checkboxes[tag] = checkbox
-            self._id_to_tag[widget_id] = tag
-            container.mount(checkbox)
+        asyncio.create_task(self._apply_tags(dict(tag_counts), list(active_tags or [])))
+
+    async def _apply_tags(self, tag_counts: dict[str, int], active_tags: list[str]) -> None:
+        async with self._refresh_lock:
+            container = self.query_one("#tag-list", VerticalScroll)
+            await container.remove_children()
+            self._tag_checkboxes = {}
+            self._id_to_tag = {}
+            for tag, count in sorted(tag_counts.items()):
+                widget_id = safe_widget_id(f"tag-{tag}")
+                checkbox = Checkbox(
+                    f"{tag}  [{count}]",
+                    id=widget_id,
+                    value=tag in active_tags,
+                    classes="tag-row",
+                )
+                self._tag_checkboxes[tag] = checkbox
+                self._id_to_tag[widget_id] = tag
+                await container.mount(checkbox)
 
     def set_mode(self, mode: str) -> None:
         """Set the tag match mode ("and" or "or")."""

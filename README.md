@@ -1,40 +1,36 @@
-# Ambrosia
+# ✦ Ambrosia
 
-**Fast TUI-first command launcher and executor workbench for authorized use.**
+*A warm little command launcher for work you're authorized to do.*
 
-Ambrosia lets an operator register any shell command with a name, description,
-tags, and a `{{input_id}}` shell template, then search and run it from a single
-Textual TUI. Inputs are remembered per session, output streams live, and jobs
-can be cancelled or re-run — all with zero CLI commands to memorize.
+Ambrosia keeps your favorite shell commands in one Textual TUI: name them, tag them,
+search them, and run them with live output. Inputs are shared across presets for
+the whole session, and workflows can chain presets into ordered phases.
 
-It is built for **authorized use** (penetration testing, red teaming, sysadmin
-work, anything the operator is authorized to run). Ambrosia does not install,
-download, or bundle offensive tools — the operator brings the binaries on PATH
-and Ambrosia runs them through an argv array (no `shell=True`).
-
----
-
-## Core example
-
-Register `crackmapexec smb {{ip}}`, search `smb`, provide the IP, and watch
-live output. The IP is remembered for next time.
-
-```json
-{
-  "id": "smb-version",
-  "name": "windows version check smb",
-  "description": "uses crackmapexec smb to get windows version",
-  "tags": ["smb", "windows", "crackmapexec"],
-  "shell": "crackmapexec smb {{ip}}",
-  "inputs": [
-    { "id": "ip", "prompt": "Target IP or hostname", "type": "host", "required": true }
-  ]
-}
-```
+It is built for **authorized use** — pentesting, red teaming, sysadmin work,
+anything you're allowed to run. Ambrosia does not install or bundle tools; you
+bring the binaries on `PATH`, and Ambrosia runs them as an argv array (never
+`shell=True`).
 
 ---
 
-## Installation
+## ✧ At a glance
+
+- **Three-panel workstation** — library/tags on the left, live search in the middle,
+  full preset detail on the right.
+- **Fast search** — whole words and fragments (`win` → `windows`), with
+  `name:`, `cmd:`, `tag:`, `path:`, and `type:` qualifiers.
+- **Shared session values** — set `target` once; every preset with a `target`
+  input reuses it until you quit. Nothing is written to disk.
+- **Workflows** — group preset ids into phases, then step through them with the
+  arrow keys and run any command from its phase.
+- **Gentle execution** — streamed output, cancellation, quick run, history and
+  optional CIDR scope checks.
+
+---
+
+## ♡ Get started
+
+Requires Python 3.12+.
 
 ```bash
 python -m venv .venv
@@ -42,141 +38,162 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
-## Usage
-
-Launch the TUI (the primary interface):
+Launch the TUI — no subcommand needed:
 
 ```bash
-ambrosia
-# or
-python -m ambrosia
+ambrosia            # or: python -m ambrosia
 ```
 
-Optional flags:
+Explicit subcommands are still available when you want them:
 
 ```bash
-ambrosia --commands-file builtin_commands.json
-ambrosia --import-file my-commands.json
-ambrosia --export-file my-backup.json
+ambrosia tui --preset-dir inventory/presets
+ambrosia tui --preset-file inventory/presets/windows/cme-smb.preset
+ambrosia tui --workflow-dir inventory/workflow
+ambrosia tui --workflow-file inventory/workflow/linux-recon.workflow
+ambrosia tui --import-file my-commands.json
+ambrosia tui --export-file my-backup.json
+ambrosia workflow --workflow-dir inventory/workflow
+ambrosia --help
 ```
 
-### Keyboard reference
+Running from the repository root auto-loads `inventory/presets/` and
+`inventory/workflow/`. Elsewhere, the TUI falls back to
+`~/.ambrosia/commands.json`.
+
+---
+
+## ⌨ The workstation
 
 | Key | Action |
 |-----|--------|
 | `/` | focus the search bar |
-| `↑` / `↓` | move through results while still typing in search |
-| `Tab` | cycle focus (search → explorer → inspector) |
-| `Enter` | select highlighted preset / run it |
-| `Esc` | clear filters / close modal / back |
-| `ctrl+r` | cycle search mode while typing (substring → fuzzy → regex) |
-| `r` | cycle search mode when the explorer has focus |
-| `n` | add a new preset |
-| `e` | edit the selected preset |
-| `d` | delete the selected preset (confirm) |
-| `f` | toggle favorite on the selected preset |
-| `p` | toggle pinned on the selected preset |
-| `s` | save session inputs |
-| `h` | toggle execution history logging (opt-in) |
-| `S` | toggle scope policy (opt-in) |
-| `c` | copy the compiled command / cancel the running job |
-| `x` | quick run: run immediately and show a minimal result in the inspector |
-| `g` | run the last command again |
-| `b` / `←` | back from the execution view |
+| `↑` / `↓` | move the result highlight while typing |
+| `Tab` | cycle focus: search → explorer → inspector |
+| `Enter` | run the highlighted preset / open a workflow |
+| `Esc` | clear filters / close a modal / go back |
+| `ctrl+r`, `r` | cycle substring → fuzzy → regex search |
+| `n` / `e` / `d` | add / edit / delete a preset |
+| `f` / `p` | toggle favorite / pinned |
+| `x` | quick run: minimal result in the inspector |
+| `g` / `c` / `b` | run again / copy or cancel / back |
+| `h` / `S` | toggle history / scope (both opt-in) |
+| `s` | show the in-memory session notice |
 | `ctrl+q` | quit (confirm if a job is running) |
-| `?` | show help |
+| `?` | help |
 
-The workstation has three panels: a **sidebar** (library views and tag filters),
-an **explorer** (live search and ranked results), and an
-**inspector** (full preset detail plus Run/Favorite/Pin controls). Search result
-rows show only `name: description`; hover a row for tags, path, shell, and
-inputs. Empty search shows all presets. Search matches whole words and word
-fragments (`win` finds `windows`), and supports `name:`, `cmd:`, `tag:`, and
-`path:` qualifiers.
+Search accepts `name:`, `cmd:`, `tag:`, `path:`, and `type:` qualifiers. Use
+`t:w` for workflows, `t:p` for presets (the default), or `t:a` for both.
+
+When a workflow is open, `↑`/`↓` pick a command in the current phase,
+`Enter` runs it, `→` advances a phase, and `←` steps back — or exits on
+phase 1, just like `Esc`.
+
+Pressing `n` opens the add-preset form. Write the command in **Command template**
+with `{{name}}` placeholders; one input is created for each. The optional
+**Input overrides** field uses `id:prompt:flags` entries separated by commas,
+with `+`-separated flags `optional`, `secret`, `host`, `path`, `integer` —
+for example `target:Target IP:host, password::secret`.
 
 ---
 
-## Built-in commands
+## ⟡ Writing presets and workflows, briefly
 
-The directory [`inventory/presets/`](inventory/presets/) contains commands
-organized by OS subdirectory (``windows/``, ``linux/``). Each is a
-human-writable YAML ``.preset`` file. Load them with:
+### A preset (`.preset`)
 
-```bash
-ambrosia --preset-dir inventory/presets          # all OS presets
-ambrosia --preset-dir inventory/presets/windows   # windows only
-ambrosia --preset-file inventory/presets/windows/windows.smb.audit.preset  # single file
-```
-
-Or copy them into `~/.ambrosia/commands.json` to make them the default catalog.
-
-The [`inventory/workflow/`](inventory/workflow/) directory is reserved for
-workflow definitions. A ``.workflow`` file groups preset command ids into
-ordered phases:
+Drop a YAML file into `inventory/presets/` (subdirectories are fine).
+**The filename stem is the id** — an `id:` key inside the file is ignored.
 
 ```yaml
-name: Windows Gain Access
-phases:
-  reconnaissance:
-    - windows.smb.audit
-    - windows.nmap.discovery
-    - windows.ldap.inventory
-  exposure:
-    - windows.rdp.exposure
-    - windows.winrm.exposure
-```
-
-View workflows with:
-
-```bash
-ambrosia workflow --workflow-file inventory/workflow/windows-gain-access.workflow
-ambrosia workflow --workflow-dir inventory/workflow
-```
-
-A ``.preset`` file looks like this:
-
-```yaml
-id: windows.smb.audit
-name: SMB Configuration Audit
-description: Read-only SMB configuration observation on target.
+# windows/smb-check.preset  ->  id: smb-check
+name: SMB check
+description: Read-only SMB observation on a target.
 category: windows
-tags:
-  - windows
-  - smb
-  - read-only
+tags: [windows, smb, read-only]
 shell: "crackmapexec smb {{target}}"
 inputs:
   - id: target
     prompt: "Target IP or hostname"
     type: host
     required: true
-    secret: false
-    validation_hint: "must be an IP address or hostname within scope"
+    validation_hint: "IP or hostname within scope"
 ```
 
+Every `{{id}}` in `shell` should have a matching entry in `inputs`, otherwise
+the placeholder stays literal when the command runs. Optional input keys:
+`secret`, `default`, `validation_hint`.
+
+### A workflow (`.workflow`)
+
+Drop a YAML file into `inventory/workflow/`. Again, **the filename is the id**.
+List preset ids under named phases, in the order you want them offered.
+
+```yaml
+# linux/recon.workflow  ->  id: recon
+name: Linux recon
+description: A small read-only chain.
+phases:
+  discovery:
+    - nmap.discovery
+    - ssh.version
+  follow-up:
+    - http.observation
+```
+
+Find it with `t:w`, press `Enter`, and walk the phases with the arrow keys.
+Unknown preset ids are shown as "preset not found" in the runner.
+
 ---
 
-## Configuration
+## ☾ Session and execution behavior
 
-- `~/.ambrosia/commands.json` — command catalog (JSON)
-- Session values are kept **in memory only** for the current run (shared by input name across presets) and wiped on quit; `~/.ambrosia/session.json` is not used by the TUI
-- `~/.ambrosia/sessions/<name>.json` — named session files
-- `~/.ambrosia/scope.json` — opt-in scope allowlist/denylist (CIDR-based)
-- `~/.ambrosia/history.jsonl` — opt-in execution history log (JSONL)
-
-Secrets are masked in the TUI and are **not persisted by default**.
+- Input values live in memory, keyed by **input name**, so any preset sharing
+  `target` inherits the value. Quitting (`ctrl+q`) wipes everything; no session
+  file is written or loaded by the TUI.
+- `Enter` shows a confirmation with the compiled argv; `x` skips it and reports a
+  one-line status in the inspector.
+- Secret inputs are masked in the inspector and forms.
+- Each job streams output in the execution view; `c` cancels a running job,
+  `b` / `←` comes back to the workstation (or to the same workflow phase).
 
 ---
 
-## Verification
+## ◈ Where things live
+
+| Path | Purpose |
+|------|---------|
+| `inventory/presets/` | human-writable `.preset` files |
+| `inventory/workflow/` | `.workflow` phase chains |
+| `~/.ambrosia/commands.json` | default JSON command catalog |
+| `~/.ambrosia/scope.json` | opt-in CIDR allow/deny policy |
+| `~/.ambrosia/history.jsonl` | opt-in execution history |
+
+Core modules: `ambrosia.model` (record shapes), `ambrosia.storage` (JSON and
+`.preset` loading), `ambrosia.workflow` (workflow loading), `ambrosia.executor`
+(argv substitution + subprocess), and `ambrosia.tui` (the Textual app).
+
+---
+
+## 🧪 Verification
 
 ```bash
-ruff check . && ruff format --check . && mypy src
+ruff check src tests
+mypy src
 pytest -q
-ambrosia --help && python -m ambrosia --help
 ```
 
-Tests use fake executors; no live target or Nmap installation is required.
+Tests use fake executors, so no live target or installed Nmap is required.
+
+---
+
+## ⚠ Known limitations
+
+- Commands are split on whitespace into argv; there is no shell quoting or
+  piping inside a template.
+- With scope enforcement enabled, targets must be IP addresses — hostnames are
+  reported as "target is not an IP address".
+- `s` is informational only: the session is memory-only and dies with the app.
+- Workflows are launchers for presets; they do not auto-run a whole chain.
 
 ---
 

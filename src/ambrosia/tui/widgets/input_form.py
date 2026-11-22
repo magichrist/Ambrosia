@@ -113,7 +113,7 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
                     yield widget
                     hint = self._hints.get(field_id)
                     if hint:
-                        yield Label(hint, id=f"hint-{field_id}", classes="hint")
+                        yield Label(hint, id=safe_widget_id(f"hint-{field_id}"), classes="hint")
             with Horizontal(id="input-form-actions"):
                 yield Static(classes="spacer")
                 yield Button(self._submit_label, id="submit", variant="primary")

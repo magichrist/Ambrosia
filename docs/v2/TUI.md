@@ -30,9 +30,11 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
   active tag/scope indicators.
 - **Sidebar**: `ALL`, `FAVORITES`, `PINNED`, `RECENT` library views and tag
   checkboxes with an OR/AND mode toggle.
-- **Explorer**: debounced live search and ranked results. Rows are intentionally
-  compact — `name: description` only. Hovering a row shows a tooltip with the
-  full preset: id, path, tags, shell template, and inputs.
+- **Explorer**: debounced live search and ranked results. Preset rows are
+  intentionally compact — `name: description` only. Workflow rows are marked
+  `[workflow]` and show their phase/command counts. Hovering a row shows a
+  tooltip with the full preset (id, path, tags, shell template, inputs) or the
+  full workflow (id, description, ordered phases with command ids).
 - **Inspector**: full detail for the highlighted preset plus `RUN`, `FAVORITE`,
   and `PIN` buttons. It is populated automatically from the first result, so
   `Enter` works without an initial arrow key.
@@ -65,8 +67,14 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 - Modes: substring (default), fuzzy (character subsequence), and regex.
 - Free text matches whole words and word fragments: `win` finds `windows`, and
   a match at a word boundary ranks ahead of a match buried inside a word.
-- Qualifiers: `name:`, `cmd:`, `tag:`, `path:`. Qualifiers and free text are
-  ANDed; free text matches across name, command, tags, path, and description.
+- Qualifiers: `name:`, `cmd:`, `tag:`, `path:`, `type:`. Qualifiers and free text
+  are ANDed; free text matches across name, command, tags, path, and description.
+- `type:` selects the result kind: `preset` (default), `workflow`, or `all`.
+  The short form `t:` works identically, with value aliases: `t:p`, `t:w`, `t:a`
+  (e.g. `t:w` is the same as `type:workflow`). Workflow definitions are loaded
+  from `inventory/workflow/` at startup (override with `--workflow-dir` /
+  `--workflow-file`). With `t:w` / `type:workflow`, library views and tag filters
+  are ignored because they apply only to presets.
 - Invalid regex is reported inline in the search status line instead of
   silently returning zero results.
 
@@ -82,6 +90,33 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 4. On submit, argv is built and the subprocess starts in the execution view.
 5. The session lasts only until you quit (`ctrl+q`); it is never written to disk
    and all values are wiped on exit.
+
+## Running a workflow
+
+`Enter` on a workflow row (or search `type:workflow` and press `Enter`) opens the
+phased workflow runner instead of the inspector. It starts on phase 1:
+
+- `↑` / `↓` select a command id in the current phase. Rows show the resolved
+  preset name and id; ids without a matching preset are marked "preset not found".
+- `Enter` runs the selected command through the normal confirmation/input flow.
+  Completed commands appear in the execution view as usual.
+- `→` moves to the next phase (clamped at the last phase); `←` moves to the
+  previous phase, and on phase 1 it acts like `Esc` and returns to the main TUI.
+- `b` / `Esc` leaves the runner and returns to the preset workstation.
+- After a command finishes, `b` / `←` in the execution view returns to the same
+  workflow phase with the same command highlighted.
+
+## Adding and editing presets
+
+`n` opens the Add preset form and `e` reopens it for the selected preset. The
+command template is written with `{{name}}` placeholders, e.g.
+`nmap -sV {{target}}`; one input is derived from each unique placeholder in the
+order it appears. Optional **Input overrides** customize the derived inputs
+using comma-separated `id:prompt:flags` entries. Flags are `+`-separated and may
+include `optional`, `secret`, and a type hint (`host`, `path`, `integer`); the
+default is a required, non-secret string. Existing definitions are preserved
+when editing unless explicitly overridden, and placeholders added to the shell
+template become new inputs automatically.
 
 ## Execution view
 

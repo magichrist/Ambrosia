@@ -37,7 +37,7 @@ from ambrosia.executor import (
     build_argv,
 )
 from ambrosia.history import HistoryStore, make_entry
-from ambrosia.model import Command
+from ambrosia.model import Command, CommandInput, inputs_from_shell
 from ambrosia.scope import ScopePolicy, check_target, load_scope_policy, save_scope_policy
 from ambrosia.session import SessionState, SessionStore
 from ambrosia.storage import (
@@ -54,6 +54,7 @@ from ambrosia.tui.design import (
     DARK_PANEL_BG,
     DEEP_PANEL_BG,
     FEMME_PINK,
+    GUMMY_AMBER,
     GUMMY_LIGHT_PINK,
     GUMMY_PINK,
     GUMMY_RED,
@@ -64,13 +65,21 @@ from ambrosia.tui.design import (
     TEXT_PRIMARY,
     YELLOW,
 )
-from ambrosia.tui.matching import SearchMode, regex_error, search_commands
+from ambrosia.tui.matching import (
+    SearchMode,
+    regex_error,
+    search_commands,
+    search_items,
+    search_workflows,
+)
 from ambrosia.tui.widgets.execution_view import ExecutionView
 from ambrosia.tui.widgets.input_form import InputFormModal
 from ambrosia.tui.widgets.preview import PresetInspector
 from ambrosia.tui.widgets.results import PresetExplorer
 from ambrosia.tui.widgets.search import SearchBar, parse_search_query
 from ambrosia.tui.widgets.tags import TagBrowser
+from ambrosia.tui.widgets.workflow_view import WorkflowView
+from ambrosia.workflow import Workflow, load_workflows_from_dir
 
 if TYPE_CHECKING:
     from textual.events import Key, Resize
@@ -83,6 +92,84 @@ LIBRARY_ALL = "all"
 LIBRARY_FAVORITES = "favorites"
 LIBRARY_PINNED = "pinned"
 LIBRARY_RECENT = "recent"
+
+_INPUT_FLAG_TYPES = ("host", "path", "integer", "string")
+
+
+def _parse_input_spec(spec: str) -> dict[str, CommandInput]:
+    """Parse ``id:prompt:flags`` entries into input overrides.
+
+    Entries are comma-separated. ``flags`` is ``+``-separated and may contain
+    ``optional``, ``secret``, and a type hint (``host``, ``path``, ``integer``).
+    Anything else falls back to a required, non-secret string input.
+    """
+    overrides: dict[str, CommandInput] = {}
+    for raw_entry in spec.split(","):
+        entry = raw_entry.strip()
+        if not entry:
+            continue
+        parts = [part.strip() for part in entry.split(":")]
+        input_id = parts[0]
+        if not input_id:
+            continue
+        prompt = parts[1] if len(parts) > 1 and parts[1] else input_id
+        flags = {
+            flag.strip().lower()
+            for flag in (parts[2] if len(parts) > 2 else "").split("+")
+            if flag.strip()
+        }
+        input_type = next((kind for kind in _INPUT_FLAG_TYPES if kind in flags), "string")
+        overrides[input_id] = CommandInput(
+            id=input_id,
+            prompt=prompt,
+            type=input_type,
+            required="optional" not in flags,
+            secret="secret" in flags,
+        )
+    return overrides
+
+
+def _format_input_spec(inputs: list[CommandInput]) -> str:
+    """Render inputs back into the compact ``id:prompt:flags`` form."""
+    entries: list[str] = []
+    for input_ in inputs:
+        flags: list[str] = []
+        if not input_.required:
+            flags.append("optional")
+        if input_.secret:
+            flags.append("secret")
+        if input_.type != "string":
+            flags.append(input_.type)
+        prompt = input_.prompt if input_.prompt != input_.id else ""
+        entry = input_.id
+        if prompt or flags:
+            entry += f":{prompt}"
+        if flags:
+            entry += f":{'+'.join(flags)}"
+        entries.append(entry)
+    return ", ".join(entries)
+
+
+def _build_inputs(
+    shell: str, spec: str, existing: list[CommandInput] | None = None
+) -> list[CommandInput]:
+    """Derive inputs from ``{{...}}`` placeholders, applying optional overrides.
+
+    The shell template is the source of truth: only placeholders in ``shell``
+    become inputs. An existing definition for a placeholder is preserved unless
+    the operator supplies an explicit override in ``spec``.
+    """
+    previous = {input_.id: input_ for input_ in (existing or [])}
+    overrides = _parse_input_spec(spec)
+    result: list[CommandInput] = []
+    for base in inputs_from_shell(shell):
+        if base.id in overrides:
+            result.append(overrides[base.id])
+        elif base.id in previous:
+            result.append(previous[base.id])
+        else:
+            result.append(base)
+    return result
 
 # Shared styling for small, centered popup dialogs.
 MODAL_CSS = f"""
@@ -268,6 +355,15 @@ class AmbrosiaApp(App[None]):
         padding: 0 1;
         layout: vertical;
     }}
+    #workflow-view {{
+        display: none;
+    }}
+    #workflow-view.visible {{
+        display: block;
+        height: 1fr;
+        border-top: solid {GUMMY_PINK};
+        layout: vertical;
+    }}
     #execution-view {{
         display: none;
     }}
@@ -357,15 +453,22 @@ class AmbrosiaApp(App[None]):
     library_view: reactive[str] = reactive(LIBRARY_ALL)
     active_tags: reactive[list[str]] = reactive(list)
     tag_mode: reactive[str] = reactive("or")
-    selected_command: reactive[Command | None] = reactive(None)
+    selected_item: reactive[Command | Workflow | None] = reactive(None)
     filtered_results: reactive[list[SearchResult]] = reactive(list)
     execution_visible: reactive[bool] = reactive(False)
+    workflow_visible: reactive[bool] = reactive(False)
     running: reactive[bool] = reactive(False)
 
-    def __init__(self, commands: list[Command] | None = None) -> None:
+    def __init__(
+        self,
+        commands: list[Command] | None = None,
+        workflows: list[Workflow] | None = None,
+    ) -> None:
         super().__init__()
         self._startup_commands = commands
+        self._startup_workflows = workflows
         self.commands: list[Command] = []
+        self.workflows: list[Workflow] = []
         self.session = SessionState()
         self.session_store = SessionStore(SESSION_FILE)
         # Inputs remembered by input name for the lifetime of this process.
@@ -382,8 +485,23 @@ class AmbrosiaApp(App[None]):
         self._last_command: Command | None = None
         self._last_values: dict[str, str] = {}
         self._execution_was_visible = False
+        self.active_workflow: Workflow | None = None
+        self.workflow_phase_index = 0
+        self.workflow_command_index = 0
         self._quick_run_active = False
         self._quick_last_line = ""
+
+    @property
+    def selected_command(self) -> Command | None:
+        """The highlighted preset, or ``None`` when a workflow is selected."""
+        item = self.selected_item
+        return item if isinstance(item, Command) else None
+
+    @property
+    def selected_workflow(self) -> Workflow | None:
+        """The highlighted workflow, or ``None`` when a preset is selected."""
+        item = self.selected_item
+        return item if isinstance(item, Workflow) else None
 
     def get_css_variables(self) -> dict[str, str]:
         """Use the Female Cyber Space palette for Textual's theme variables."""
@@ -463,6 +581,7 @@ class AmbrosiaApp(App[None]):
             PresetInspector(id="preset-inspector"),
             id="main-split",
         )
+        yield WorkflowView(id="workflow-view")
         yield ExecutionView(id="execution-view")
         yield Static(id="footer")
 
@@ -474,6 +593,13 @@ class AmbrosiaApp(App[None]):
         self._session_dirty = False
         self._auto_save_task = None
         self.commands = list(self._startup_commands) if self._startup_commands is not None else load_commands()
+        if self._startup_workflows is not None:
+            self.workflows = list(self._startup_workflows)
+        else:
+            default_dir = Path("inventory/workflow")
+            self.workflows = (
+                load_workflows_from_dir(default_dir) if default_dir.is_dir() else []
+            )
         for command in self.commands:
             secret_ids = {input_.id for input_ in command.inputs if input_.secret}
             if secret_ids:
@@ -493,6 +619,7 @@ class AmbrosiaApp(App[None]):
 
     def watch_search_query(self, _query: str) -> None:
         self._rebuild()
+        self._refresh_top_bar()
 
     def watch_search_mode(self, _mode: SearchMode) -> None:
         self._rebuild()
@@ -517,18 +644,22 @@ class AmbrosiaApp(App[None]):
         self.query_one("#search-status", Static).update(error or "")
 
     def watch_filtered_results(self, results: list[SearchResult]) -> None:
-        if self.selected_command is not None:
-            ids = {result.command.id for result in results}
-            if self.selected_command.id not in ids:
-                self.selected_command = None
+        if self.selected_item is not None:
+            items = {id(result.item) for result in results}
+            if id(self.selected_item) not in items:
+                self.selected_item = None
         explorer = self.query_one("#preset-explorer", PresetExplorer)
         if self._filter_task is not None:
             self._filter_task.cancel()
         self._filter_task = asyncio.create_task(explorer.set_results(results))
 
-    def watch_selected_command(self, command: Command | None) -> None:
-        values = self._values_for(command) if command is not None else {}
-        self.query_one("#preset-inspector", PresetInspector).set_command(command, values)
+    def watch_selected_item(self, item: Command | Workflow | None) -> None:
+        inspector = self.query_one("#preset-inspector", PresetInspector)
+        if isinstance(item, Workflow):
+            inspector.set_workflow(item)
+        else:
+            values = self._values_for(item) if item is not None else {}
+            inspector.set_command(item, values)
 
     def watch_running(self, _running: bool) -> None:
         self._refresh_top_bar()
@@ -536,22 +667,46 @@ class AmbrosiaApp(App[None]):
     def watch_execution_visible(self, visible: bool) -> None:
         was_visible = self._execution_was_visible
         self._execution_was_visible = visible
+        self._apply_view_visibility(focus_explorer=was_visible and not visible)
+
+    def watch_workflow_visible(self, visible: bool) -> None:
+        if not visible:
+            self.active_workflow = None
+        self._apply_view_visibility()
+
+    def _apply_view_visibility(self, *, focus_explorer: bool = False) -> None:
+        """Show exactly one of: workflow runner, execution view, workstation."""
         top_bar = self.query_one("#top-bar", Horizontal)
         main_split = self.query_one("#main-split", Horizontal)
+        workflow = self.query_one("#workflow-view", WorkflowView)
         execution = self.query_one("#execution-view", ExecutionView)
-        if visible:
+
+        if self.execution_visible:
             top_bar.add_class("hidden")
             main_split.add_class("hidden")
+            workflow.remove_class("visible")
+            workflow.add_class("hidden")
             execution.remove_class("hidden")
             execution.add_class("visible")
             execution.focus_log()
-        else:
-            execution.remove_class("visible")
-            execution.add_class("hidden")
-            top_bar.remove_class("hidden")
-            main_split.remove_class("hidden")
-            if was_visible:
-                self.call_after_refresh(self.action_focus_explorer)
+            return
+
+        execution.remove_class("visible")
+        execution.add_class("hidden")
+        if self.workflow_visible:
+            top_bar.add_class("hidden")
+            main_split.add_class("hidden")
+            workflow.remove_class("hidden")
+            workflow.add_class("visible")
+            workflow.focus_list()
+            return
+
+        workflow.remove_class("visible")
+        workflow.add_class("hidden")
+        top_bar.remove_class("hidden")
+        main_split.remove_class("hidden")
+        if focus_explorer:
+            self.call_after_refresh(self.action_focus_explorer)
 
     # ------------------------------------------------------------------ filtering
 
@@ -559,6 +714,21 @@ class AmbrosiaApp(App[None]):
         self.filtered_results = self._build_filtered()
 
     def _build_filtered(self) -> list[SearchResult]:
+        parsed = parse_search_query(self.search_query, self.search_mode)
+        self.parsed_query = parsed
+        if self.search_mode == "regex":
+            error = regex_error(parsed)
+            if error is not None:
+                self.regex_error = error
+                return []
+        self.regex_error = None
+
+        wanted = parsed.qualifiers.get("type", "").strip().lower()
+        if wanted == "workflow":
+            # Library views and tags are preset-only concepts; an explicit
+            # workflow search should not be filtered by them.
+            return search_workflows(self.workflows, parsed)
+
         base = list(self.commands)
         if self.library_view == LIBRARY_FAVORITES:
             base = [command for command in base if command.favorite]
@@ -575,14 +745,8 @@ class AmbrosiaApp(App[None]):
             else:
                 base = [command for command in base if tag_set.intersection(command.tags)]
 
-        parsed = parse_search_query(self.search_query, self.search_mode)
-        self.parsed_query = parsed
-        if self.search_mode == "regex":
-            error = regex_error(parsed)
-            if error is not None:
-                self.regex_error = error
-                return []
-        self.regex_error = None
+        if wanted == "all":
+            return search_items(base, self.workflows, parsed)
         return search_commands(base, parsed)
 
     def _refresh_library_sidebar(self) -> None:
@@ -605,6 +769,9 @@ class AmbrosiaApp(App[None]):
             return
         status = "RUNNING" if self.running else "READY"
         indicators: list[str] = []
+        wanted = self.parsed_query.qualifiers.get("type", "").strip().lower()
+        if wanted in ("preset", "workflow", "all"):
+            indicators.append(f"type: {wanted}")
         if self.active_tags:
             indicators.append(f"tag: {','.join(self.active_tags)}")
         if self.scope_policy is not None and self.scope_policy.enabled:
@@ -618,6 +785,7 @@ class AmbrosiaApp(App[None]):
             .append("/  PRESET WORKSTATION   ", style=YELLOW)
             .append(f"● {status}   ", style=f"bold {AMBER}")
             .append(f"PRESETS {len(self.commands)}   ", style=GUMMY_LIGHT_PINK)
+            .append(f"WORKFLOWS {len(self.workflows)}   ", style=GUMMY_AMBER)
             .append(f"RESULTS {len(self.filtered_results)}{extras}", style=FEMME_PINK)
         )
         right.update(
@@ -661,7 +829,11 @@ class AmbrosiaApp(App[None]):
             text.append(f"{key}:", style=f"bold {PHOSPHOR}")
             text.append(f"{label} ", style=YELLOW)
         text.truncate(max(20, self.size.width - 2), overflow="ellipsis")
-        self.query_one("#footer", Static).update(text)
+        try:
+            self.query_one("#footer", Static).update(text)
+        except NoMatches:
+            # An early resize can arrive before the main screen is composed.
+            return
 
     def on_resize(self, event: Resize) -> None:
         """Re-fit the one-line key map when the terminal width changes."""
@@ -719,17 +891,29 @@ class AmbrosiaApp(App[None]):
             return
         self.search_query = self.query_one("#search-bar", SearchBar).value
 
-    def on_preset_explorer_preset_highlighted(
-        self, event: PresetExplorer.PresetHighlighted
-    ) -> None:
-        self.selected_command = event.command
+    def on_preset_explorer_item_highlighted(self, event: PresetExplorer.ItemHighlighted) -> None:
+        self.selected_item = event.item
         event.stop()
 
-    def on_preset_explorer_preset_activated(self, event: PresetExplorer.PresetActivated) -> None:
+    def on_preset_explorer_item_activated(self, event: PresetExplorer.ItemActivated) -> None:
         if self.execution_visible:
             return
-        self.selected_command = event.command
-        self._resolve_and_run(event.command)
+        self.selected_item = event.item
+        if isinstance(event.item, Workflow):
+            asyncio.create_task(self.action_open_workflow(event.item))
+        else:
+            self._resolve_and_run(event.item)
+        event.stop()
+
+    def on_workflow_view_command_chosen(self, event: WorkflowView.CommandChosen) -> None:
+        command = next((c for c in self.commands if c.id == event.command_id), None)
+        if command is None:
+            self.notify(f"preset not found: {event.command_id}")
+            return
+        self._workflow_command_index = self.query_one(
+            "#workflow-view", WorkflowView
+        ).selected_index()
+        self._resolve_and_run(command)
         event.stop()
 
     def on_tag_browser_tags_changed(self, event: TagBrowser.TagsChanged) -> None:
@@ -738,11 +922,11 @@ class AmbrosiaApp(App[None]):
         event.stop()
 
     def on_preset_inspector_toggle_favorite(self, event: PresetInspector.ToggleFavorite) -> None:
-        self._toggle_favorite_on_selected()
+        self.action_toggle_favorite_on_selected()
         event.stop()
 
     def on_preset_inspector_toggle_pinned(self, event: PresetInspector.TogglePinned) -> None:
-        self._toggle_pinned_on_selected()
+        self.action_toggle_pinned()
         event.stop()
 
     def on_preset_inspector_run_requested(self, event: PresetInspector.RunRequested) -> None:
@@ -824,7 +1008,7 @@ class AmbrosiaApp(App[None]):
             return
         self._resolve_and_run(command)
 
-    def _toggle_favorite_on_selected(self) -> None:
+    def action_toggle_favorite_on_selected(self) -> None:
         command = self.selected_command
         if command is None:
             return
@@ -839,7 +1023,7 @@ class AmbrosiaApp(App[None]):
         self._refresh_library_sidebar()
         self.notify(f"preset {'favorited' if updated.favorite else 'unfavorited'}")
 
-    def _toggle_pinned_on_selected(self) -> None:
+    def action_toggle_pinned(self) -> None:
         command = self.selected_command
         if command is None:
             return
@@ -1051,12 +1235,69 @@ class AmbrosiaApp(App[None]):
     def action_go_back(self) -> None:
         if self.execution_visible:
             self.execution_visible = False
+        elif self.workflow_visible:
+            self.workflow_visible = False
         elif self.search_query:
             self.search_query = ""
         elif self.active_tags:
             self.active_tags = []
         elif self.library_view != LIBRARY_ALL:
             self.library_view = LIBRARY_ALL
+
+    # ------------------------------------------------------------------ workflow runner
+
+    async def _render_workflow_phase(self) -> None:
+        workflow = self.active_workflow
+        if workflow is None:
+            return
+        names = workflow.phase_names()
+        if names:
+            self.workflow_phase_index = max(0, min(self.workflow_phase_index, len(names) - 1))
+        else:
+            self.workflow_phase_index = 0
+        await self.query_one("#workflow-view", WorkflowView).set_workflow(
+            workflow,
+            {command.id: command for command in self.commands},
+            self.workflow_phase_index,
+            self.workflow_command_index,
+        )
+
+    async def action_open_workflow(self, workflow: Workflow) -> None:
+        """Open a workflow at phase 1 so the operator can pick a command."""
+        if self.execution_visible:
+            return
+        self.active_workflow = workflow
+        self.workflow_phase_index = 0
+        self.workflow_command_index = 0
+        self.workflow_visible = True
+        await self._render_workflow_phase()
+
+    async def _shift_workflow_phase(self, delta: int) -> None:
+        if not self.workflow_visible or self.active_workflow is None:
+            return
+        view = self.query_one("#workflow-view", WorkflowView)
+        self.workflow_command_index = view.selected_index()
+        names = self.active_workflow.phase_names()
+        target = self.workflow_phase_index + delta
+        if not names or not 0 <= target < len(names):
+            return
+        self.workflow_phase_index = target
+        self.workflow_command_index = 0
+        await self._render_workflow_phase()
+
+    async def action_workflow_next_phase(self) -> None:
+        """Move to the next phase of the active workflow."""
+        await self._shift_workflow_phase(1)
+
+    async def action_workflow_prev_phase(self) -> None:
+        """Move to the previous phase, or leave the runner from phase 1."""
+        if not self.workflow_visible or self.active_workflow is None:
+            return
+        if self.workflow_phase_index == 0:
+            # Left on the first phase behaves like Esc: return to the main TUI.
+            self.action_go_back()
+            return
+        await self._shift_workflow_phase(-1)
 
     # ------------------------------------------------------------------ preset CRUD
 
@@ -1066,12 +1307,20 @@ class AmbrosiaApp(App[None]):
         fields = [
             ("id", "Preset id", True, False),
             ("name", "Display name", True, False),
+            ("shell", "Command template", True, False),
+            ("inputs", "Input overrides", False, False),
             ("path", "Logical path (dot-delimited)", False, False),
             ("description", "Description", False, False),
             ("tags", "Tags (comma-separated)", False, False),
-            ("shell", "Command template ({{input_id}})", True, False),
         ]
-        self.push_screen(InputFormModal("Add preset", fields, submit_label="Add"), self._handle_add_preset)
+        hints = {
+            "shell": "{{name}} placeholders become inputs automatically.",
+            "inputs": "id:prompt:flags; flags: optional secret host path",
+        }
+        self.push_screen(
+            InputFormModal("Add preset", fields, submit_label="Add", hints=hints),
+            self._handle_add_preset,
+        )
 
     def _handle_add_preset(self, values: dict[str, str] | None) -> None:
         if not values:
@@ -1082,13 +1331,14 @@ class AmbrosiaApp(App[None]):
         if not command_id or not name or not shell:
             self.notify("id, name, and shell are required")
             return
+        inputs = _build_inputs(shell, values.get("inputs", ""))
         command = Command(
             id=command_id,
             name=name,
             description=values.get("description", ""),
             tags=[tag.strip() for tag in values.get("tags", "").split(",") if tag.strip()],
             shell=shell,
-            inputs=[],
+            inputs=inputs,
             category=values.get("path", "").strip(),
         )
         try:
@@ -1099,7 +1349,8 @@ class AmbrosiaApp(App[None]):
         self.commands = [*self.commands, command]
         self._rebuild()
         self._refresh_library_sidebar()
-        self.notify("preset added")
+        detail = f" (inputs: {', '.join(i.id for i in inputs)})" if inputs else ""
+        self.notify(f"preset added{detail}")
 
     def action_edit_preset(self) -> None:
         if self.execution_visible:
@@ -1110,11 +1361,16 @@ class AmbrosiaApp(App[None]):
         fields = [
             ("id", "Preset id", True, False),
             ("name", "Display name", True, False),
+            ("shell", "Command template", True, False),
+            ("inputs", "Input overrides", False, False),
             ("path", "Logical path (dot-delimited)", False, False),
             ("description", "Description", False, False),
             ("tags", "Tags (comma-separated)", False, False),
-            ("shell", "Command template ({{input_id}})", True, False),
         ]
+        hints = {
+            "shell": "{{name}} placeholders become inputs automatically.",
+            "inputs": "id:prompt:flags; flags: optional secret host path",
+        }
         initial = {
             "id": command.id,
             "name": command.name,
@@ -1122,9 +1378,10 @@ class AmbrosiaApp(App[None]):
             "description": command.description,
             "tags": ", ".join(command.tags),
             "shell": command.shell,
+            "inputs": _format_input_spec(command.inputs),
         }
         self.push_screen(
-            InputFormModal("Edit preset", fields, initial=initial, submit_label="Save"),
+            InputFormModal("Edit preset", fields, initial=initial, submit_label="Save", hints=hints),
             lambda values: self._handle_edit_preset(values, command),
         )
 
@@ -1143,7 +1400,7 @@ class AmbrosiaApp(App[None]):
             description=values.get("description", ""),
             tags=[tag.strip() for tag in values.get("tags", "").split(",") if tag.strip()],
             shell=shell,
-            inputs=command.inputs,
+            inputs=_build_inputs(shell, values.get("inputs", ""), command.inputs),
             category=values.get("path", "").strip(),
             favorite=command.favorite,
             pinned=command.pinned,
@@ -1379,6 +1636,15 @@ class _HelpModal(ModalScreen[None]):
                 "  [b]ctrl+r[/b]   cycle search mode while typing\n"
                 "  [b]r[/b]        cycle mode when the explorer has focus\n"
                 "  name:windows cmd:nmap tag:discovery path:pr.windows\n"
+                "  type:preset | type:workflow | type:all\n"
+                "  short form: t:p (presets) | t:w (workflows) | t:a (both)\n"
+                "\n"
+                "[b]Workflows[/]\n"
+                "  workflow definitions live in inventory/workflow/ and can be\n"
+                "  found with [b]type:workflow[/]. Enter opens the runner at phase 1.\n"
+                "  [b]up/down[/b] pick a command, [b]Enter[/b] runs it,\n"
+                "  [b]right[/b] next phase, [b]left[/b] previous (exits on phase 1),\n"
+                "  [b]Esc[/b] returns to search.\n"
                 "\n"
                 "[b]Presets[/]\n"
                 "  [b]n[/b] add   [b]e[/b] edit   [b]d[/b] delete   "

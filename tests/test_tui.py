@@ -7,14 +7,20 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from textual.widgets import Button, Input
+from textual.widgets import Button, Input, Static
 
 from ambrosia.model import Command, CommandInput
-from ambrosia.tui.app import AmbrosiaApp, _ConfirmRunModal
+from ambrosia.tui.app import (
+    AmbrosiaApp,
+    _ConfirmRunModal,
+    _format_input_spec,
+    _parse_input_spec,
+)
 from ambrosia.tui.widgets.input_form import InputFormModal
 from ambrosia.tui.widgets.preview import PresetInspector
 from ambrosia.tui.widgets.results import PresetExplorer
 from ambrosia.tui.widgets.tags import TagBrowser
+from ambrosia.workflow import Workflow
 
 
 def _commands() -> list[Command]:
@@ -57,7 +63,9 @@ async def test_three_panels_and_hidden_execution_view() -> None:
         assert app.query_one("#explorer").display is True
         assert app.query_one("#preset-inspector").display is True
         assert app.query_one("#execution-view").display is False
+        assert app.query_one("#workflow-view").display is False
         assert app.execution_visible is False
+        assert app.workflow_visible is False
 
 
 @pytest.mark.tui
@@ -346,3 +354,280 @@ async def test_tab_cycles_focus_between_regions() -> None:
         await pilot.press("tab")
         await pilot.pause()
         assert app.focused is not None and app.focused.id == "configure-run"
+
+
+def test_input_spec_round_trip() -> None:
+    spec = "target:Target IP:host, password::secret+optional, user:Username"
+    overrides = _parse_input_spec(spec)
+    assert set(overrides) == {"target", "password", "user"}
+    assert overrides["target"].prompt == "Target IP"
+    assert overrides["target"].type == "host"
+    assert overrides["password"].prompt == "password"
+    assert overrides["password"].required is False
+    assert overrides["password"].secret is True
+    assert overrides["user"].type == "string"
+    assert _parse_input_spec(_format_input_spec(list(overrides.values()))) == overrides
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_add_preset_derives_inputs_from_shell_placeholders(monkeypatch) -> None:
+    added: list[Command] = []
+    monkeypatch.setattr("ambrosia.tui.app.add_command", added.append)
+    app = AmbrosiaApp(commands=_commands())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.action_add_preset()
+        await pilot.pause()
+        assert isinstance(app.screen, InputFormModal)
+        app.query_one("#input-id", Input).value = "new-one"
+        app.query_one("#input-name", Input).value = "New preset"
+        app.query_one("#input-shell", Input).value = "nmap {{target}} --port {{port}}"
+        app.query_one("#input-inputs", Input).value = "target:Target IP:host, port::optional"
+        app.query_one("#submit", Button).press()
+        await pilot.pause()
+
+        assert len(added) == 1
+        command = added[0]
+        # Placeholders become inputs, even when the spec only customizes some.
+        assert [inp.id for inp in command.inputs] == ["target", "port"]
+        assert command.inputs[0].prompt == "Target IP"
+        assert command.inputs[0].type == "host"
+        assert command.inputs[1].prompt == "port"
+        assert command.inputs[1].required is False
+        assert any(c.id == "new-one" for c in app.commands)
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_edit_preset_picks_up_new_placeholders_and_keeps_existing(monkeypatch) -> None:
+    saved: list[list[Command]] = []
+    monkeypatch.setattr("ambrosia.tui.app.save_commands", saved.append)
+    original = Command(
+        id="c1",
+        name="scan",
+        description="scan",
+        shell="nmap {{target}}",
+        inputs=[CommandInput(id="target", prompt="Target IP", type="host")],
+    )
+    app = AmbrosiaApp(commands=[original])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.action_edit_preset()
+        await pilot.pause()
+        assert isinstance(app.screen, InputFormModal)
+        # Existing input definition is round-tripped into the spec field.
+        assert app.query_one("#input-inputs", Input).value == "target:Target IP:host"
+        app.query_one("#input-shell", Input).value = "nmap {{target}} -p {{port}}"
+        app.query_one("#input-inputs", Input).value = "port:Port:integer"
+        app.query_one("#submit", Button).press()
+        await pilot.pause()
+
+        assert saved
+        updated = saved[-1][0]
+        # The original target definition survives even though it was omitted
+        # from the spec; the new placeholder is added with defaults.
+        assert [inp.id for inp in updated.inputs] == ["target", "port"]
+        assert updated.inputs[0].prompt == "Target IP"
+        assert updated.inputs[0].type == "host"
+        assert updated.inputs[1].type == "integer"
+
+
+def _workflows() -> list[Workflow]:
+    return [
+        Workflow(
+            name="Linux Recon",
+            id="linux-recon",
+            description="Read-only Linux reconnaissance chain.",
+            phases={
+                "discovery": ["linux.nmap.discovery", "linux.ssh.version"],
+                "exposure": ["windows.rdp.exposure"],
+            },
+        )
+    ]
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_type_workflow_surfaces_workflows_in_explorer_and_inspector() -> None:
+    app = AmbrosiaApp(commands=_commands(), workflows=_workflows())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        search = app.query_one("#search-bar", Input)
+        search.value = "type:workflow"
+        await _settled(pilot)
+
+        assert len(app.filtered_results) == 1
+        result = app.filtered_results[0]
+        assert result.workflow is not None and result.workflow.id == "linux-recon"
+        assert app.selected_workflow is result.workflow
+        assert app.selected_command is None
+
+        explorer = app.query_one("#preset-explorer", PresetExplorer)
+        assert len(explorer.children) == 1
+        label = str(explorer.children[0].query_one(Static).renderable)
+        assert "Linux Recon" in label and "[workflow]" in label
+
+        inspector = app.query_one("#preset-inspector", PresetInspector)
+        rendered = str(inspector._content.renderable)
+        assert "phases" in rendered
+        assert "linux.nmap.discovery" in rendered
+        assert "exposure" in rendered
+        assert str(inspector._title.renderable) == "WORKFLOW INSPECTOR"
+        assert inspector._run_button.disabled is True
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_type_all_shows_both_kinds_and_workflow_enter_is_safe() -> None:
+    app = AmbrosiaApp(commands=_commands(), workflows=_workflows())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.query_one("#search-bar", Input).value = "type:all"
+        await _settled(pilot)
+        assert len(app.filtered_results) == 3
+        assert {type(result.item) for result in app.filtered_results} == {Command, Workflow}
+
+        # Highlight the workflow row, then activate it: it should only update
+        # the inspector, never start a subprocess or switch views.
+        explorer = app.query_one("#preset-explorer", PresetExplorer)
+        workflow_index = next(
+            index
+            for index, child in enumerate(explorer.children)
+            if str(child.id or "").startswith("workflow_")
+        )
+        explorer.index = workflow_index
+        await pilot.pause()
+        app.action_focus_explorer()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.execution_visible is False
+        assert app.running is False
+        assert app.selected_workflow is not None
+        assert app.selected_workflow.id == "linux-recon"
+
+
+def _workflow_commands() -> list[Command]:
+    return [
+        Command(id="cmd.one", name="Echo one", description="one", shell="printf one", inputs=[]),
+        Command(id="cmd.two", name="Echo two", description="two", shell="printf two", inputs=[]),
+        Command(id="cmd.three", name="Echo three", description="three", shell="printf three", inputs=[]),
+    ]
+
+
+def _chain_workflow() -> list[Workflow]:
+    return [
+        Workflow(
+            name="Test Chain",
+            id="test-chain",
+            description="demo chain",
+            phases={
+                "phase one": ["cmd.one", "cmd.two"],
+                "phase two": ["cmd.three"],
+            },
+        )
+    ]
+
+
+async def _open_workflow(pilot: object, app: AmbrosiaApp) -> None:
+    app.query_one("#search-bar", Input).value = "type:workflow"
+    await _settled(pilot)
+    app.action_focus_explorer()
+    await pilot.pause()  # type: ignore[attr-defined]
+    await pilot.press("enter")  # type: ignore[attr-defined]
+    await asyncio.sleep(0.2)
+    await pilot.pause()  # type: ignore[attr-defined]
+    await pilot.pause()  # type: ignore[attr-defined]
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_enter_opens_phase_one() -> None:
+    app = AmbrosiaApp(commands=_workflow_commands(), workflows=_chain_workflow())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+
+        assert app.workflow_visible is True
+        assert app.active_workflow is not None and app.active_workflow.id == "test-chain"
+        assert app.workflow_phase_index == 0
+        assert app.query_one("#main-split").display is False
+        assert app.query_one("#workflow-view").display is True
+        assert app.focused is not None and app.focused.id == "workflow-commands"
+        rows = app.query_one("#workflow-commands")
+        assert len(rows.children) == 2
+        assert "Echo one" in str(rows.children[0].query_one(Static).renderable)
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_arrows_switch_phases_and_left_exits() -> None:
+    app = AmbrosiaApp(commands=_workflow_commands(), workflows=_chain_workflow())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+
+        await pilot.press("right")
+        await asyncio.sleep(0.15)
+        await pilot.pause()
+        assert app.workflow_phase_index == 1
+        rows = app.query_one("#workflow-commands")
+        assert len(rows.children) == 1
+        assert "Echo three" in str(rows.children[0].query_one(Static).renderable)
+
+        await pilot.press("right")
+        await asyncio.sleep(0.15)
+        await pilot.pause()
+        assert app.workflow_phase_index == 1  # clamped at the last phase
+
+        await pilot.press("left")
+        await asyncio.sleep(0.15)
+        await pilot.pause()
+        assert app.workflow_phase_index == 0
+        await pilot.press("left")
+        await asyncio.sleep(0.15)
+        await pilot.pause()
+        # Left on phase 1 acts like Esc and returns to the main TUI.
+        assert app.workflow_visible is False
+        assert app.active_workflow is None
+        assert app.query_one("#main-split").display is True
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_command_runs_and_back_returns_to_phase() -> None:
+    app = AmbrosiaApp(commands=_workflow_commands(), workflows=_chain_workflow())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert type(app.screen).__name__ == "_ConfirmRunModal"
+        await pilot.press("enter")
+        await asyncio.sleep(0.4)
+        await pilot.pause()
+        assert app.execution_visible is True
+        assert app.workflow_visible is True
+
+        await pilot.press("left")
+        await asyncio.sleep(0.2)
+        await pilot.pause()
+        assert app.execution_visible is False
+        assert app.workflow_visible is True
+        assert app.workflow_phase_index == 0
+        assert app.query_one("#workflow-view").display is True
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_escape_returns_to_workstation() -> None:
+    app = AmbrosiaApp(commands=_workflow_commands(), workflows=_chain_workflow())
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.workflow_visible is False
+        assert app.active_workflow is None
+        assert app.query_one("#main-split").display is True

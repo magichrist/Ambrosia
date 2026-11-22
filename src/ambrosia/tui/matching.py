@@ -1,22 +1,30 @@
-"""Search parsing, ranking, and regex validation for the preset explorer.
+"""Search parsing, ranking, and regex validation for the workstation explorer.
 
 Queries support optional field qualifiers (``name:``, ``cmd:``, ``tag:``,
-``path:``). Tokens that are not qualifiers are free text and match across all
-four fields. Qualifiers and free text are ANDed together.
+``path:``) plus ``type:`` which selects the result kind (``preset`` or
+``workflow``). Tokens that are not qualifiers are free text and match across
+all searchable fields. Qualifiers and free text are ANDed together.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from ambrosia.model import Command
+from ambrosia.model import Command
+from ambrosia.workflow import Workflow
 
 SearchMode = Literal["substring", "fuzzy", "regex"]
 
-_QUALIFIERS = ("name:", "cmd:", "tag:", "path:")
+_QUALIFIERS = ("name:", "cmd:", "tag:", "path:", "type:", "t:")
+
+# Result kinds accepted by the ``type:`` / ``t:`` qualifier. An empty value
+# means "all". Short values let operators type ``t:w`` instead of
+# ``type:workflow``.
+_RESULT_TYPES = ("preset", "workflow", "all")
+_TYPE_ALIASES = {"w": "workflow", "p": "preset", "a": "all"}
+_RESULT_TYPE_BY_SHORT = {"t": "type"}
 
 
 @dataclass
@@ -35,12 +43,22 @@ class SearchQuery:
 
 @dataclass(frozen=True)
 class SearchResult:
-    """A command plus its ranking metadata."""
+    """A result item (preset command or workflow) plus its ranking metadata."""
 
-    command: Command
+    item: Command | Workflow
     rank: int
     matched_fields: tuple[str, ...]
     tiebreaker: int = 0
+
+    @property
+    def command(self) -> Command | None:
+        """The matched command, or ``None`` for a workflow result."""
+        return self.item if isinstance(self.item, Command) else None
+
+    @property
+    def workflow(self) -> Workflow | None:
+        """The matched workflow, or ``None`` for a preset result."""
+        return self.item if isinstance(self.item, Workflow) else None
 
 
 def parse_search_query(raw: str, mode: SearchMode = "substring") -> SearchQuery:
@@ -50,7 +68,12 @@ def parse_search_query(raw: str, mode: SearchMode = "substring") -> SearchQuery:
     for token in raw.split():
         for prefix in _QUALIFIERS:
             if token.startswith(prefix):
-                qualifiers[prefix[:-1]] = token[len(prefix) :]
+                key = _RESULT_TYPE_BY_SHORT.get(prefix[:-1], prefix[:-1])
+                value = token[len(prefix) :]
+                if key == "type":
+                    value = value.strip().lower()
+                    value = _TYPE_ALIASES.get(value, value)
+                qualifiers[key] = value
                 break
         else:
             free_parts.append(token)
@@ -69,7 +92,10 @@ def regex_error(query: SearchQuery) -> str | None:
     compiled so invalid syntax is surfaced instead of silently matching
     nothing.
     """
-    patterns = [query.free_text, *query.qualifiers.values()]
+    patterns = [
+        query.free_text,
+        *(value for key, value in query.qualifiers.items() if key != "type"),
+    ]
     for pattern in patterns:
         if not pattern:
             continue
@@ -145,10 +171,29 @@ def _matches(pattern: str, text: str, mode: SearchMode) -> int | None:
     return position - 25 if at_word_start else position
 
 
+def _wanted_type(query: SearchQuery) -> str:
+    """Return the normalized ``type:`` filter, or ``""`` when unrestricted."""
+    return query.qualifiers.get("type", "").strip().lower()
+
+
+def _type_allowed(query: SearchQuery, kind: str) -> bool:
+    wanted = _wanted_type(query)
+    return wanted in ("", "all", kind)
+
+
+def _has_search_content(query: SearchQuery) -> bool:
+    """True when the query asks for anything besides a result-type filter."""
+    return bool(query.free_text.strip()) or any(
+        key != "type" and value.strip() for key, value in query.qualifiers.items()
+    )
+
+
 def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
     """Return ranking metadata when ``command`` matches ``query``."""
-    if query.is_empty():
-        return SearchResult(command=command, rank=0, matched_fields=())
+    if not _type_allowed(query, "preset"):
+        return None
+    if not _has_search_content(query):
+        return SearchResult(item=command, rank=0, matched_fields=())
 
     fields: tuple[str, ...] = ("name", "cmd", "tag", "path")
     matched: list[str] = []
@@ -185,22 +230,95 @@ def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
         return None
     rank = sum(ranks)
     return SearchResult(
-        command=command,
+        item=command,
         rank=rank,
         matched_fields=tuple(matched),
         tiebreaker=len(command.name),
     )
 
 
-def search_commands(commands: list[Command], query: SearchQuery) -> list[SearchResult]:
-    """Return ranked matches for ``commands`` against ``query``."""
-    results: list[SearchResult] = []
-    for command in commands:
-        result = match_command(command, query)
-        if result is not None:
-            results.append(result)
-    results.sort(key=lambda result: (result.rank, result.tiebreaker, result.command.name.lower()))
+def match_workflow(workflow: Workflow, query: SearchQuery) -> SearchResult | None:
+    """Return ranking metadata when ``workflow`` matches ``query``."""
+    if not _type_allowed(query, "workflow"):
+        return None
+    if not _has_search_content(query):
+        return SearchResult(item=workflow, rank=0, matched_fields=())
+
+    command_ids = workflow.command_ids()
+    field_values = {
+        "name": workflow.name,
+        "cmd": " ".join(command_ids),
+        "tag": "",
+        "path": workflow.id,
+    }
+    matched: list[str] = []
+    ranks: list[int] = []
+    for field_name, value in field_values.items():
+        qualifier = query.qualifiers.get(field_name)
+        if qualifier is None:
+            continue
+        score = _matches(qualifier, value, query.mode)
+        if score is None:
+            return None
+        matched.append(field_name)
+        ranks.append(score + 10)
+
+    if query.free_text:
+        texts = [
+            workflow.name,
+            workflow.description,
+            workflow.id,
+            " ".join(workflow.phase_names()),
+            " ".join(command_ids),
+        ]
+        scores = [
+            score for text in texts if (score := _matches(query.free_text, text, query.mode)) is not None
+        ]
+        if not scores:
+            return None
+        matched.append("all")
+        ranks.append(min(scores))
+
+    if not matched:
+        return None
+    return SearchResult(
+        item=workflow,
+        rank=sum(ranks),
+        matched_fields=tuple(matched),
+        tiebreaker=len(workflow.name),
+    )
+
+
+def _sort_results(results: list[SearchResult]) -> list[SearchResult]:
+    results.sort(key=lambda result: (result.rank, result.tiebreaker, result.item.name.lower()))
     return results
+
+
+def search_commands(commands: list[Command], query: SearchQuery) -> list[SearchResult]:
+    """Return ranked preset matches for ``commands`` against ``query``."""
+    results = [
+        result
+        for command in commands
+        if (result := match_command(command, query)) is not None
+    ]
+    return _sort_results(results)
+
+
+def search_workflows(workflows: list[Workflow], query: SearchQuery) -> list[SearchResult]:
+    """Return ranked workflow matches for ``workflows`` against ``query``."""
+    results = [
+        result
+        for workflow in workflows
+        if (result := match_workflow(workflow, query)) is not None
+    ]
+    return _sort_results(results)
+
+
+def search_items(
+    commands: list[Command], workflows: list[Workflow], query: SearchQuery
+) -> list[SearchResult]:
+    """Return ranked preset and workflow matches in one list."""
+    return _sort_results([*search_commands(commands, query), *search_workflows(workflows, query)])
 
 
 __all__ = [
@@ -208,7 +326,10 @@ __all__ = [
     "SearchQuery",
     "SearchResult",
     "match_command",
+    "match_workflow",
     "parse_search_query",
     "regex_error",
     "search_commands",
+    "search_items",
+    "search_workflows",
 ]

@@ -15,7 +15,7 @@ _INVALID = re.compile(r"[^A-Za-z0-9_-]")
 def safe_widget_id(value: str) -> str:
     """Return ``value`` with only characters allowed in a Textual id."""
     cleaned = _INVALID.sub("_", value).strip("_")
-    if not cleaned or cleaned[0].isdigit():
+    if not cleaned or cleaned[0].isdigit() or cleaned[0] == "-":
         cleaned = "id_" + cleaned
     return cleaned
 

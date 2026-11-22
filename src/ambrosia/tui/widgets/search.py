@@ -15,9 +15,9 @@ if TYPE_CHECKING:
     from ambrosia.tui.widgets.results import PresetExplorer
 
 _MODE_PLACEHOLDERS: dict[SearchMode, str] = {
-    "substring": "[SUBSTRING] search name, command, tags, path ...",
-    "fuzzy": "[FUZZY] search name, command, tags, path ...",
-    "regex": "[REGEX] search name, command, tags, path ...",
+    "substring": "[SUBSTRING] name: cmd: tag: path: t:w=workflows",
+    "fuzzy": "[FUZZY] name: cmd: tag: path: t:w=workflows",
+    "regex": "[REGEX] name: cmd: tag: path: t:w=workflows",
 }
 
 

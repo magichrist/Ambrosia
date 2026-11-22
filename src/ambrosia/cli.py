@@ -1,9 +1,8 @@
 """Minimal CLI for the Ambrosia v2 command launcher TUI.
 
-The app has a single behaviour: launch the Textual TUI. Invoking it with no
-arguments starts the TUI (commands and session are loaded from their default
-files); ``--commands-file`` and ``--session-file`` override those defaults.
-There are no subcommand groups.
+Invoking ``ambrosia`` with no subcommand launches the TUI with defaults. The
+``tui`` subcommand is still accepted for explicitness and exposes the loading
+options; ``workflow`` prints phase-ordered workflow definitions.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+from typer import Context
 
 if TYPE_CHECKING:
     from ambrosia.model import Command
@@ -33,7 +33,15 @@ app = typer.Typer(
     name="ambrosia-v2",
     help="Ambrosia v2 — fast TUI-first command launcher.",
     rich_markup_mode="rich",
+    invoke_without_command=True,
 )
+
+
+@app.callback(invoke_without_command=True)
+def _default_to_tui(ctx: Context) -> None:
+    """Launch the TUI when no subcommand is given."""
+    if ctx.invoked_subcommand is None:
+        _launch_tui()
 
 
 @app.command(name="tui")
@@ -51,6 +59,16 @@ def tui(
         "--preset-dir",
         help="Directory of .preset files to load commands from (e.g. inventory/presets).",
     ),
+    workflow_dir: str | None = typer.Option(
+        None,
+        "--workflow-dir",
+        help="Directory of .workflow files to load into the TUI (default: inventory/workflow).",
+    ),
+    workflow_file: str | None = typer.Option(
+        None,
+        "--workflow-file",
+        help="Load a single .workflow file into the TUI.",
+    ),
     import_file: str | None = typer.Option(
         None,
         "--import-file",
@@ -62,11 +80,28 @@ def tui(
         help="Export the default command catalog to this JSON path, then exit.",
     ),
 ) -> None:
-    """Launch the Ambrosia v2 TUI.
+    """Launch the TUI (also the default when no subcommand is given)."""
+    _launch_tui(
+        commands_file=commands_file,
+        preset_file=preset_file,
+        preset_dir=preset_dir,
+        workflow_dir=workflow_dir,
+        workflow_file=workflow_file,
+        import_file=import_file,
+        export_file=export_file,
+    )
 
-    Session state is loaded from ~/.ambrosia/session.json by default; use the
-    ``s`` binding inside the TUI to persist it.
-    """
+
+def _launch_tui(
+    commands_file: str | None = None,
+    preset_file: str | None = None,
+    preset_dir: str | None = None,
+    workflow_dir: str | None = None,
+    workflow_file: str | None = None,
+    import_file: str | None = None,
+    export_file: str | None = None,
+) -> None:
+    """Resolve the requested inputs and start the Textual app."""
     commands: list[Command] | None = None
     if export_file is not None:
         commands = load_commands()
@@ -92,7 +127,17 @@ def tui(
             commands = load_presets_from_dir(default_preset_dir)
         else:
             commands = load_commands()
-    AmbrosiaApp(commands=commands).run()
+    workflows: list[Workflow] | None = None
+    if workflow_file is not None:
+        loaded = load_workflow_file(Path(workflow_file))
+        if loaded is None:
+            print(f"workflow not found or invalid: {workflow_file}")
+            raise typer.Exit(1)
+        workflows = [loaded]
+    elif workflow_dir is not None:
+        workflows = load_workflows_from_dir(Path(workflow_dir))
+
+    AmbrosiaApp(commands=commands, workflows=workflows).run()
 
 
 @app.command(name="workflow")
@@ -142,10 +187,10 @@ def _print_workflow(wf: Workflow) -> None:
 
 
 def main() -> None:
-    """Entry point for the ``ambrosia-v2`` console script.
+    """Entry point for the ``ambrosia`` console script.
 
-    Invoking the typer app with no arguments launches the TUI directly; flags
-    such as ``--commands-file`` and ``--session-file`` are parsed by typer.
+    With no subcommand this launches the TUI; use ``ambrosia workflow`` to print
+    workflow definitions or ``ambrosia --help`` for the command list.
     """
     app()
 

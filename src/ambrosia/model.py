@@ -9,8 +9,11 @@ module only knows the record shape and JSON round-tripping.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Self
+
+_PLACEHOLDER = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}")
 
 
 @dataclass(frozen=True)
@@ -132,4 +135,22 @@ class Command:
         )
 
 
-__all__ = ["Command", "CommandInput"]
+def inputs_from_shell(shell: str) -> list[CommandInput]:
+    """Build one :class:`CommandInput` per ``{{input_id}}`` placeholder.
+
+    Inputs are returned in first-appearance order with safe defaults: the
+    prompt is the input id, the type is ``string``, and the input is required
+    and not secret. Callers can override these fields before saving.
+    """
+    inputs: list[CommandInput] = []
+    seen: set[str] = set()
+    for match in _PLACEHOLDER.finditer(shell):
+        input_id = match.group(1)
+        if input_id in seen:
+            continue
+        seen.add(input_id)
+        inputs.append(CommandInput(id=input_id, prompt=input_id))
+    return inputs
+
+
+__all__ = ["Command", "CommandInput", "inputs_from_shell"]

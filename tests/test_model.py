@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from ambrosia.model import Command, CommandInput
+from ambrosia.model import Command, CommandInput, inputs_from_shell
 
 
 def test_command_input_defaults() -> None:
@@ -79,3 +79,16 @@ def test_command_serialization_round_trip() -> None:
     )
     restored = Command.from_dict(cmd.to_dict())
     assert restored == cmd
+
+
+def test_inputs_from_shell_returns_unique_placeholders_in_order() -> None:
+    inputs = inputs_from_shell("cme smb {{target}} -u {{user}} -p {{target}}")
+    assert [inp.id for inp in inputs] == ["target", "user"]
+    assert inputs[0].prompt == "target"
+    assert inputs[0].type == "string"
+    assert inputs[0].required is True
+    assert inputs[0].secret is False
+
+
+def test_inputs_from_shell_ignores_incomplete_tokens() -> None:
+    assert inputs_from_shell("echo {{ }} {{not-valid}} {single}") == []

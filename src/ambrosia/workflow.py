@@ -25,6 +25,8 @@ class Workflow:
     """
 
     name: str
+    id: str = ""
+    description: str = ""
     phases: dict[str, list[str]] = field(default_factory=dict)
 
     def phase_names(self) -> list[str]:
@@ -40,10 +42,16 @@ class Workflow:
             return ids
         return list(self.phases.get(phase, []))
 
+    def command_count(self) -> int:
+        """Return the total number of command references across all phases."""
+        return sum(len(ids) for ids in self.phases.values())
+
     def to_dict(self) -> dict[str, object]:
         """Serialize to a YAML-friendly dict."""
         return {
             "name": self.name,
+            "id": self.id,
+            "description": self.description,
             "phases": {phase: list(ids) for phase, ids in self.phases.items()},
         }
 
@@ -51,13 +59,14 @@ class Workflow:
     def from_dict(cls, data: dict[str, object]) -> Self:
         """Deserialize from a YAML dict, tolerating missing keys."""
         name = str(data.get("name", ""))
+        description = str(data.get("description", ""))
         phases_raw = data.get("phases", {})
         phases: dict[str, list[str]] = {}
         if isinstance(phases_raw, dict):
             for phase, command_ids in phases_raw.items():
                 if isinstance(command_ids, list):
                     phases[str(phase)] = [str(cid) for cid in command_ids]
-        return cls(name=name, phases=phases)
+        return cls(name=name, id=str(data.get("id", "")), description=description, phases=phases)
 
 
 class WorkflowStore:
@@ -84,6 +93,9 @@ class WorkflowStore:
             return None
         if not isinstance(data, dict):
             return None
+        # Like presets, a workflow's id comes from its filename so operators do
+        # not have to repeat it inside the YAML file.
+        data["id"] = path.stem
         return Workflow.from_dict(data)
 
     def load_dir(self, directory: Path | None = None) -> list[Workflow]:
