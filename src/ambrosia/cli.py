@@ -84,6 +84,14 @@ def tui(
         commands = load_preset_file(Path(preset_file))
     elif commands_file is not None:
         commands = load_commands(Path(commands_file))
+    else:
+        # Default: auto-load presets from inventory/presets/ if present,
+        # otherwise fall back to the default commands catalog.
+        default_preset_dir = Path("inventory/presets")
+        if default_preset_dir.exists() and default_preset_dir.is_dir():
+            commands = load_presets_from_dir(default_preset_dir)
+        else:
+            commands = load_commands()
     AmbrosiaApp(commands=commands).run()
 
 

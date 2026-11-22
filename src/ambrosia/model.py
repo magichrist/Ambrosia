@@ -130,3 +130,6 @@ class Command:
             favorite=bool(data.get("favorite", False)),
             pinned=bool(data.get("pinned", False)),
         )
+
+
+__all__ = ["Command", "CommandInput"]

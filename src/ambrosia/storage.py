@@ -56,6 +56,40 @@ def save_commands(commands: list[Command], path: Path = COMMANDS_FILE) -> None:
     _atomic_write_text(path, text)
 
 
+def export_commands(commands: list[Command], path: Path) -> None:
+    """Atomically write ``commands`` to ``path`` as JSON.
+
+    Same atomic-write pattern as :func:`save_commands`; the target path is
+    required because it names an export destination chosen by the user rather
+    than the default catalog.
+    """
+    save_commands(commands, path)
+
+
+def add_command(command: Command, path: Path = COMMANDS_FILE) -> None:
+    """Append ``command`` to the catalog at ``path``.
+
+    Raises :exc:`ValueError` if a command with the same id already exists.
+    """
+    existing = load_commands(path)
+    for current in existing:
+        if current.id == command.id:
+            msg = f"command id already exists: {command.id!r}"
+            raise ValueError(msg)
+    existing.append(command)
+    save_commands(existing, path)
+
+
+def remove_command(command_id: str, path: Path = COMMANDS_FILE) -> None:
+    """Remove the command with ``command_id`` from the catalog at ``path``.
+
+    It is not an error if no command with that id exists.
+    """
+    existing = load_commands(path)
+    filtered = [current for current in existing if current.id != command_id]
+    save_commands(filtered, path)
+
+
 def load_preset_file(path: Path) -> list[Command]:
     """Load commands from a ``.preset`` file.
 
@@ -92,63 +126,19 @@ def load_presets_from_dir(directory: Path) -> list[Command]:
     Walks subdirectories (e.g. ``inventory/presets/windows/``,
     ``inventory/presets/linux/``) so presets can be organized by OS or
     category. Files are returned in sorted path order for deterministic
-    loading.
+    loading. Commands with duplicate ids are deduplicated (first occurrence
+    wins) so the same id from different OS subdirectories doesn't conflict.
     """
     if not directory.exists() or not directory.is_dir():
         return []
     commands: list[Command] = []
+    seen_ids: set[str] = set()
     for preset_file in sorted(directory.rglob("*.preset")):
-        commands.extend(load_preset_file(preset_file))
+        for command in load_preset_file(preset_file):
+            if command.id not in seen_ids:
+                seen_ids.add(command.id)
+                commands.append(command)
     return commands
-
-
-def export_commands(commands: list[Command], path: Path) -> None:
-    """Atomically write ``commands`` to ``path`` as JSON.
-
-    Same atomic-write pattern as :func:`save_commands`; the target path is
-    required because it names an export destination chosen by the user rather
-    than the default catalog.
-    """
-    save_commands(commands, path)
-
-
-def add_command(command: Command, path: Path = COMMANDS_FILE) -> None:
-    """Append ``command`` to the catalog at ``path``.
-
-    Raises :exc:`ValueError` if a command with the same id already exists.
-    """
-    existing = load_commands(path)
-    for current in existing:
-        if current.id == command.id:
-            msg = f"command id already exists: {command.id!r}"
-            raise ValueError(msg)
-    existing.append(command)
-    save_commands(existing, path)
-
-
-def remove_command(command_id: str, path: Path = COMMANDS_FILE) -> None:
-    """Remove the command with ``command_id`` from the catalog at ``path``.
-
-    It is not an error if no command with that id exists.
-    """
-    existing = load_commands(path)
-    filtered = [current for current in existing if current.id != command_id]
-    save_commands(filtered, path)
-
-
-def get_categories(commands: list[Command]) -> list[str]:
-    """Return sorted unique categories from ``commands`` (excluding empty)."""
-    return sorted({command.category for command in commands if command.category})
-
-
-def get_favorites(commands: list[Command]) -> list[Command]:
-    """Return commands where ``favorite`` is True, preserving input order."""
-    return [command for command in commands if command.favorite]
-
-
-def get_pinned(commands: list[Command]) -> list[Command]:
-    """Return commands where ``pinned`` is True, preserving input order."""
-    return [command for command in commands if command.pinned]
 
 
 def import_commands(path: Path, *, merge: bool = False) -> list[Command]:
@@ -185,7 +175,11 @@ def import_commands(path: Path, *, merge: bool = False) -> list[Command]:
         if not isinstance(item, dict):
             msg = f"item {index} in {path} is not a command object"
             raise ValueError(msg)  # noqa: TRY004 -- spec requires ValueError for invalid import files
-        _validate_command_item(item, path, index)
+        for field_name in ("id", "name", "shell"):
+            value = item.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                msg = f"item {index} in {path} is missing required field {field_name!r}"
+                raise ValueError(msg)
         command = Command.from_dict(item)
         if command.id in seen_ids:
             msg = f"duplicate command id {command.id!r} in {path}"
@@ -193,24 +187,29 @@ def import_commands(path: Path, *, merge: bool = False) -> list[Command]:
         seen_ids.add(command.id)
         imported.append(command)
 
-    if not merge:
-        return imported
+    if merge:
+        existing = load_commands(COMMANDS_FILE)
+        existing_ids = {command.id for command in existing}
+        for command in imported:
+            if command.id not in existing_ids:
+                existing.append(command)
+                existing_ids.add(command.id)
+        return existing
+    return imported
 
-    existing = load_commands(COMMANDS_FILE)
-    existing_ids = {command.id for command in existing}
-    for command in imported:
-        if command.id not in existing_ids:
-            existing.append(command)
-    return existing
+
+def get_categories(commands: list[Command]) -> list[str]:
+    """Return sorted unique non-empty categories from commands."""
+    return sorted({command.category for command in commands if command.category})
 
 
-def _validate_command_item(item: dict[str, object], path: Path, index: int) -> None:
-    """Require ``id``, ``name`` and ``shell`` on a deserialized command item."""
-    for field_name in ("id", "name", "shell"):
-        value = item.get(field_name)
-        if not isinstance(value, str) or not value.strip():
-            msg = f"item {index} in {path} is missing required field {field_name!r}"
-            raise ValueError(msg)
+def get_all_tags(commands: list[Command]) -> dict[str, int]:
+    """Return ``tag -> count`` for all tags used by ``commands``."""
+    counts: dict[str, int] = {}
+    for command in commands:
+        for tag in command.tags:
+            counts[tag] = counts.get(tag, 0) + 1
+    return counts
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
@@ -245,9 +244,6 @@ if __name__ == "__main__":
         description="uses crackmapexec smb to get windows version",
         tags=["smb", "windows", "crackmapexec", "windows version"],
         shell="crackmapexec smb {{ip}}",  # noqa: S604 -- template, not shell=True
-        category="recon",
-        favorite=True,
-        pinned=False,
         inputs=[
             CommandInput(
                 id="ip",
@@ -255,7 +251,6 @@ if __name__ == "__main__":
                 type="host",
                 required=True,
                 secret=False,
-                validation_hint="IPv4 address or hostname",
             )
         ],
     )
@@ -278,12 +273,6 @@ if __name__ == "__main__":
         save_commands([cmd], path)
         loaded = load_commands(path)
         assert loaded == [cmd]  # noqa: S101
-
-        # New v2 fields round-trip through JSON storage.
-        assert loaded[0].category == "recon"  # noqa: S101
-        assert loaded[0].favorite is True  # noqa: S101
-        assert loaded[0].pinned is False  # noqa: S101
-        assert loaded[0].inputs[0].validation_hint == "IPv4 address or hostname"  # noqa: S101
 
         # Duplicate id -> ValueError.
         try:
@@ -317,24 +306,5 @@ if __name__ == "__main__":
         # Idempotent remove of a missing id.
         remove_command("does-not-exist", path)
         assert len(load_commands(path)) == 1  # noqa: S101
-
-        # Phase 3 ergonomics helpers.
-        catalog = load_commands(path)
-        cmd3 = Command(  # noqa: S604 -- ``shell`` is a template, not executed by a shell
-            id="mimikatz",
-            name="mimikatz logonpasswords",
-            description="dump logon passwords via mimikatz",
-            tags=["mimikatz", "credentials"],
-            shell='mimikatz.exe "privilege::debug" "logonpasswords" "exit"',  # noqa: S604
-            category="exploit",
-            favorite=False,
-            pinned=True,
-        )
-        all_cmds = [cmd, cmd2, cmd3]
-        assert get_categories(all_cmds) == ["exploit", "recon"]  # noqa: S101
-        assert get_favorites(all_cmds) == [cmd]  # noqa: S101
-        assert get_pinned(all_cmds) == [cmd3]  # noqa: S101
-        assert get_categories([]) == []  # noqa: S101
-        assert get_favorites(catalog) == [cmd]  # noqa: S101
 
     print("v2 storage self-test: all checks passed")

@@ -11,6 +11,17 @@ from textual.widgets import Button, Log, Rule, Static
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.events import Key
+
+
+class _ExecutionLog(Log):
+    """Log that returns to the workstation on left arrow instead of scrolling."""
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "left":
+            self.app.action_go_back()  # type: ignore[attr-defined]
+            event.prevent_default()
+            event.stop()
 
 
 class ExecutionView(Widget):
@@ -31,7 +42,7 @@ class ExecutionView(Widget):
         super().__init__(id=id)
         self._header = Static(id="execution-header")
         self._command_line = Static(id="execution-command")
-        self._log = Log(id="execution-log", highlight=False, auto_scroll=True)
+        self._log = _ExecutionLog(id="execution-log", highlight=False, auto_scroll=True)
         self._status = Static(id="execution-status")
         self._run_again = Button("Run again", id="run-again", variant="primary")
 

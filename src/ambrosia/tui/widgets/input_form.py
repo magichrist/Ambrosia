@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label
+from textual.widgets import Button, Input, Label, Static
+
+from ambrosia.tui.ids import safe_widget_id
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -22,23 +24,51 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
     """
 
     CSS = """
+    Screen {
+        align: center middle;
+    }
+    #input-form-dialog {
+        width: 64;
+        height: auto;
+        max-height: 85%;
+        background: #0d0714;
+        border: round #ff5fa2;
+        padding: 1 2;
+    }
     #input-form-title {
         text-style: bold;
-        color: $primary;
+        color: #ffb454;
         text-align: center;
-        margin: 1 1 0 1;
+        height: 1;
+        margin-bottom: 1;
     }
     .field-group {
-        margin: 1 1 0 1;
-        padding: 0 1;
+        height: auto;
+        margin-bottom: 1;
+    }
+    .field-group Label {
+        height: 1;
+    }
+    .field-group Input {
+        height: 3;
     }
     .hint {
-        color: #888888;
+        color: #ff8fc8;
         text-style: italic;
-        margin: 0 1 0 1;
+        height: 1;
     }
-    #submit {
-        margin: 1 1 0 1;
+    #input-form-actions {
+        height: auto;
+        width: 100%;
+        content-align: right middle;
+        margin-top: 1;
+    }
+    #input-form-actions Button {
+        width: auto;
+        margin-left: 1;
+    }
+    #input-form-actions .spacer {
+        width: 1fr;
     }
     """
 
@@ -52,6 +82,7 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
         hints: dict[str, str] | None = None,
     ) -> None:
         super().__init__()
+        self.styles.align = ("center", "middle")
         self._title = title
         self._fields = list(fields)
         self._initial = dict(initial or {})
@@ -60,7 +91,7 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
         self._widgets: dict[str, Input] = {}
 
     def compose(self) -> ComposeResult:
-        with Vertical():
+        with VerticalScroll(id="input-form-dialog"):
             yield Label(self._title, id="input-form-title")
             for field_id, label, required, secret in self._fields:
                 # Group each field so there is clear visual separation between
@@ -71,10 +102,11 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
                         marker = " [b][red]*[/red][/b]"
                     else:
                         marker = " [dim](optional)[/dim]"
-                    yield Label(f"{label}{marker}", id=f"label-{field_id}")
+                    widget_id = safe_widget_id(f"input-{field_id}")
+                    yield Label(f"{label}{marker}", id=safe_widget_id(f"label-{field_id}"))
                     widget = Input(
                         value=self._initial.get(field_id, ""),
-                        id=f"input-{field_id}",
+                        id=widget_id,
                         password=secret,
                     )
                     self._widgets[field_id] = widget
@@ -82,9 +114,18 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
                     hint = self._hints.get(field_id)
                     if hint:
                         yield Label(hint, id=f"hint-{field_id}", classes="hint")
-            with Horizontal():
+            with Horizontal(id="input-form-actions"):
+                yield Static(classes="spacer")
                 yield Button(self._submit_label, id="submit", variant="primary")
                 yield Button("Cancel", id="cancel")
+
+    def on_mount(self) -> None:
+        # Focus the first field so typing works immediately; fall back to the
+        # submit button for a form with no inputs.
+        if self._widgets:
+            next(iter(self._widgets.values())).focus()
+        else:
+            self.query_one("#submit", Button).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
