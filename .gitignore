@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.Python
 
 # Native extension modules
 *.so
@@ -17,8 +18,12 @@ sdist/
 var/
 wheels/
 *.egg
+*.egg-info/
 .installed.cfg
 manifest
+pip-log.txt
+pip-delete-this-directory.txt
+pip-wheel-metadata/
 
 # Virtual environments
 .venv/
@@ -38,14 +43,36 @@ ENV/
 htmlcov/
 coverage.xml
 
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and local databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
 # Editors and OS files
 .idea/
 .vscode/
+*.code-workspace
 *.swp
 *.swo
 *~
+.history/
 .DS_Store
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Ambrosia local runtime state
 .ambrosia/
