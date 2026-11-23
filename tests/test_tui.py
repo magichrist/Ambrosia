@@ -56,7 +56,7 @@ async def _settled(pilot: object) -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_three_panels_and_hidden_execution_view() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         assert app.query_one("#library").display is True
@@ -71,7 +71,7 @@ async def test_three_panels_and_hidden_execution_view() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_sidebar_has_no_namespace_tree_and_populates_tags() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         assert not app.query("#namespace-browser")
@@ -82,7 +82,7 @@ async def test_sidebar_has_no_namespace_tree_and_populates_tags() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_first_result_selected_and_inspector_populated() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         explorer = app.query_one("#preset-explorer", PresetExplorer)
@@ -91,13 +91,13 @@ async def test_first_result_selected_and_inspector_populated() -> None:
         assert app.selected_command.id == "c1"
         inspector = app.query_one("#preset-inspector", PresetInspector)
         assert "nmap scan" in str(inspector._content.renderable)
-        assert inspector._run_button.disabled is False
+        assert not inspector.query("Button")
 
 
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_result_rows_are_name_description_with_tooltip() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         explorer = app.query_one("#preset-explorer", PresetExplorer)
@@ -112,7 +112,7 @@ async def test_result_rows_are_name_description_with_tooltip() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_typing_r_is_preserved_and_ctrl_r_cycles_mode() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         search = app.query_one("#search-bar", Input)
@@ -134,7 +134,7 @@ async def test_typing_r_is_preserved_and_ctrl_r_cycles_mode() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_invalid_regex_is_surfaced() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.search_mode = "regex"
@@ -150,7 +150,7 @@ async def test_invalid_regex_is_surfaced() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_enter_on_explorer_opens_confirm_modal() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.action_focus_explorer()
@@ -166,7 +166,7 @@ async def test_enter_on_explorer_opens_confirm_modal() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_library_and_tag_filters() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.query_one("#lib-favorites", Button).press()
@@ -184,7 +184,7 @@ async def test_library_and_tag_filters() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_arrow_keys_navigate_results_while_search_keeps_focus() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         search = app.query_one("#search-bar", Input)
@@ -206,7 +206,7 @@ async def test_arrow_keys_navigate_results_while_search_keeps_focus() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_search_matches_full_words_and_word_fragments() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         search = app.query_one("#search-bar", Input)
@@ -233,7 +233,7 @@ async def test_input_form_is_centered_popup_with_aligned_buttons() -> None:
             tags=["nmap"],
         )
     ]
-    app = AmbrosiaApp(commands=commands)
+    app = AmbrosiaApp(commands=commands, workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.action_focus_explorer()
@@ -254,7 +254,7 @@ async def test_input_form_is_centered_popup_with_aligned_buttons() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_left_arrow_returns_from_execution_view() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.execution_visible = True
@@ -269,7 +269,7 @@ async def test_left_arrow_returns_from_execution_view() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_ctrl_q_quits() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         await pilot.press("ctrl+q")
@@ -291,7 +291,7 @@ async def test_dotted_ids_and_tags_do_not_break_widget_ids() -> None:
             tags=["web scanning", "http"],
         )
     ]
-    app = AmbrosiaApp(commands=commands)
+    app = AmbrosiaApp(commands=commands, workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         explorer = app.query_one("#preset-explorer", PresetExplorer)
@@ -311,7 +311,7 @@ async def test_quick_run_shows_minimal_result_in_inspector() -> None:
     commands = [
         Command(id="c1", name="echo", description="print", shell="printf hello", inputs=[])
     ]
-    app = AmbrosiaApp(commands=commands)
+    app = AmbrosiaApp(commands=commands, workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.action_focus_explorer()
@@ -330,7 +330,7 @@ async def test_quick_run_shows_minimal_result_in_inspector() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_footer_key_map_is_a_single_line() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         footer = app.query_one("#footer")
@@ -344,16 +344,16 @@ async def test_footer_key_map_is_a_single_line() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_tab_cycles_focus_between_regions() -> None:
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+        await pilot.press("tab")
+        await pilot.pause()
         assert app.focused is not None and app.focused.id == "search-bar"
         await pilot.press("tab")
         await pilot.pause()
         assert app.focused is not None and app.focused.id == "preset-explorer"
-        await pilot.press("tab")
-        await pilot.pause()
-        assert app.focused is not None and app.focused.id == "configure-run"
 
 
 def test_input_spec_round_trip() -> None:
@@ -374,7 +374,7 @@ def test_input_spec_round_trip() -> None:
 async def test_add_preset_derives_inputs_from_shell_placeholders(monkeypatch) -> None:
     added: list[Command] = []
     monkeypatch.setattr("ambrosia.tui.app.add_command", added.append)
-    app = AmbrosiaApp(commands=_commands())
+    app = AmbrosiaApp(commands=_commands(), workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.action_add_preset()
@@ -410,7 +410,7 @@ async def test_edit_preset_picks_up_new_placeholders_and_keeps_existing(monkeypa
         shell="nmap {{target}}",
         inputs=[CommandInput(id="target", prompt="Target IP", type="host")],
     )
-    app = AmbrosiaApp(commands=[original])
+    app = AmbrosiaApp(commands=[original], workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.action_edit_preset()
@@ -474,7 +474,7 @@ async def test_type_workflow_surfaces_workflows_in_explorer_and_inspector() -> N
         assert "linux.nmap.discovery" in rendered
         assert "exposure" in rendered
         assert str(inspector._title.renderable) == "WORKFLOW INSPECTOR"
-        assert inspector._run_button.disabled is True
+        assert not inspector.query("Button")
 
 
 @pytest.mark.tui

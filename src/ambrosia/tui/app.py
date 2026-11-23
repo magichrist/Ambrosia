@@ -79,6 +79,7 @@ from ambrosia.tui.widgets.preview import PresetInspector
 from ambrosia.tui.widgets.results import PresetExplorer
 from ambrosia.tui.widgets.search import SearchBar, parse_search_query
 from ambrosia.tui.widgets.tags import TagBrowser
+from ambrosia.tui.widgets.workflow_results import WorkflowResults
 from ambrosia.tui.widgets.workflow_view import WorkflowView
 from ambrosia.workflow import Workflow, load_workflows_from_dir
 
@@ -91,7 +92,6 @@ SESSION_FILE = Path.home() / ".ambrosia" / "session.json"
 
 LIBRARY_ALL = "all"
 LIBRARY_FAVORITES = "favorites"
-LIBRARY_PINNED = "pinned"
 LIBRARY_RECENT = "recent"
 
 _INPUT_FLAG_TYPES = ("host", "path", "integer", "string")
@@ -219,8 +219,8 @@ class AmbrosiaApp(App[None]):
     # Debounce delay for live search filtering (seconds).
     SEARCH_DEBOUNCE_SECONDS: float = 0.075
 
-    # Focus the search bar on mount, not the first ListView (Textual's default).
-    AUTO_FOCUS = "#search-bar"
+    # Start on the result list; the operator opts into searching with "/".
+    AUTO_FOCUS = "#preset-explorer"
 
     CSS = f"""
     Screen {{
@@ -254,12 +254,19 @@ class AmbrosiaApp(App[None]):
         padding: 0 1;
         layout: vertical;
     }}
+    #library-actions {{
+        dock: bottom;
+        height: auto;
+    }}
     #library Button.library-button {{
         width: 100%;
-        margin: 0 0 1 0;
+        height: 2;
+        min-height: 2;
+        margin: 0;
+        padding: 0 1;
         background: {DARK_PANEL_BG};
         color: {GUMMY_LIGHT_PINK};
-        border: solid {GUMMY_PINK};
+        border: none;
     }}
     #library Button.library-button:hover {{
         background: {FEMME_PINK};
@@ -269,7 +276,6 @@ class AmbrosiaApp(App[None]):
     #library Button.library-button.--active {{
         background: {SELECTED_BG};
         color: {YELLOW};
-        border: solid {AMBER};
     }}
     #library Button.library-button.--active:hover {{
         background: {AMBER};
@@ -365,6 +371,28 @@ class AmbrosiaApp(App[None]):
         border-top: solid {GUMMY_PINK};
         layout: vertical;
     }}
+    /* One shared, right-docked results log. Hidden in the normal TUI. */
+    #workflow-results {{
+        display: none;
+    }}
+    #workflow-results.visible {{
+        display: block;
+        dock: right;
+        width: 64;
+        height: 1fr;
+        border-left: solid {GUMMY_PINK};
+        layout: vertical;
+    }}
+    #workflow-results-header {{
+        height: 1;
+        padding: 0 1;
+        color: {PHOSPHOR};
+        background: {SELECTED_BG};
+    }}
+    #workflow-results-log {{
+        height: 1fr;
+        padding: 0 1;
+    }}
     #execution-view {{
         display: none;
     }}
@@ -439,7 +467,8 @@ class AmbrosiaApp(App[None]):
         Binding("i", "import_presets", "Import", show=False),
         Binding("E", "export_presets", "Export", show=False),
         Binding("f", "toggle_favorite_on_selected", "Favorite", show=False),
-        Binding("p", "toggle_pinned", "Pin", show=False),
+        Binding("ctrl+f", "toggle_favorites_view", "Favorites", show=True),
+        Binding("ctrl+a", "show_all", "All", show=False),
         Binding("h", "toggle_history", "History", show=False),
         Binding("S", "toggle_scope", "Scope", show=False),
         Binding("ctrl+q", "quit_app", "Quit", show=True),
@@ -565,11 +594,13 @@ class AmbrosiaApp(App[None]):
         yield Horizontal(
             Vertical(
                 Static("LIBRARY", classes="hint"),
-                Button("ALL", id="lib-all", classes="library-button"),
-                Button("FAVORITES", id="lib-favorites", classes="library-button"),
-                Button("PINNED", id="lib-pinned", classes="library-button"),
-                Button("RECENT", id="lib-recent", classes="library-button"),
                 TagBrowser(id="tag-browser"),
+                Vertical(
+                    Button("ALL", id="lib-all", classes="library-button"),
+                    Button("FAVORITES", id="lib-favorites", classes="library-button"),
+                    Button("RECENT", id="lib-recent", classes="library-button"),
+                    id="library-actions",
+                ),
                 id="library",
             ),
             Vertical(
@@ -583,6 +614,7 @@ class AmbrosiaApp(App[None]):
             id="main-split",
         )
         yield WorkflowView(id="workflow-view")
+        yield WorkflowResults(id="workflow-results")
         yield ExecutionView(id="execution-view")
         yield Static(id="footer")
 
@@ -613,8 +645,8 @@ class AmbrosiaApp(App[None]):
         self._refresh_mode_indicator()
         self._refresh_footer()
         self._update_library_button_states()
-        # The explorer's ListView would otherwise grab focus after mounting.
-        self.set_timer(0, self.action_focus_search)
+        # Keep the explorer focused after mounting; search is opt-in via "/".
+        self.set_timer(0, self.action_focus_explorer)
 
     # ------------------------------------------------------------------ watchers
 
@@ -680,6 +712,7 @@ class AmbrosiaApp(App[None]):
         top_bar = self.query_one("#top-bar", Horizontal)
         main_split = self.query_one("#main-split", Horizontal)
         workflow = self.query_one("#workflow-view", WorkflowView)
+        results = self.query_one("#workflow-results", WorkflowResults)
         execution = self.query_one("#execution-view", ExecutionView)
 
         if self.execution_visible:
@@ -687,6 +720,7 @@ class AmbrosiaApp(App[None]):
             main_split.add_class("hidden")
             workflow.remove_class("visible")
             workflow.add_class("hidden")
+            results.remove_class("visible")
             execution.remove_class("hidden")
             execution.add_class("visible")
             execution.focus_log()
@@ -699,11 +733,13 @@ class AmbrosiaApp(App[None]):
             main_split.add_class("hidden")
             workflow.remove_class("hidden")
             workflow.add_class("visible")
+            results.add_class("visible")
             workflow.focus_list()
             return
 
         workflow.remove_class("visible")
         workflow.add_class("hidden")
+        results.remove_class("visible")
         top_bar.remove_class("hidden")
         main_split.remove_class("hidden")
         if focus_explorer:
@@ -733,8 +769,6 @@ class AmbrosiaApp(App[None]):
         base = list(self.commands)
         if self.library_view == LIBRARY_FAVORITES:
             base = [command for command in base if command.favorite]
-        elif self.library_view == LIBRARY_PINNED:
-            base = [command for command in base if command.pinned]
         elif self.library_view == LIBRARY_RECENT:
             recent_ids = {entry["command_id"] for entry in self.session.get_recent(50)}
             base = [command for command in base if command.id in recent_ids]
@@ -746,9 +780,10 @@ class AmbrosiaApp(App[None]):
             else:
                 base = [command for command in base if tag_set.intersection(command.tags)]
 
-        if wanted == "all":
-            return search_items(base, self.workflows, parsed)
-        return search_commands(base, parsed)
+        if wanted == "preset":
+            return search_commands(base, parsed)
+        # No type qualifier (or t:a) shows both presets and workflows.
+        return search_items(base, self.workflows, parsed)
 
     def _refresh_library_sidebar(self) -> None:
         self.query_one("#tag-browser", TagBrowser).set_tags(
@@ -756,7 +791,7 @@ class AmbrosiaApp(App[None]):
         )
 
     def _update_library_button_states(self) -> None:
-        for view in (LIBRARY_ALL, LIBRARY_FAVORITES, LIBRARY_PINNED, LIBRARY_RECENT):
+        for view in (LIBRARY_ALL, LIBRARY_FAVORITES, LIBRARY_RECENT):
             self.query_one(f"#lib-{view}", Button).set_class(view == self.library_view, "--active")
 
     # ------------------------------------------------------------------ header / footer
@@ -816,7 +851,6 @@ class AmbrosiaApp(App[None]):
             ("e", "edit"),
             ("d", "del"),
             ("f", "fav"),
-            ("p", "pin"),
             ("s", "save"),
             ("h", "hist"),
             ("S", "scope"),
@@ -897,13 +931,7 @@ class AmbrosiaApp(App[None]):
         event.stop()
 
     def on_preset_explorer_item_activated(self, event: PresetExplorer.ItemActivated) -> None:
-        if self.execution_visible:
-            return
-        self.selected_item = event.item
-        if isinstance(event.item, Workflow):
-            asyncio.create_task(self.action_open_workflow(event.item))
-        else:
-            self._resolve_and_run(event.item)
+        self._activate_item(event.item)
         event.stop()
 
     def on_workflow_view_command_chosen(self, event: WorkflowView.CommandChosen) -> None:
@@ -917,22 +945,51 @@ class AmbrosiaApp(App[None]):
         self._resolve_and_run(command)
         event.stop()
 
+    def _workflow_command(self, command_id: str) -> Command | None:
+        """Look up a workflow's preset id and remember the highlighted row."""
+        command = next((c for c in self.commands if c.id == command_id), None)
+        if command is None:
+            self.notify(f"preset not found: {command_id}")
+            return None
+        self.workflow_command_index = self.query_one(
+            "#workflow-view", WorkflowView
+        ).selected_index()
+        return command
+
+    def _workflow_highlighted_command(self) -> Command | None:
+        """Return the preset highlighted in the workflow's current phase."""
+        if not self.workflow_visible or self.execution_visible:
+            return None
+        command_id = self.query_one("#workflow-view", WorkflowView).selected_command_id()
+        return self._workflow_command(command_id) if command_id is not None else None
+
+    def _quick_run_workflow_command(self, command_id: str) -> None:
+        """Run a workflow preset at once, streaming output into its result panel."""
+        command = self._workflow_command(command_id)
+        if command is None:
+            return
+        self.query_one("#workflow-view", WorkflowView).focus_list()
+        values = self._values_for(command)
+        if self._missing_required(command, values):
+            self._open_input_form(command, quick=True)
+        else:
+            asyncio.create_task(self._run_command(command, values, quick=True))
+
+    def _copy_workflow_command(self, command_id: str) -> None:
+        """Copy the rendered command of a workflow preset."""
+        command = self._workflow_command(command_id)
+        if command is None:
+            return
+        compiled = render_command(command.shell, self._values_for(command))
+        if self._copy_to_clipboard(compiled):
+            self.notify(f"copied: {compiled}")
+        else:
+            self.notify("clipboard copy failed")
+        self.query_one("#workflow-view", WorkflowView).focus_list()
+
     def on_tag_browser_tags_changed(self, event: TagBrowser.TagsChanged) -> None:
         self.active_tags = list(event.tags)
         self.tag_mode = event.mode
-        event.stop()
-
-    def on_preset_inspector_toggle_favorite(self, event: PresetInspector.ToggleFavorite) -> None:
-        self.action_toggle_favorite_on_selected()
-        event.stop()
-
-    def on_preset_inspector_toggle_pinned(self, event: PresetInspector.TogglePinned) -> None:
-        self.action_toggle_pinned()
-        event.stop()
-
-    def on_preset_inspector_run_requested(self, event: PresetInspector.RunRequested) -> None:
-        if self.selected_command is not None and not self.execution_visible:
-            self._resolve_and_run(self.selected_command)
         event.stop()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -940,7 +997,6 @@ class AmbrosiaApp(App[None]):
         views = {
             "lib-all": LIBRARY_ALL,
             "lib-favorites": LIBRARY_FAVORITES,
-            "lib-pinned": LIBRARY_PINNED,
             "lib-recent": LIBRARY_RECENT,
         }
         if button_id in views:
@@ -974,18 +1030,11 @@ class AmbrosiaApp(App[None]):
         return True
 
     def action_focus_next(self) -> None:
-        """Cycle focus: search → explorer → inspector run button → search."""
+        """Cycle focus between the search bar and the result explorer."""
         search = self.query_one("#search-bar", SearchBar)
         explorer = self.query_one("#preset-explorer", PresetExplorer)
-        inspector = self.query_one("#preset-inspector", PresetInspector)
-        run_button = inspector.query_one("#configure-run", Button)
         if search.has_focus:
             explorer.focus()
-        elif explorer.has_focus:
-            if run_button.disabled:
-                search.focus_input()
-            else:
-                run_button.focus()
         else:
             search.focus_input()
 
@@ -996,18 +1045,25 @@ class AmbrosiaApp(App[None]):
         self.search_mode = modes[(modes.index(self.search_mode) + 1) % len(modes)]
 
     async def action_select(self) -> None:
-        search = self.query_one("#search-bar", SearchBar)
-        if search.has_focus:
-            self.action_focus_explorer()
-            return
         if self.execution_visible:
             if self._last_command is not None:
                 await self._run_command(self._last_command, self._last_values)
             return
-        command = self.selected_command
-        if command is None:
+        item = self.selected_item
+        if item is None:
+            item = self.query_one("#preset-explorer", PresetExplorer).selected_item()
+        if item is not None:
+            self._activate_item(item)
+
+    def _activate_item(self, item: Command | Workflow) -> None:
+        """Open a workflow or run a preset from the highlighted explorer row."""
+        if self.execution_visible:
             return
-        self._resolve_and_run(command)
+        self.selected_item = item
+        if isinstance(item, Workflow):
+            asyncio.create_task(self.action_open_workflow(item))
+        else:
+            self._resolve_and_run(item)
 
     def action_toggle_favorite_on_selected(self) -> None:
         command = self.selected_command
@@ -1024,19 +1080,26 @@ class AmbrosiaApp(App[None]):
         self._refresh_library_sidebar()
         self.notify(f"preset {'favorited' if updated.favorite else 'unfavorited'}")
 
-    def action_toggle_pinned(self) -> None:
-        command = self.selected_command
-        if command is None:
+    def action_toggle_favorites_view(self) -> None:
+        """Show favorites, or clear them all when already in the favorites view."""
+        if self.library_view != LIBRARY_FAVORITES:
+            self.library_view = LIBRARY_FAVORITES
             return
-        updated = replace(command, pinned=not command.pinned)
-        self.commands = [updated if c.id == command.id else c for c in self.commands]
-        try:
-            save_commands(self.commands)
-        except Exception as exc:  # noqa: BLE001 - surface storage failure
-            self.notify(f"save failed: {exc}")
-            return
-        self._rebuild()
-        self.notify(f"preset {'pinned' if updated.pinned else 'unpinned'}")
+        count = sum(1 for command in self.commands if command.favorite)
+        if count:
+            self.commands = [replace(command, favorite=False) for command in self.commands]
+            try:
+                save_commands(self.commands)
+            except Exception as exc:  # noqa: BLE001 - surface storage failure
+                self.notify(f"save failed: {exc}")
+                return
+            self._rebuild()
+            self._refresh_library_sidebar()
+        self.notify(f"cleared {count} favorite{'s' if count != 1 else ''}")
+
+    def action_show_all(self) -> None:
+        """Return to the ALL library view."""
+        self.library_view = LIBRARY_ALL
 
     # ------------------------------------------------------------------ run flow
 
@@ -1113,7 +1176,10 @@ class AmbrosiaApp(App[None]):
             if target is not None:
                 result = check_target(target, self.scope_policy)
                 if not result.allowed:
-                    self.notify(f"scope blocked: {result.reason}")
+                    message = f"scope blocked: {result.reason}"
+                    self.notify(message)
+                    if quick and self.workflow_visible:
+                        self.query_one("#workflow-results", WorkflowResults).write_message(message)
                     return
         self.session.add_recent(command.id, command.name)
         self._remember_values(command, values)
@@ -1124,7 +1190,15 @@ class AmbrosiaApp(App[None]):
         self._last_command = command
         self._last_values = dict(values)
         inspector = self.query_one("#preset-inspector", PresetInspector)
-        if quick:
+        # A quick run started inside a workflow keeps the workflow on screen
+        # and appends to the shared results sidebar instead of the full-screen log.
+        in_workflow = quick and self.workflow_visible
+        results_sidebar = self.query_one("#workflow-results", WorkflowResults)
+        if in_workflow:
+            self._quick_run_active = False
+            self._quick_last_line = ""
+            results_sidebar.start_command(command.name, argv)
+        elif quick:
             # Quick run keeps the workstation on screen and reports only a
             # one-line status in the inspector.
             self._quick_run_active = True
@@ -1133,11 +1207,18 @@ class AmbrosiaApp(App[None]):
         else:
             self.execution_visible = True
 
+        async def _emit(text: str) -> None:
+            if in_workflow:
+                results_sidebar.write_output(text)
+            else:
+                await self._on_output(text)
+
         async def _run() -> None:
             try:
-                result = await self.executor.run(command.shell, values, on_output=self._on_output)
+                result = await self.executor.run(command.shell, values, on_output=_emit)
             except ExecutableNotFoundError as exc:
                 execution.write_line(str(exc))
+                await _emit(str(exc))
                 if quick:
                     self._quick_last_line = str(exc)
                 result = CommandResult(
@@ -1145,13 +1226,19 @@ class AmbrosiaApp(App[None]):
                 )
             except asyncio.CancelledError:
                 self.running = False
-                if quick:
+                if in_workflow:
+                    results_sidebar.write_status(None, 0, cancelled=True)
+                elif quick:
                     self._quick_run_active = False
                     inspector.set_quick_status("cancelled")
                 return
             self.running = False
             execution.finish(result.exit_code, result.duration_ms, cancelled=result.cancelled)
-            if quick:
+            if in_workflow:
+                results_sidebar.write_status(
+                    result.exit_code, result.duration_ms, cancelled=result.cancelled
+                )
+            elif quick:
                 self._quick_run_active = False
                 detail = f" · {self._quick_last_line[:40]}" if self._quick_last_line else ""
                 inspector.set_quick_status(
@@ -1192,6 +1279,11 @@ class AmbrosiaApp(App[None]):
         """Run the selected preset immediately, with a minimal result in the inspector."""
         if self.execution_visible:
             return
+        if self.workflow_visible:
+            command_id = self.query_one("#workflow-view", WorkflowView).selected_command_id()
+            if command_id is not None:
+                self._quick_run_workflow_command(command_id)
+            return
         command = self.selected_command
         if command is None:
             self.notify("no preset selected")
@@ -1205,6 +1297,11 @@ class AmbrosiaApp(App[None]):
     def action_copy_or_cancel(self) -> None:
         if self.execution_visible and self.running:
             self.action_cancel_job()
+            return
+        if self.workflow_visible:
+            command_id = self.query_one("#workflow-view", WorkflowView).selected_command_id()
+            if command_id is not None:
+                self._copy_workflow_command(command_id)
             return
         command = self.selected_command
         if command is None:
@@ -1234,6 +1331,12 @@ class AmbrosiaApp(App[None]):
         asyncio.create_task(self._run_command(self._last_command, self._last_values))
 
     def action_go_back(self) -> None:
+        if not self.execution_visible and not self.workflow_visible:
+            search = self.query_one("#search-bar", SearchBar)
+            if search.has_focus:
+                # Esc leaves the search field without clearing the query.
+                self.action_focus_explorer()
+                return
         if self.execution_visible:
             self.execution_visible = False
         elif self.workflow_visible:
@@ -1404,7 +1507,6 @@ class AmbrosiaApp(App[None]):
             inputs=_build_inputs(shell, values.get("inputs", ""), command.inputs),
             category=values.get("path", "").strip(),
             favorite=command.favorite,
-            pinned=command.pinned,
         )
         self.commands = [updated if c.id == command.id else c for c in self.commands]
         try:
@@ -1649,7 +1751,8 @@ class _HelpModal(ModalScreen[None]):
                 "\n"
                 "[b]Presets[/]\n"
                 "  [b]n[/b] add   [b]e[/b] edit   [b]d[/b] delete   "
-                "[b]f[/b] favorite   [b]p[/b] pin\n"
+                "[b]f[/b] favorite   [b]ctrl+f[/b] favorites view / clear all\n"
+                "  [b]ctrl+a[/b] all presets\n"
                 "  [b]i[/b] import   [b]E[/b] export\n"
                 "\n"
                 "[b]Execution[/]\n"

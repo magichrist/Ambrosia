@@ -15,7 +15,7 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
-from textual.widgets import Button, Input, RadioButton, Static
+from textual.widgets import Button, Input, RadioButton, RichLog, Static
 
 from ambrosia.model import Command, CommandInput
 from ambrosia.scope import ScopePolicy
@@ -63,6 +63,7 @@ from ambrosia.tui.widgets.preview import PresetInspector
 from ambrosia.tui.widgets.results import PresetExplorer
 from ambrosia.tui.widgets.search import SearchBar
 from ambrosia.tui.widgets.tags import TagBrowser
+from ambrosia.tui.widgets.workflow_results import WorkflowResults
 from ambrosia.tui.widgets.workflow_view import WorkflowView
 from ambrosia.workflow import Workflow
 
@@ -93,7 +94,6 @@ def _commands() -> list[Command]:
             shell="whois {{target}}",
             category="pr.linux.discovery",
             tags=["whois", "linux"],
-            pinned=True,
         ),
     ]
 
@@ -423,6 +423,37 @@ async def test_input_form_prefills_and_focuses_first_field() -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
+async def test_input_form_tab_cycles_through_inputs() -> None:
+    app = _app()
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.push_screen(
+            InputFormModal(
+                "Form",
+                [("a", "A", True, False), ("b", "B", True, False), ("c", "C", True, False)],
+            )
+        )
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "input-a"
+
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "input-b"
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "input-c"
+        # Wraps back to the first input.
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "input-a"
+        # Shift+Tab goes backwards.
+        await pilot.press("shift+tab")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "input-c"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
 async def test_input_form_with_no_fields_focuses_submit() -> None:
     app = _app()
     captured: list[dict[str, str]] = []
@@ -607,21 +638,18 @@ async def test_explorer_workflow_tooltip_shows_phases() -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_inspector_placeholder_disables_buttons() -> None:
+async def test_inspector_placeholder_shows_message() -> None:
     app = _app(commands=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         inspector = app.query_one("#preset-inspector", PresetInspector)
         assert "No preset" in str(inspector._content.renderable)
-        assert all(
-            button.disabled
-            for button in (inspector._run_button, inspector._favorite_button, inspector._pin_button)
-        )
+        assert not inspector.query("Button")
 
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_inspector_shows_favorite_pin_markers_and_secret_masking() -> None:
+async def test_inspector_shows_favorite_marker_and_secret_masking() -> None:
     commands = [
         Command(
             id="c",
@@ -629,7 +657,6 @@ async def test_inspector_shows_favorite_pin_markers_and_secret_masking() -> None
             description="desc",
             shell="tool {{pw}}",
             favorite=True,
-            pinned=True,
             inputs=[CommandInput(id="pw", prompt="Password", secret=True, validation_hint="secret hint")],
         )
     ]
@@ -638,10 +665,8 @@ async def test_inspector_shows_favorite_pin_markers_and_secret_masking() -> None
         await _settled(pilot)
         inspector = app.query_one("#preset-inspector", PresetInspector)
         rendered = str(inspector._content.renderable)
-        assert "★" in rendered and "▲" in rendered
+        assert "★" in rendered
         assert "(not set)" in rendered
-        assert str(inspector._favorite_button.label) == "UNFAVORITE"
-        assert str(inspector._pin_button.label) == "UNPIN"
         app._remember_values(commands[0], {"pw": "hunter2"})
         inspector.set_command(commands[0], app._values_for(commands[0]))
         assert "********" in str(inspector._content.renderable)
@@ -673,25 +698,7 @@ async def test_inspector_workflow_view_disables_actions() -> None:
         await pilot.pause()
         inspector = app.query_one("#preset-inspector", PresetInspector)
         assert str(inspector._title.renderable) == "WORKFLOW INSPECTOR"
-        assert all(
-            button.disabled
-            for button in (inspector._run_button, inspector._favorite_button, inspector._pin_button)
-        )
-
-
-@pytest.mark.tui
-@pytest.mark.asyncio
-async def test_inspector_buttons_post_messages(monkeypatch: MonkeyPatch) -> None:
-    app = _app()
-    monkeypatch.setattr("ambrosia.tui.app.save_commands", lambda _commands: None)
-    async with app.run_test(size=(140, 45)) as pilot:
-        await _settled(pilot)
-        app.query_one("#inspector-favorite", Button).press()
-        await pilot.pause()
-        assert app.commands[0].favorite is False  # fixture started favorite=True
-        app.query_one("#inspector-pin", Button).press()
-        await pilot.pause()
-        assert app.commands[0].pinned is True  # fixture started pinned=False
+        assert not inspector.query("Button")
 
 
 # ==================================================================== TagBrowser
@@ -742,6 +749,7 @@ async def test_search_bar_parses_and_focuses_cursor_at_end() -> None:
         assert bar.parsed_query().qualifiers == {"tag": "nmap"}
         bar.value = "abc"
         bar.focus_input()
+        await pilot.pause()
         assert bar.cursor_position == 3
         assert bar.has_focus
 
@@ -761,15 +769,99 @@ async def test_search_bar_cycles_all_modes_and_wraps() -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_search_bar_enter_and_tab_focus_explorer() -> None:
-    for key in ("enter", "tab"):
-        app = _app()
-        async with app.run_test(size=(140, 45)) as pilot:
+async def test_search_is_opt_in_and_esc_leaves_it() -> None:
+    app = _app()
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+
+        await pilot.press("/")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "search-bar"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_search_bar_tab_focuses_explorer() -> None:
+    app = _app()
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.action_focus_search()
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "search-bar"
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_search_bar_enter_activates_highlighted_result() -> None:
+    first = Command(id="s1", name="First", description="one", shell="printf one")
+    second = Command(id="s2", name="Second", description="two", shell="printf two")
+    app = _app(commands=[first, second])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.action_focus_search()
+        await pilot.pause()
+        assert app.focused is not None and app.focused.id == "search-bar"
+
+        # Enter from the search bar acts on the highlighted row immediately.
+        await pilot.press("enter")
+        await pilot.pause()
+        assert type(app.screen).__name__ == "_ConfirmRunModal"
+        assert app.screen._command is first
+
+        # Dismiss, then browse with arrows and activate the highlighted row.
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert type(app.screen).__name__ == "_ConfirmRunModal"
+        assert app.screen._command is second
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_default_search_shows_workflows_and_type_switches_filter() -> None:
+    command = Command(
+        id="network-tool",
+        name="Network Tool",
+        description="network utility",
+        shell="echo net",
+    )
+    workflow = Workflow(
+        name="Network Discovery",
+        id="network-discovery",
+        phases={"one": ["network-tool"]},
+    )
+    app = _app(commands=[command], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        search = app.query_one("#search-bar", Input)
+
+        search.value = "network"
+        await _settled(pilot)
+        kinds = {type(result.item) for result in app.filtered_results}
+        assert Command in kinds and Workflow in kinds
+
+        for query in ("t:w network", "type:workflow network"):
+            search.value = query
             await _settled(pilot)
-            assert app.focused is not None and app.focused.id == "search-bar"
-            await pilot.press(key)
-            await pilot.pause()
-            assert app.focused is not None and app.focused.id == "preset-explorer"
+            assert app.filtered_results
+            assert all(isinstance(result.item, Workflow) for result in app.filtered_results)
+
+        for query in ("t:p network", "type:preset network"):
+            search.value = query
+            await _settled(pilot)
+            assert app.filtered_results
+            assert all(isinstance(result.item, Command) for result in app.filtered_results)
 
 
 # ================================================================ ExecutionView
@@ -912,20 +1004,72 @@ async def test_top_bar_shows_running_state() -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
+async def test_ctrl_f_then_favorites_view_clears_all_favorites(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    app = _app()
+    saved: list[list[Command]] = []
+    monkeypatch.setattr("ambrosia.tui.app.save_commands", saved.append)
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        assert app.library_view == "all"
+        assert any(command.favorite for command in app.commands)
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        assert app.library_view == "favorites"
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        assert app.library_view == "favorites"
+        assert not any(command.favorite for command in app.commands)
+        assert len(saved) == 1
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_ctrl_a_returns_to_all_view() -> None:
+    app = _app()
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        assert app.library_view == "favorites"
+
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert app.library_view == "all"
+        assert app.query_one("#lib-all", Button).has_class("--active")
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_library_buttons_are_compact_and_docked_bottom() -> None:
+    app = _app()
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        tags = app.query_one("#tag-browser")
+        buttons = [app.query_one(f"#{name}", Button) for name in ("lib-all", "lib-favorites", "lib-recent")]
+        assert all(button.region.height == 2 for button in buttons)
+        assert min(button.region.y for button in buttons) >= tags.region.y + tags.region.height
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
 async def test_library_button_states_follow_view() -> None:
     app = _app()
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
-        app.query_one("#lib-pinned", Button).press()
+        app.query_one("#lib-favorites", Button).press()
         await pilot.pause()
-        assert app.library_view == "pinned"
-        assert app.query_one("#lib-pinned", Button).has_class("--active")
+        assert app.library_view == "favorites"
+        assert app.query_one("#lib-favorites", Button).has_class("--active")
         assert not app.query_one("#lib-all", Button).has_class("--active")
 
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_favorite_and_pin_toggle_persist(monkeypatch: MonkeyPatch) -> None:
+async def test_favorite_toggle_persists(monkeypatch: MonkeyPatch) -> None:
     app = _app()
     saved: list[list[Command]] = []
     monkeypatch.setattr("ambrosia.tui.app.save_commands", saved.append)
@@ -935,11 +1079,8 @@ async def test_favorite_and_pin_toggle_persist(monkeypatch: MonkeyPatch) -> None
         await pilot.pause()
         await pilot.press("f")
         await pilot.pause()
-        await pilot.press("p")
-        await pilot.pause()
         assert app.commands[0].favorite is False
-        assert app.commands[0].pinned is True
-        assert len(saved) == 2
+        assert len(saved) == 1
 
 
 @pytest.mark.tui
@@ -1205,7 +1346,7 @@ async def test_escape_clears_filters_in_order() -> None:
         await _settled(pilot)
         app.query_one("#search-bar", Input).value = "nmap"
         app.active_tags = ["nmap"]
-        app.library_view = "pinned"
+        app.library_view = "favorites"
         await _settled(pilot)
         app.action_focus_explorer()
         await pilot.pause()
@@ -1275,6 +1416,121 @@ async def _open_workflow(pilot: object, app: AmbrosiaApp) -> None:
     await asyncio.sleep(0.15)
     await pilot.pause()  # type: ignore[attr-defined]
     await pilot.pause()  # type: ignore[attr-defined]
+
+
+# ============================================================ workflow quick actions
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_results_sidebar_is_workflow_only_and_docked_right() -> None:
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.a"]})
+    command = Command(id="wf.a", name="Echo A", description="", shell="printf A", inputs=[])
+    app = _app(commands=[command], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        sidebar = app.query_one("#workflow-results", WorkflowResults)
+        assert sidebar.styles.display == "none"
+        assert app.query_one("#workflow-view").display is False
+
+        await _open_workflow(pilot, app)
+        assert sidebar.styles.display == "block"
+        assert sidebar.styles.dock == "right"
+        assert sidebar.styles.border_left[0] == "solid"
+        assert app.query_one("#workflow-view").display is True
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_x_quick_runs_and_shows_result_in_side_panel() -> None:
+    first = Command(id="wf.a", name="Echo A", description="", shell="printf RESULT_A", inputs=[])
+    second = Command(id="wf.b", name="Echo B", description="", shell="printf RESULT_B", inputs=[])
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.a", "wf.b"]})
+    app = _app(commands=[first, second], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        assert app.workflow_visible is True
+        sidebar = app.query_one("#workflow-results", WorkflowResults)
+        assert sidebar.display is True
+
+        # Run the first command; result lands in the shared sidebar.
+        await pilot.press("x")
+        await asyncio.sleep(0.4)
+        await pilot.pause()
+
+        assert type(app.screen).__name__ != "_ConfirmRunModal"
+        assert app.execution_visible is False
+        assert app.workflow_visible is True
+        strips = list(app.query_one("#workflow-results-log", RichLog).lines)
+        lines = [strip.text for strip in strips]
+        assert any("RESULT_A" in line for line in lines)
+        assert any("exit code: 0" in line for line in lines)
+        command_strips = [strip for strip in strips if strip.text.startswith("$ ")]
+        assert command_strips
+        assert GUMMY_LIGHT_PINK in str(command_strips[0])
+
+        # Run the second command; previous output stays and new output appends.
+        await pilot.press("down")
+        await pilot.pause()
+        await pilot.press("x")
+        await asyncio.sleep(0.4)
+        await pilot.pause()
+
+        lines = [strip.text for strip in app.query_one("#workflow-results-log", RichLog).lines]
+        assert any("RESULT_A" in line for line in lines)
+        assert any("RESULT_B" in line for line in lines)
+        assert sum("exit code: 0" in line for line in lines) == 2
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_x_with_missing_input_opens_form() -> None:
+    command = Command(
+        id="wf.input",
+        name="Needs input",
+        description="",
+        shell="nmap {{target}}",
+        inputs=[CommandInput(id="target", prompt="Target", required=True)],
+    )
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.input"]})
+    app = _app(commands=[command], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        await pilot.press("x")
+        await pilot.pause()
+        assert type(app.screen).__name__ == "InputFormModal"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_workflow_c_copies_highlighted_command(monkeypatch: MonkeyPatch) -> None:
+    command = Command(
+        id="wf.copy",
+        name="Copy me",
+        description="",
+        shell="nmap {{target}}",
+        inputs=[CommandInput(id="target", prompt="Target")],
+    )
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.copy"]})
+    app = _app(commands=[command], workflows=[workflow])
+    copied: list[str] = []
+    monkeypatch.setattr(app, "_copy_to_clipboard", lambda text: copied.append(text) or True)
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        app._remember_values(command, {"target": "10.0.0.9"})
+
+        await pilot.press("c")
+        await pilot.pause()
+        assert copied == ["nmap 10.0.0.9"]
+
+        app._session_values.clear()
+        app.session.clear()
+        await pilot.press("c")
+        await pilot.pause()
+        assert copied[-1] == "nmap TARGET"
 
 
 # ============================================================ validation branches
@@ -1372,13 +1628,13 @@ async def test_cancel_job_marks_execution_cancelled(monkeypatch: MonkeyPatch) ->
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_select_from_search_focuses_explorer() -> None:
+async def test_select_from_search_activates_preset() -> None:
     app = _app()
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         await app.action_select()
         await pilot.pause()
-        assert app.focused is not None and app.focused.id == "preset-explorer"
+        assert type(app.screen).__name__ == "_ConfirmRunModal"
 
 
 @pytest.mark.tui
@@ -1489,19 +1745,6 @@ async def test_session_change_marks_dirty() -> None:
 async def test_footer_refresh_is_safe_before_compose() -> None:
     app = _app()
     app._refresh_footer()  # must not raise before widgets are mounted
-
-
-@pytest.mark.tui
-@pytest.mark.asyncio
-async def test_inspector_run_request_guarded_during_execution() -> None:
-    app = _app()
-    async with app.run_test(size=(140, 45)) as pilot:
-        await _settled(pilot)
-        app.execution_visible = True
-        await pilot.pause()
-        app.query_one("#configure-run", Button).press()
-        await pilot.pause()
-        assert app.running is False
 
 
 @pytest.mark.tui
