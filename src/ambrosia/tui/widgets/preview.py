@@ -1,14 +1,12 @@
-"""Preset inspector: full detail and actions for the highlighted preset."""
+"""Preset inspector: full detail for the highlighted preset."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from rich.text import Text
-from textual.containers import Horizontal
-from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Button, Label, Static
+from textual.widgets import Label, Static
 
 from ambrosia.tui.design import (
     GUMMY_AMBER,
@@ -28,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class PresetInspector(Widget):
-    """Right-hand panel showing the full preset and its run/edit controls."""
+    """Right-hand panel showing the full preset and quick-run status."""
 
     CSS = f"""
     PresetInspector {{
@@ -51,41 +49,18 @@ class PresetInspector(Widget):
         color: {YELLOW};
         text-style: bold;
     }}
-    #inspector-actions {{
-        height: auto;
-        padding: 0 1 1 1;
-    }}
-    #inspector-actions Button {{
-        margin-right: 1;
-    }}
     """
-
-    class ToggleFavorite(Message):
-        """Posted when the favorite button is pressed."""
-
-    class TogglePinned(Message):
-        """Posted when the pinned button is pressed."""
-
-    class RunRequested(Message):
-        """Posted when the run button is pressed."""
 
     def __init__(self, id: str | None = None) -> None:
         super().__init__(id=id)
         self._title = Label("PRESET INSPECTOR", id="inspector-title")
         self._content = Static(id="inspector-content")
         self._quick_status = Static(id="inspector-quick-status")
-        self._run_button = Button("RUN", id="configure-run", variant="primary")
-        self._favorite_button = Button("FAVORITE", id="inspector-favorite")
-        self._pin_button = Button("PIN", id="inspector-pin")
 
     def compose(self) -> ComposeResult:
         yield self._title
         yield self._content
         yield self._quick_status
-        with Horizontal(id="inspector-actions"):
-            yield self._run_button
-            yield self._favorite_button
-            yield self._pin_button
 
     def set_quick_status(self, text: str) -> None:
         """Show a compact quick-run result line under the preset detail."""
@@ -97,23 +72,12 @@ class PresetInspector(Widget):
         self._quick_status.update("")
         if command is None:
             self._content.update("No preset selected.")
-            self._run_button.disabled = True
-            self._favorite_button.disabled = True
-            self._pin_button.disabled = True
             return
-
-        self._run_button.disabled = False
-        self._favorite_button.disabled = False
-        self._pin_button.disabled = False
-        self._favorite_button.label = "UNFAVORITE" if command.favorite else "FAVORITE"
-        self._pin_button.label = "UNPIN" if command.pinned else "PIN"
 
         text = Text()
         text.append(command.name, style=f"bold {PHOSPHOR}")
         if command.favorite:
             text.append("  ★", style=GUMMY_AMBER)
-        if command.pinned:
-            text.append("  ▲", style=GUMMY_LIGHT_PINK)
         text.append("\n")
         text.append(f"id: {command.id}", style=TEXT_MUTED)
         if command.description:
@@ -151,14 +115,10 @@ class PresetInspector(Widget):
     def set_workflow(self, workflow: Workflow) -> None:
         """Render a workflow's phases and command chain.
 
-        Workflows are definitions, not directly runnable commands, so the
-        preset-specific actions are disabled while one is selected.
+        Workflows are definitions, not directly runnable commands.
         """
         self._title.update("WORKFLOW INSPECTOR")
         self._quick_status.update("")
-        self._run_button.disabled = True
-        self._favorite_button.disabled = True
-        self._pin_button.disabled = True
 
         text = Text()
         text.append(workflow.name, style=f"bold {GUMMY_PINK}")
@@ -185,15 +145,6 @@ class PresetInspector(Widget):
             style=TEXT_MUTED,
         )
         self._content.update(text)
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "configure-run":
-            self.post_message(self.RunRequested())
-        elif event.button.id == "inspector-favorite":
-            self.post_message(self.ToggleFavorite())
-        elif event.button.id == "inspector-pin":
-            self.post_message(self.TogglePinned())
-        event.stop()
 
 
 __all__ = ["PresetInspector"]

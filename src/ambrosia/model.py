@@ -78,7 +78,6 @@ class Command:
     inputs: list[CommandInput] = field(default_factory=list)
     category: str = ""
     favorite: bool = False
-    pinned: bool = False
 
     def input_by_id(self, input_id: str) -> CommandInput | None:
         """Return the input with ``input_id``, or ``None`` if not present."""
@@ -106,7 +105,6 @@ class Command:
             "inputs": [input_.to_dict() for input_ in self.inputs],
             "category": self.category,
             "favorite": self.favorite,
-            "pinned": self.pinned,
         }
 
     @classmethod
@@ -131,7 +129,6 @@ class Command:
             inputs=inputs,
             category=str(data.get("category", "")),
             favorite=bool(data.get("favorite", False)),
-            pinned=bool(data.get("pinned", False)),
         )
 
 
