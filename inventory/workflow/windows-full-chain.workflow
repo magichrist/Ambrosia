@@ -1,12 +1,13 @@
-name: Windows Full Chain
-description: Comprehensive authorized Windows assessment workflow.
+name: Windows Survey
+description: Service, share, and directory inventory commands for Windows hosts.
 phases:
-  phase 1:
+  discovery:
     - windows.basic-discovery
-    - windows.smb.audit
     - windows.nmap.discovery
-  phase 2:
+    - windows.smb.audit
+  directory:
     - windows.ldap.inventory
+  exposure:
     - windows.rdp.exposure
     - windows.winrm.exposure
     - windows.http.observation
