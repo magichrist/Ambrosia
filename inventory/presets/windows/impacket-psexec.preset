@@ -1,10 +1,6 @@
 name: Impacket PsExec
 description: Execute commands remotely via Impacket PsExec.
-tags:
-  - windows
-  - impacket
-  - psexec
-  - execution
+tags: [windows, impacket, psexec, execution]
 shell: "impacket-psexec {{username}}:{{password}}@{{target}}"
 inputs:
   - id: target

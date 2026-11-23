@@ -1,10 +1,6 @@
 name: NBTScan
 description: NetBIOS name scanner for Linux.
-tags:
-  - windows
-  - netbios
-  - enumeration
-  - nbtscan
+tags: [windows, netbios, enumeration, nbtscan]
 shell: "nbtscan -r {{target}}/{{subnet}}"
 inputs:
   - id: target

@@ -1,10 +1,6 @@
 name: SAMDump2
 description: Extract password hashes from SAM and SYSTEM files.
-tags:
-  - windows
-  - samdump2
-  - credentials
-  - dump
+tags: [windows, samdump2, credentials, dump]
 shell: "samdump2 {{system}} {{sam}}"
 inputs:
   - id: system

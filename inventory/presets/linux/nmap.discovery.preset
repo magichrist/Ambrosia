@@ -1,11 +1,6 @@
 name: Nmap Service Discovery
 description: Bounded Nmap service discovery on a Linux target (read-only).
-tags:
-  - linux
-  - discovery
-  - read-only
-  - nmap
-  - builtin
+tags: [linux, discovery, read-only, nmap, builtin]
 shell: "nmap -sV {{target}}"
 inputs:
   - id: target

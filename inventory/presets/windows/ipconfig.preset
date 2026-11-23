@@ -1,0 +1,5 @@
+name: IP Config
+description: Show network adapter configuration on the local Windows host.
+tags: [windows, local, inventory, builtin]
+shell: "ipconfig /all"
+inputs: []

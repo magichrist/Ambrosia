@@ -1,0 +1,10 @@
+name: Ping Check
+description: Send four ICMP echo requests to check host reachability.
+tags: [linux, network, ping, builtin]
+shell: "ping -c 4 {{target}}"
+inputs:
+  - id: target
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    validation_hint: "IP address or hostname to ping"

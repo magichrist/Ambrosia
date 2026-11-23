@@ -1,10 +1,6 @@
 name: SMTP User Enum
 description: Enumerate SMTP users on target.
-tags:
-  - windows
-  - smtp
-  - enumeration
-  - user-enum
+tags: [windows, smtp, enumeration, user-enum]
 shell: "smtp-user-enum -t {{target}}"
 inputs:
   - id: target

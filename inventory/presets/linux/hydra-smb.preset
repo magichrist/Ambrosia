@@ -1,10 +1,6 @@
 name: Hydra SMB
 description: Brute-force SMB login with Hydra.
-tags:
-  - linux
-  - hydra
-  - smb
-  - brute-force
+tags: [linux, hydra, smb, brute-force]
 shell: "hydra -L {{userlist}} -P {{passlist}} smb://{{target}}"
 inputs:
   - id: target

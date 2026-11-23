@@ -1,10 +1,6 @@
 name: HTTP Method Observation
 description: Read-only HTTP method observation on target.
-tags:
-  - windows
-  - http
-  - read-only
-  - builtin
+tags: [windows, http, read-only, builtin]
 shell: "curl -sI http://{{target}}"
 inputs:
   - id: target

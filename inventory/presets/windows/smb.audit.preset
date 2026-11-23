@@ -1,10 +1,6 @@
 name: SMB Configuration Audit
 description: Read-only SMB configuration observation on target.
-tags:
-  - windows
-  - smb
-  - read-only
-  - builtin
+tags: [windows, smb, read-only, builtin]
 shell: "crackmapexec smb {{target}}"
 inputs:
   - id: target

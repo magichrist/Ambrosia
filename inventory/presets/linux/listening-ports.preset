@@ -1,0 +1,5 @@
+name: Listening Ports
+description: List listening TCP/UDP sockets and owning processes on the local host.
+tags: [linux, local, inventory, builtin]
+shell: "ss -tulpn"
+inputs: []

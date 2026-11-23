@@ -1,10 +1,6 @@
 name: Hashcat NTLM
 description: Crack NTLM hash with hashcat.
-tags:
-  - linux
-  - hashcat
-  - cracking
-  - ntlm
+tags: [linux, hashcat, cracking, ntlm]
 shell: "hashcat -m 1000 -a 0 {{hash}} {{wordlist}}"
 inputs:
   - id: hash

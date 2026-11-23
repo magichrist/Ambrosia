@@ -1,9 +1,6 @@
 name: Winexe
 description: Execute commands remotely via Winexe.
-tags:
-  - windows
-  - winexe
-  - execution
+tags: [windows, winexe, execution]
 shell: "winexe -U {{username}} //{{target}} cmd.exe"
 inputs:
   - id: target

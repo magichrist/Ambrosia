@@ -1,11 +1,6 @@
 name: CrackMapExec SMB
 description: Enumerate SMB on target (read-only).
-tags:
-  - windows
-  - smb
-  - crackmapexec
-  - enumeration
-  - read-only
+tags: [windows, smb, crackmapexec, enumeration, read-only]
 shell: "crackmapexec smb {{target}}"
 inputs:
   - id: target

@@ -1,9 +1,5 @@
 name: Disable NLA
 description: Disable Network Level Authentication for RDP via registry.
-tags:
-  - windows
-  - registry
-  - rdp
-  - nla
+tags: [windows, registry, rdp, nla]
 shell: 'reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-TCP" /v UserAuthentication /t REG_DWORD /d 0 /f'
 inputs: []

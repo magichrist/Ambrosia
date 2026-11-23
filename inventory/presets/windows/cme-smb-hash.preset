@@ -1,11 +1,6 @@
 name: CrackMapExec SMB Hash Execute
 description: Execute a command via CrackMapExec using NTLM hash.
-tags:
-  - windows
-  - smb
-  - crackmapexec
-  - execution
-  - hash
+tags: [windows, smb, crackmapexec, execution, hash]
 shell: "crackmapexec smb {{target}} -H {{hash}} -x '{{command}}'"
 inputs:
   - id: target

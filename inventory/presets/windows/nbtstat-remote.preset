@@ -1,10 +1,6 @@
 name: NBTStat Remote
 description: Query NetBIOS name table of remote Windows device.
-tags:
-  - windows
-  - netbios
-  - nbtstat
-  - enumeration
+tags: [windows, netbios, nbtstat, enumeration]
 shell: "nbtstat -a {{target}}"
 inputs:
   - id: target

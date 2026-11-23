@@ -1,0 +1,5 @@
+name: System Info
+description: Print OS, hardware, and configuration summary for the local Windows host.
+tags: [windows, local, inventory, builtin]
+shell: "systeminfo"
+inputs: []

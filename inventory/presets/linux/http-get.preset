@@ -1,0 +1,10 @@
+name: HTTP GET
+description: Fetch a URL and print the response body.
+tags: [linux, http, curl, builtin]
+shell: "curl -sS {{url}}"
+inputs:
+  - id: url
+    prompt: "URL to fetch"
+    type: string
+    required: true
+    validation_hint: "full URL, including scheme"

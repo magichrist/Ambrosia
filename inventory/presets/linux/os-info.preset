@@ -1,0 +1,5 @@
+name: OS Info
+description: Print kernel and system information for the local host.
+tags: [linux, local, inventory, builtin]
+shell: "uname -a"
+inputs: []

@@ -1,10 +1,6 @@
 name: Impacket WMIExec
 description: Execute commands via Impacket WMIExec.
-tags:
-  - windows
-  - impacket
-  - wmiexec
-  - execution
+tags: [windows, impacket, wmiexec, execution]
 shell: "impacket-wmiexec {{username}}:{{password}}@{{target}}"
 inputs:
   - id: target

@@ -1,10 +1,6 @@
 name: CrackMapExec SMB Execute
 description: Execute a command via CrackMapExec on SMB target.
-tags:
-  - windows
-  - smb
-  - crackmapexec
-  - execution
+tags: [windows, smb, crackmapexec, execution]
 shell: "crackmapexec smb {{target}} -x '{{command}}'"
 inputs:
   - id: target

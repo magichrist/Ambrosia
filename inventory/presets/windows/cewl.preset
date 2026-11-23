@@ -1,10 +1,6 @@
 name: CeWL
 description: Generate wordlist from website using CeWL.
-tags:
-  - wordlist
-  - cewl
-  - generation
-  - osint
+tags: [wordlist, cewl, generation, osint]
 shell: "cewl {{url}} -w {{wordlist}}"
 inputs:
   - id: url

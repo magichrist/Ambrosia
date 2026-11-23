@@ -1,10 +1,6 @@
 name: Hashcat Shadow
 description: Crack /etc/shadow hash with hashcat.
-tags:
-  - linux
-  - hashcat
-  - cracking
-  - shadow
+tags: [linux, hashcat, cracking, shadow]
 shell: "hashcat -m 1800 -a 0 {{pass_hash}} {{wordlist}}"
 inputs:
   - id: pass_hash

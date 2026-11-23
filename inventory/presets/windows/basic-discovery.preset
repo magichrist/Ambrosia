@@ -1,10 +1,6 @@
 name: Basic Service Discovery
 description: Discover services on an explicitly scoped target (read-only).
-tags:
-  - discovery
-  - network
-  - read-only
-  - builtin
+tags: [discovery, network, read-only, builtin]
 shell: "nmap -sV -p {{ports}} {{target}}"
 inputs:
   - id: target

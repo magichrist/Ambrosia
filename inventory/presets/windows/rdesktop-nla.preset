@@ -1,10 +1,6 @@
 name: RDP No NLA
 description: RDP connection without Network Level Authentication.
-tags:
-  - windows
-  - rdp
-  - rdesktop
-  - execution
+tags: [windows, rdp, rdesktop, execution]
 shell: "rdesktop -r '' {{target}}"
 inputs:
   - id: target

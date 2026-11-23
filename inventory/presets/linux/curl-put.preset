@@ -1,10 +1,6 @@
 name: Curl PUT Upload
 description: Upload a file via HTTP PUT method.
-tags:
-  - curl
-  - http
-  - upload
-  - put
+tags: [curl, http, upload, put]
 shell: "curl -T {{file}} {{target}}/{{route}}"
 inputs:
   - id: file

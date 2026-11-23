@@ -1,10 +1,6 @@
 name: Crunch
 description: Generate wordlist with Crunch.
-tags:
-  - linux
-  - crunch
-  - wordlist
-  - generation
+tags: [linux, crunch, wordlist, generation]
 shell: "crunch {{min}} {{max}} -t {{pattern}}"
 inputs:
   - id: min

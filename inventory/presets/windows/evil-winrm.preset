@@ -1,11 +1,6 @@
 name: Evil-WinRM
 description: Connect via Evil-WinRM using NTLM hash.
-tags:
-  - windows
-  - winrm
-  - evil-winrm
-  - execution
-  - hash
+tags: [windows, winrm, evil-winrm, execution, hash]
 shell: "evil-winrm -i {{target}} -u {{username}} -H {{hash}}"
 inputs:
   - id: target

