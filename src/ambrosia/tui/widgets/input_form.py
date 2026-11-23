@@ -138,6 +138,23 @@ class InputFormModal(ModalScreen[dict[str, str] | None]):
             self.dismiss(None)
             event.prevent_default()
             event.stop()
+        elif event.key in ("tab", "shift+tab"):
+            self._focus_next_input(backwards=event.key == "shift+tab")
+            event.prevent_default()
+            event.stop()
+
+    def _focus_next_input(self, *, backwards: bool = False) -> None:
+        """Cycle focus through the form's inputs (wrapping at both ends)."""
+        widgets = list(self._widgets.values())
+        if not widgets:
+            return
+        focused = self.focused
+        step = -1 if backwards else 1
+        if focused in widgets:
+            index = widgets.index(focused)
+        else:
+            index = 0 if backwards else -1  # from a button: Tab -> first, Shift+Tab -> last
+        widgets[(index + step) % len(widgets)].focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         # Enter on any field submits the form (not just the last field).
