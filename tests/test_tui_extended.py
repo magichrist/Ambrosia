@@ -242,6 +242,49 @@ def test_match_command_matches_description() -> None:
     assert match_command(_commands()[1], parse_search_query("registration")) is not None
 
 
+def test_multi_word_free_text_matches_across_fields() -> None:
+    both = Command(
+        id="nla",
+        name="Disable NLA",
+        description="Disable Network Level Authentication for RDP via registry.",
+        shell="reg add ...",
+        tags=["windows", "rdp"],
+        category="windows",
+    )
+    registry_only = Command(
+        id="registry-only",
+        name="Registry tweak",
+        description="Edit the registry",
+        shell="reg add ...",
+        tags=[],
+        category="windows",
+    )
+    rdp_only = Command(
+        id="rdp-only",
+        name="RDP exposure",
+        description="Check RDP port",
+        shell="nmap -p 3389 {{target}}",
+        tags=["rdp"],
+        category="windows",
+    )
+    commands = [both, registry_only, rdp_only]
+    results = search_commands(commands, parse_search_query("regis rdp"))
+    assert [result.command.id for result in results] == ["nla"]
+
+
+def test_multi_word_free_text_in_fuzzy_mode() -> None:
+    command = _commands()[0]
+    assert match_command(command, parse_search_query("nmap disc", "fuzzy")) is not None
+    assert match_command(command, parse_search_query("nmap zzz", "fuzzy")) is None
+
+
+def test_regex_mode_keeps_multi_word_pattern_whole() -> None:
+    reversed_name = Command(
+        id="reversed", name="version windows", description="", shell="", tags=[], category=""
+    )
+    assert match_command(reversed_name, parse_search_query("windows version", "regex")) is None
+
+
 def test_match_command_word_start_ranks_ahead_of_buried_match() -> None:
     commands = [
         Command(id="a", name="xwindows", description="", shell="", category=""),

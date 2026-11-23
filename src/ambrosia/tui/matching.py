@@ -188,6 +188,21 @@ def _has_search_content(query: SearchQuery) -> bool:
     )
 
 
+def _free_terms(query: SearchQuery) -> list[str]:
+    """Return the free-text terms that must all match.
+
+    Substring and fuzzy searches treat each whitespace-separated word as its
+    own term, so ``regis rdp`` finds an item that has ``regis`` in one field
+    and ``rdp`` in another. Regex mode keeps the whole string as one pattern.
+    """
+    text = query.free_text.strip()
+    if not text:
+        return []
+    if query.mode == "regex":
+        return [text]
+    return text.split()
+
+
 def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
     """Return ranking metadata when ``command`` matches ``query``."""
     if not _type_allowed(query, "preset"):
@@ -208,9 +223,11 @@ def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
         matched.append(field_name)
         ranks.append(score + 10)  # qualifiers outweigh free-text matches
 
-    if query.free_text:
-        # Match each field on its own so word/word-fragment hits are ranked by
-        # their best field instead of by a position in a concatenated blob.
+    terms = _free_terms(query)
+    if terms:
+        # Match each term against every field on its own: all terms must hit
+        # somewhere, but different terms may match different fields. Ranking
+        # uses each term's best field rather than a concatenated-text blob.
         texts = [
             command.name,
             command.shell,
@@ -218,13 +235,13 @@ def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
             command.category,
             command.description,
         ]
-        scores = [
-            score for text in texts if (score := _matches(query.free_text, text, query.mode)) is not None
-        ]
-        if not scores:
-            return None
-        matched.append("all")
-        ranks.append(min(scores))
+        for term in terms:
+            scores = [score for text in texts if (score := _matches(term, text, query.mode)) is not None]
+            if not scores:
+                return None
+            if "all" not in matched:
+                matched.append("all")
+            ranks.append(min(scores))
 
     if not matched:
         return None
@@ -263,7 +280,8 @@ def match_workflow(workflow: Workflow, query: SearchQuery) -> SearchResult | Non
         matched.append(field_name)
         ranks.append(score + 10)
 
-    if query.free_text:
+    terms = _free_terms(query)
+    if terms:
         texts = [
             workflow.name,
             workflow.description,
@@ -271,13 +289,13 @@ def match_workflow(workflow: Workflow, query: SearchQuery) -> SearchResult | Non
             " ".join(workflow.phase_names()),
             " ".join(command_ids),
         ]
-        scores = [
-            score for text in texts if (score := _matches(query.free_text, text, query.mode)) is not None
-        ]
-        if not scores:
-            return None
-        matched.append("all")
-        ranks.append(min(scores))
+        for term in terms:
+            scores = [score for text in texts if (score := _matches(term, text, query.mode)) is not None]
+            if not scores:
+                return None
+            if "all" not in matched:
+                matched.append("all")
+            ranks.append(min(scores))
 
     if not matched:
         return None

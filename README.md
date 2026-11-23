@@ -33,6 +33,8 @@ ambrosia --help
 - Three-panel workstation: library/tags, live search, and preset detail.
 - Search by whole word or fragment, with `name:`, `cmd:`, `tag:`, `path:`, and
   `type:` qualifiers (`t:w` workflows, `t:p` presets, `t:a` both).
+- Multiple words are ANDed: `regis rdp` finds presets containing both terms,
+  even when they appear in different fields.
 - Substring, fuzzy, and regex search modes (`ctrl+r` to cycle).
 - Shared session values: set `target` once and every preset using `target`
   reuses it. Session values live in memory only.
