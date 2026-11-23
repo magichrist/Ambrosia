@@ -1,6 +1,6 @@
 name: SSH Version Check
-description: Read-only SSH banner/version observation on target.
-tags: [linux, ssh, read-only, builtin]
+description: SSH banner/version observation on target.
+tags: [linux, ssh, builtin]
 shell: "ssh -o BatchMode=yes -o ConnectTimeout=5 {{user}}@{{target}} 'SSH_VERSION_CHECK'"
 inputs:
   - id: target

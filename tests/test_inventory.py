@@ -40,6 +40,12 @@ def test_no_duplicate_preset_commands() -> None:
     assert not duplicates, f"duplicate preset commands: {duplicates}"
 
 
+def test_presets_have_no_read_only_labels() -> None:
+    for command in load_presets_from_dir(PRESETS_DIR):
+        assert "read-only" not in [tag.lower() for tag in command.tags], command.id
+        assert "read-only" not in command.description.lower(), command.id
+
+
 def test_multi_term_search_finds_shipped_preset() -> None:
     commands = load_presets_from_dir(PRESETS_DIR)
     results = search_commands(commands, parse_search_query("regis rdp"))

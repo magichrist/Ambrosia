@@ -1,6 +1,6 @@
 name: LDAP Domain Inventory
-description: Read-only LDAP domain inventory on target.
-tags: [windows, ldap, read-only, builtin]
+description: LDAP domain inventory on target.
+tags: [windows, ldap, builtin]
 shell: 'ldapsearch -x -H ldap://{{target}} -s base -b "" "(objectClass=*)" *'
 inputs:
   - id: target

@@ -1,6 +1,6 @@
 name: DNSenum
 description: Enumerate DNS information for target domain.
-tags: [dns, enumeration, network, read-only]
+tags: [dns, enumeration, network]
 shell: "dnsenum {{target}}"
 inputs:
   - id: target

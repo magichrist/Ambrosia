@@ -1,6 +1,6 @@
 name: RDP Exposure Observation
-description: Check RDP port (3389) exposure on target (read-only).
-tags: [windows, rdp, read-only, builtin]
+description: Check RDP port (3389) exposure on target.
+tags: [windows, rdp, builtin]
 shell: "nmap -p 3389 {{target}}"
 inputs:
   - id: target

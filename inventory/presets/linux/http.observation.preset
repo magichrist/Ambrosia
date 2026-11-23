@@ -1,6 +1,6 @@
 name: HTTP Method Observation
-description: Read-only HTTP method observation on a Linux target.
-tags: [linux, http, read-only, builtin]
+description: HTTP method observation on a Linux target.
+tags: [linux, http, builtin]
 shell: "curl -sI http://{{target}}"
 inputs:
   - id: target

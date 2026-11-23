@@ -1,6 +1,6 @@
 name: Nmap Ping Sweep
 description: Ping sweep to discover live hosts.
-tags: [nmap, discovery, network, read-only]
+tags: [nmap, discovery, network]
 shell: "nmap -sn {{target}}/{{subnet}}"
 inputs:
   - id: target
