@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, cast
 
 from textual.widgets import Input
@@ -59,7 +60,12 @@ class SearchBar(Input):
                 explorer.action_cursor_up()
             event.prevent_default()
             event.stop()
-        elif event.key in ("enter", "tab"):
+        elif event.key == "enter":
+            # Activate the highlighted result directly; no second Enter needed.
+            asyncio.create_task(cast("AmbrosiaApp", self.app).action_select())
+            event.prevent_default()
+            event.stop()
+        elif event.key == "tab":
             cast("AmbrosiaApp", self.app).action_focus_explorer()
             event.prevent_default()
             event.stop()
