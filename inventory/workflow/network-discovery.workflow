@@ -4,7 +4,7 @@ phases:
   hosts:
     - linux.netdiscover
     - linux.nmap-ping-sweep
-    - windows.nmap-ping-sweep
+    - linux.nmap-ping-sweep
   names:
     - linux.dnsenum
     - windows.nbtscan

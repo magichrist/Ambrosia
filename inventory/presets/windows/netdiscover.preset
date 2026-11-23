@@ -1,5 +1,0 @@
-name: Netdiscover
-description: Passive network discovery tool.
-tags: [netdiscover, discovery, network, read-only]
-shell: "netdiscover"
-inputs: []

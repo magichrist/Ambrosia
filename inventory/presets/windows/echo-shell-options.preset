@@ -1,5 +1,0 @@
-name: Echo Shell Options
-description: Display current shell options ($-).
-tags: [shell, echo, read-only]
-shell: "echo '$-'"
-inputs: []

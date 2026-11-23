@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from ambrosia.storage import load_preset_file, load_presets_from_dir
@@ -31,6 +32,12 @@ def test_preset_ids_are_unique_and_os_prefixed() -> None:
         assert os_dir in {"linux", "windows"}, command.id
         assert command.id.startswith(f"{os_dir}."), command.id
         assert command.category == os_dir, command.id
+
+
+def test_no_duplicate_preset_commands() -> None:
+    shells = [command.shell.strip() for command in load_presets_from_dir(PRESETS_DIR)]
+    duplicates = [shell for shell, count in Counter(shells).items() if count > 1]
+    assert not duplicates, f"duplicate preset commands: {duplicates}"
 
 
 def test_multi_term_search_finds_shipped_preset() -> None:
