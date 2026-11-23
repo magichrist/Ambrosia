@@ -19,6 +19,8 @@ from ambrosia.storage import (
     export_commands,
     import_commands,
     load_commands,
+    load_preset_file,
+    load_presets_from_dir,
     remove_command,
     save_commands,
 )
@@ -132,6 +134,35 @@ def test_import_commands_duplicate_ids_in_import_file_raise(tmp_path) -> None:
     for merge in (False, True):
         with pytest.raises(ValueError, match="duplicate command id"):
             import_commands(import_path, merge=merge)
+
+
+def test_preset_id_and_category_come_from_path(tmp_path: Path) -> None:
+    preset = tmp_path / "presets" / "linux" / "http-get.preset"
+    preset.parent.mkdir(parents=True)
+    preset.write_text(
+        "name: HTTP GET\ndescription: Fetch a URL\ntags: [linux, http, curl, builtin]\n"
+        'shell: "curl -sS {{url}}"\n',
+        encoding="utf-8",
+    )
+    commands = load_preset_file(preset)
+    assert [command.id for command in commands] == ["linux.http-get"]
+    assert commands[0].category == "linux"
+    assert commands[0].tags == ["linux", "http", "curl", "builtin"]
+
+
+def test_presets_with_same_stem_in_different_folders_stay_distinct(tmp_path: Path) -> None:
+    root = tmp_path / "catalog"
+    for os_name in ("linux", "windows"):
+        folder = root / os_name
+        folder.mkdir(parents=True)
+        (folder / "nmap.preset").write_text(
+            f"name: Nmap {os_name}\ndescription: Nmap on {os_name}\n"
+            f"tags: [{os_name}, nmap]\nshell: nmap {{target}}\n",
+            encoding="utf-8",
+        )
+    commands = load_presets_from_dir(root)
+    assert [command.id for command in commands] == ["linux.nmap", "windows.nmap"]
+    assert [command.category for command in commands] == ["linux", "windows"]
 
 
 def test_import_commands_invalid_file_raises(tmp_path) -> None:

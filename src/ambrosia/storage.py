@@ -90,14 +90,44 @@ def remove_command(command_id: str, path: Path = COMMANDS_FILE) -> None:
     save_commands(filtered, path)
 
 
-def load_preset_file(path: Path) -> list[Command]:
+def _relative_to_presets(path: Path) -> Path:
+    """Return the path below the nearest ``presets`` directory, or just its name."""
+    parts = path.parts
+    for index, part in enumerate(parts):
+        if part == "presets":
+            return Path(*parts[index + 1 :])
+    return Path(path.name)
+
+
+def _preset_identity(path: Path, root: Path | None = None) -> tuple[str, str]:
+    """Derive ``(id, category)`` from a preset file's location.
+
+    The id is the dot-joined relative path without ``.preset``, so
+    ``inventory/presets/linux/http-get.preset`` becomes ``linux.http-get``.
+    The category is the first segment (``linux``). With no ``root``, the path
+    after a ``presets`` directory is used; files outside a presets tree keep
+    the old stem-only behaviour.
+    """
+    if root is None:
+        relative = _relative_to_presets(path)
+    else:
+        try:
+            relative = path.resolve().relative_to(root.resolve())
+        except ValueError:
+            relative = Path(path.name)
+    parts = relative.with_suffix("").parts
+    return ".".join(parts), parts[0] if len(parts) > 1 else ""
+
+
+def load_preset_file(path: Path, *, root: Path | None = None) -> list[Command]:
     """Load commands from a ``.preset`` file.
 
     A ``.preset`` file is YAML containing either a single command object or a
-    JSON/YAML list of command objects. The ``id`` is derived from the file
-    stem (e.g. ``smb.audit.preset`` -> ``smb.audit``) and is not required in
-    the file itself. Returns an empty list if the file is missing or contains
-    invalid YAML.
+    JSON/YAML list of command objects. The ``id`` and ``category`` are derived
+    from the path (e.g. ``presets/linux/http-get.preset`` -> id
+    ``linux.http-get``, category ``linux``); an ``id`` inside the file is
+    ignored. ``root`` overrides the base used to derive them. Returns an empty
+    list if the file is missing or contains invalid YAML.
     """
     if not path.exists():
         return []
@@ -114,8 +144,10 @@ def load_preset_file(path: Path) -> list[Command]:
         items.append(data)
     elif isinstance(data, list):
         items = [item for item in data if isinstance(item, dict)]
+    command_id, category = _preset_identity(path, root)
     for item in items:
-        item["id"] = path.stem
+        item["id"] = command_id
+        item.setdefault("category", category)
         commands.append(Command.from_dict(item))
     return commands
 
@@ -125,16 +157,18 @@ def load_presets_from_dir(directory: Path) -> list[Command]:
 
     Walks subdirectories (e.g. ``inventory/presets/windows/``,
     ``inventory/presets/linux/``) so presets can be organized by OS or
-    category. Files are returned in sorted path order for deterministic
-    loading. Commands with duplicate ids are deduplicated (first occurrence
-    wins) so the same id from different OS subdirectories doesn't conflict.
+    category. Ids are derived from each file's path relative to ``directory``
+    (e.g. ``linux/http-get.preset`` -> ``linux.http-get``), so identically
+    named files in different folders stay distinct. Files are returned in
+    sorted path order for deterministic loading. Duplicate ids are
+    deduplicated (first occurrence wins).
     """
     if not directory.exists() or not directory.is_dir():
         return []
     commands: list[Command] = []
     seen_ids: set[str] = set()
     for preset_file in sorted(directory.rglob("*.preset")):
-        for command in load_preset_file(preset_file):
+        for command in load_preset_file(preset_file, root=directory):
             if command.id not in seen_ids:
                 seen_ids.add(command.id)
                 commands.append(command)
