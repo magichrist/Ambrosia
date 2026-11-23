@@ -26,7 +26,7 @@ Exit criteria: operator can add `crackmapexec smb {{ip}}`, search `smb`, run it 
 
 ## Phase 3 — Ergonomics
 
-- Command categories / favorites / pinned commands.
+- Command categories / favorites.
 - Recent commands list.
 - Input validation hints (e.g. "must be an IP") — soft validation, not blocking.
 - Multiple sessions / named session files.

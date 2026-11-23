@@ -12,7 +12,6 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 │ LIBRARY      │ [SUBSTRING] search ...            │ PRESET INSPECTOR     │
 │ [ALL]        │ search mode: substring (ctrl+r)   │ nmap scan            │
 │ [FAVORITES]  │                                   │ id: windows.nmap     │
-│ [PINNED]     │ nmap scan: Discover open ports    │ description ...      │
 │ [RECENT]     │ whois lookup: Look up domain      │ path: pr.windows     │
 │ TAGS         │                                   │ tags: [nmap] [...,]  │
 │ ○ OR ● AND   │                                   │ shell                │
@@ -28,16 +27,16 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 
 - **Top bar**: session status (`READY`/`RUNNING`), preset/result counts, and
   active tag/scope indicators.
-- **Sidebar**: `ALL`, `FAVORITES`, `PINNED`, `RECENT` library views and tag
-  checkboxes with an OR/AND mode toggle.
+- **Sidebar**: compact `ALL`, `FAVORITES`, `RECENT` buttons docked at the
+  bottom, with tag checkboxes and an OR/AND mode toggle above them.
 - **Explorer**: debounced live search and ranked results. Preset rows are
   intentionally compact — `name: description` only. Workflow rows are marked
   `[workflow]` and show their phase/command counts. Hovering a row shows a
   tooltip with the full preset (id, path, tags, shell template, inputs) or the
   full workflow (id, description, ordered phases with command ids).
-- **Inspector**: full detail for the highlighted preset plus `RUN`, `FAVORITE`,
-  and `PIN` buttons. It is populated automatically from the first result, so
-  `Enter` works without an initial arrow key.
+- **Inspector**: full detail and quick-run status for the highlighted preset.
+  It has no buttons — use `x` to run and `f` to favorite. It is populated
+  automatically from the first result, so `Enter` works without an arrow key.
 
 ## Keyboard bindings
 
@@ -45,13 +44,13 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 |-----|--------|
 | `/` | focus the search bar |
 | `↑` / `↓` | move the result highlight while typing (no Enter needed) |
-| `Tab` | cycle focus: search → explorer → inspector |
+| `Tab` | cycle focus: search ↔ explorer |
 | `Enter` | select / run the highlighted preset |
 | `Esc` | clear filters / close modal / back |
 | `ctrl+r` | cycle search mode while typing |
 | `r` | cycle search mode when the explorer has focus |
 | `n` / `e` / `d` | add / edit / delete a preset |
-| `f` / `p` | toggle favorite / pinned on the selected preset |
+| `f` | toggle favorite on the selected preset |
 | `i` / `E` | import / export presets |
 | `s` | save the session |
 | `h` / `S` | toggle history logging / scope policy |
@@ -81,7 +80,7 @@ three-panel workstation, a full-screen execution view, and modal dialogs.
 ## Selecting and running a preset
 
 1. The first result is selected automatically; arrow keys or clicking change it.
-2. `Enter` (or the inspector's `RUN` button) resolves inputs from the in-memory
+2. `Enter` resolves inputs from the in-memory
    session. Values are shared by input name across presets: setting `target`
    once means every other preset with a `target` input reuses it.
    - all required inputs present → confirmation modal with `Run` / `Edit inputs` / `Cancel`;

@@ -32,7 +32,8 @@ ambrosia --help
 
 - Three-panel workstation: library/tags, live search, and preset detail.
 - Search by whole word or fragment, with `name:`, `cmd:`, `tag:`, `path:`, and
-  `type:` qualifiers (`t:w` workflows, `t:p` presets, `t:a` both).
+  `type:` qualifiers. Default search shows both presets and workflows; `t:w`
+  (`type:workflow`) shows only workflows and `t:p` (`type:preset`) only presets.
 - Multiple words are ANDed: `regis rdp` finds presets containing both terms,
   even when they appear in different fields.
 - Substring, fuzzy, and regex search modes (`ctrl+r` to cycle).
@@ -48,23 +49,36 @@ ambrosia --help
 |-----|--------|
 | `/` | focus search |
 | `↑` / `↓` | move result highlight |
-| `Tab` | search → explorer → inspector |
+| `Tab` | search ↔ explorer |
 | `Enter` | run preset / open workflow |
 | `Esc` | clear filters / close modal / go back |
 | `ctrl+r` | cycle search mode |
 | `n` / `e` / `d` | add / edit / delete preset |
-| `f` / `p` | favorite / pin |
+| `f` | favorite |
+| `ctrl+f` | favorites view / clear all favorites |
+| `ctrl+a` | all presets |
 | `x` | quick run |
 | `g` / `c` / `b` | run again / copy or cancel / back |
 
+The TUI starts with the result list focused; press `/` to activate the search
+bar and `Esc` to leave it. `Enter` works directly from the search bar: it runs
+or opens the highlighted result without a second keystroke. `Tab` just moves
+focus to the explorer.
+
 `c` copies the command with set inputs filled in; unset inputs appear as their
 uppercase name (e.g. `nmap -sV TARGET`). While a job runs, `c` cancels it.
+In the input form, `Tab` / `Shift+Tab` move between fields. The workflow results
+sidebar shows each command it ran in pink, prefixed with `$`.
 | `s` / `h` | session notice / history toggle |
 | `ctrl+q` | quit |
 | `?` | help |
 
-Inside a workflow: `↑`/`↓` pick a command in the current phase, `Enter` runs it,
-`→`/`←` move between phases, and `Esc` leaves.
+Inside a workflow: `↑`/`↓` pick a command in the current phase, `Enter` runs it
+with confirmation in the full-screen execution view, `x` runs it immediately
+with the result appended to the right-hand sidebar (separated by a vertical
+divider, and shared by every command in the workflow), `c` copies it,
+`→`/`←` move between phases, and `Esc` leaves. Unset inputs still prompt for a
+value; already-set inputs run without asking.
 
 ## Inventory files
 
