@@ -14,6 +14,7 @@ from ambrosia.executor import (
     ExecutableNotFoundError,
     ShellExecutor,
     build_argv,
+    render_command,
 )
 
 
@@ -47,6 +48,19 @@ def test_build_argv_leaves_missing_token_in_place() -> None:
 
 def test_build_argv_empty_shell() -> None:
     assert build_argv("", {}) == []
+
+
+def test_render_command_uses_values_or_uppercase_placeholder_names() -> None:
+    shell = "nmap -sV {{target}} -oN {{outfile}} {{ports}}"
+    assert render_command(shell, {"target": "10.0.0.5"}) == "nmap -sV 10.0.0.5 -oN OUTFILE PORTS"
+    assert render_command(shell, {"target": "10.0.0.5", "outfile": "scan.txt"}) == (
+        "nmap -sV 10.0.0.5 -oN scan.txt PORTS"
+    )
+
+
+def test_render_command_treats_empty_value_as_unset() -> None:
+    assert render_command("smbclient -L {{target}}", {"target": ""}) == "smbclient -L TARGET"
+    assert render_command("echo {{x}} {{Y}}", {"x": "0", "Y": "set"}) == "echo 0 set"
 
 
 class _StreamReader:

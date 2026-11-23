@@ -10,6 +10,7 @@ output to an optional callback, and returns a :class:`CommandResult`.
 from __future__ import annotations
 
 import asyncio
+import re
 import shutil
 import time
 from dataclasses import dataclass
@@ -17,6 +18,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+_PLACEHOLDER = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}")
 
 
 class ExecutableNotFoundError(Exception):
@@ -48,6 +52,23 @@ def build_argv(shell: str, values: dict[str, str]) -> list[str]:
     for input_id, value in values.items():
         shell = shell.replace("{{" + input_id + "}}", value)
     return shell.split()
+
+
+def render_command(shell: str, values: dict[str, str]) -> str:
+    """Render a shell template for display or copying.
+
+    Tokens with a resolved input value are replaced by that value. Tokens
+    without a value become the input name in uppercase, without braces, so
+    ``nmap -sV {{target}}`` renders as ``nmap -sV TARGET``. This is a display
+    helper only; execution still uses :func:`build_argv`.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        value = values.get(name)
+        return value if value else name.upper()
+
+    return _PLACEHOLDER.sub(_replace, shell).strip()
 
 
 class ShellExecutor:

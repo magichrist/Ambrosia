@@ -1140,6 +1140,31 @@ async def test_copy_command_uses_shared_session_values(monkeypatch: MonkeyPatch)
 
 @pytest.mark.tui
 @pytest.mark.asyncio
+async def test_copy_command_uses_uppercase_names_for_unset_inputs(monkeypatch: MonkeyPatch) -> None:
+    command = Command(
+        id="c2",
+        name="copy unset",
+        description="",
+        shell="nmap -sV {{target}} {{ports}}",
+        inputs=[
+            CommandInput(id="target", prompt="Target"),
+            CommandInput(id="ports", prompt="Ports"),
+        ],
+    )
+    app = _app(commands=[command])
+    copied: list[str] = []
+    monkeypatch.setattr(app, "_copy_to_clipboard", lambda text: copied.append(text) or True)
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        app.action_focus_explorer()
+        await pilot.pause()
+        await pilot.press("c")
+        await pilot.pause()
+        assert copied == ["nmap -sV TARGET PORTS"]
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
 async def test_run_again_starts_last_command() -> None:
     command = Command(id="c", name="echo", description="", shell="printf again", inputs=[])
     app = _app(commands=[command])

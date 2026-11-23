@@ -35,6 +35,7 @@ from ambrosia.executor import (
     ExecutableNotFoundError,
     ShellExecutor,
     build_argv,
+    render_command,
 )
 from ambrosia.history import HistoryStore, make_entry
 from ambrosia.model import Command, CommandInput, inputs_from_shell
@@ -1209,7 +1210,7 @@ class AmbrosiaApp(App[None]):
         if command is None:
             self.notify("no preset selected")
             return
-        compiled = " ".join(build_argv(command.shell, self._values_for(command)))
+        compiled = render_command(command.shell, self._values_for(command))
         if self._copy_to_clipboard(compiled):
             self.notify(f"copied: {compiled}")
         else:
