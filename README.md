@@ -55,7 +55,10 @@ ambrosia --help
 | `n` / `e` / `d` | add / edit / delete preset |
 | `f` / `p` | favorite / pin |
 | `x` | quick run |
-| `g` / `c` / `b` | run again / cancel / back |
+| `g` / `c` / `b` | run again / copy or cancel / back |
+
+`c` copies the command with set inputs filled in; unset inputs appear as their
+uppercase name (e.g. `nmap -sV TARGET`). While a job runs, `c` cancels it.
 | `s` / `h` | session notice / history toggle |
 | `ctrl+q` | quit |
 | `?` | help |
