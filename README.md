@@ -77,7 +77,8 @@ Inside a workflow: `↑`/`↓` pick a command in the current phase, `Enter` runs
 with confirmation in the full-screen execution view, `x` runs it immediately
 with the result appended to the right-hand sidebar (separated by a vertical
 divider, and shared by every command in the workflow), `c` copies it,
-`→`/`←` move between phases, and `Esc` leaves. Unset inputs still prompt for a
+`ctrl+x` clears the results sidebar, `→`/`←` move between phases, and `Esc`
+leaves. Unset inputs still prompt for a
 value; already-set inputs run without asking.
 
 ## Inventory files

@@ -51,9 +51,7 @@ class SearchBar(Input):
             # Move the result highlight without leaving the search field, so
             # the operator can type and browse matches in one flow.
             app = cast("AmbrosiaApp", self.app)
-            explorer = cast(
-                "PresetExplorer", app.query_one("#preset-explorer")
-            )
+            explorer = cast("PresetExplorer", app.query_one("#preset-explorer"))
             if event.key == "down":
                 explorer.action_cursor_down()
             else:

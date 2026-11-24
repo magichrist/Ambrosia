@@ -77,14 +77,18 @@ def test_short_type_qualifier_aliases() -> None:
 
 
 def test_t_w_search_returns_only_workflows() -> None:
-    command = Command(id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}")
+    command = Command(
+        id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}"
+    )
     results = search_items([command], [_workflow()], parse_search_query("t:w"))
     assert len(results) == 1
     assert results[0].workflow is not None
 
 
 def test_type_workflow_returns_only_workflows() -> None:
-    command = Command(id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}")
+    command = Command(
+        id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}"
+    )
     results = search_items([command], [_workflow()], parse_search_query("type:workflow"))
     assert len(results) == 1
     assert results[0].workflow is not None
@@ -92,7 +96,9 @@ def test_type_workflow_returns_only_workflows() -> None:
 
 
 def test_type_preset_returns_only_presets() -> None:
-    command = Command(id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}")
+    command = Command(
+        id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}"
+    )
     results = search_items([command], [_workflow()], parse_search_query("type:preset"))
     assert len(results) == 1
     assert results[0].command is command
@@ -100,7 +106,9 @@ def test_type_preset_returns_only_presets() -> None:
 
 
 def test_type_all_returns_both_kinds() -> None:
-    command = Command(id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}")
+    command = Command(
+        id="linux.nmap.discovery", name="nmap", description="", shell="nmap {{target}}"
+    )
     results = search_items([command], [_workflow()], parse_search_query("type:all"))
     assert {type(result.item) for result in results} == {Command, Workflow}
 

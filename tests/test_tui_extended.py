@@ -109,7 +109,9 @@ def _workflows() -> list[Workflow]:
     ]
 
 
-def _app(commands: list[Command] | None = None, workflows: list[Workflow] | None = None) -> AmbrosiaApp:
+def _app(
+    commands: list[Command] | None = None, workflows: list[Workflow] | None = None
+) -> AmbrosiaApp:
     return AmbrosiaApp(
         commands=_commands() if commands is None else commands,
         workflows=[] if workflows is None else workflows,
@@ -328,8 +330,12 @@ def test_search_workflows_matches_phase_command_ids() -> None:
 
 def test_search_items_respects_type_filters() -> None:
     commands, workflows = _commands(), _workflows()
-    assert all(r.workflow is None for r in search_items(commands, workflows, parse_search_query("t:p")))
-    assert all(r.command is None for r in search_items(commands, workflows, parse_search_query("t:w")))
+    assert all(
+        r.workflow is None for r in search_items(commands, workflows, parse_search_query("t:p"))
+    )
+    assert all(
+        r.command is None for r in search_items(commands, workflows, parse_search_query("t:w"))
+    )
     assert len(search_items(commands, workflows, parse_search_query("t:a"))) == 3
 
 
@@ -371,8 +377,20 @@ def test_build_inputs_explicit_spec_overrides_existing() -> None:
 
 def test_values_for_and_remember_values_share_by_input_name() -> None:
     app = _app()
-    first = Command(id="a", name="a", description="", shell="nmap {{target}}", inputs=[CommandInput(id="target", prompt="t")])
-    second = Command(id="b", name="b", description="", shell="whois {{target}} {{user}}", inputs=[CommandInput(id="target", prompt="t"), CommandInput(id="user", prompt="u")])
+    first = Command(
+        id="a",
+        name="a",
+        description="",
+        shell="nmap {{target}}",
+        inputs=[CommandInput(id="target", prompt="t")],
+    )
+    second = Command(
+        id="b",
+        name="b",
+        description="",
+        shell="whois {{target}} {{user}}",
+        inputs=[CommandInput(id="target", prompt="t"), CommandInput(id="user", prompt="u")],
+    )
     app._remember_values(first, {"target": "10.0.0.1"})
     assert app._values_for(second)["target"] == "10.0.0.1"
     assert app._missing_required(second, app._values_for(second)) is True
@@ -381,7 +399,13 @@ def test_values_for_and_remember_values_share_by_input_name() -> None:
 
 
 def test_extract_scope_target_prefers_named_target_then_any_ip() -> None:
-    command = Command(id="c", name="c", description="", shell="", inputs=[CommandInput(id="target", prompt="t"), CommandInput(id="other", prompt="o")])
+    command = Command(
+        id="c",
+        name="c",
+        description="",
+        shell="",
+        inputs=[CommandInput(id="target", prompt="t"), CommandInput(id="other", prompt="o")],
+    )
     assert AmbrosiaApp._extract_scope_target(command, {"target": "10.0.0.5"}) == "10.0.0.5"
     assert AmbrosiaApp._extract_scope_target(command, {"other": "10.0.0.6"}) == "10.0.0.6"
     assert AmbrosiaApp._extract_scope_target(command, {"target": "hostname"}) is None
@@ -394,7 +418,11 @@ def test_extract_scope_target_prefers_named_target_then_any_ip() -> None:
 @pytest.mark.asyncio
 async def test_input_form_renders_markers_hints_and_secret_fields() -> None:
     app = _app()
-    fields = [("target", "Target", True, False), ("pw", "Password", True, True), ("note", "Note", False, False)]
+    fields = [
+        ("target", "Target", True, False),
+        ("pw", "Password", True, True),
+        ("note", "Note", False, False),
+    ]
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.push_screen(InputFormModal("Form", fields, hints={"target": "an IP"}))
@@ -413,7 +441,9 @@ async def test_input_form_prefills_and_focuses_first_field() -> None:
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         app.push_screen(
-            InputFormModal("Form", [("a", "A", True, False), ("b", "B", True, False)], initial={"a": "one"})
+            InputFormModal(
+                "Form", [("a", "A", True, False), ("b", "B", True, False)], initial={"a": "one"}
+            )
         )
         await pilot.pause()
         assert app.query_one("#input-a", Input).value == "one"
@@ -615,7 +645,14 @@ async def test_explorer_tooltips_show_command_details() -> None:
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         tooltip = str(app.query_one("#preset-explorer").children[0].tooltip)
-        for expected in ("id: c", "path: path.here", "tags: a, b", "tool {{target}}", "secret", "Target"):
+        for expected in (
+            "id: c",
+            "path: path.here",
+            "tags: a, b",
+            "tool {{target}}",
+            "secret",
+            "Target",
+        ):
             assert expected in tooltip
 
 
@@ -657,7 +694,9 @@ async def test_inspector_shows_favorite_marker_and_secret_masking() -> None:
             description="desc",
             shell="tool {{pw}}",
             favorite=True,
-            inputs=[CommandInput(id="pw", prompt="Password", secret=True, validation_hint="secret hint")],
+            inputs=[
+                CommandInput(id="pw", prompt="Password", secret=True, validation_hint="secret hint")
+            ],
         )
     ]
     app = _app(commands=commands)
@@ -1049,7 +1088,9 @@ async def test_library_buttons_are_compact_and_docked_bottom() -> None:
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
         tags = app.query_one("#tag-browser")
-        buttons = [app.query_one(f"#{name}", Button) for name in ("lib-all", "lib-favorites", "lib-recent")]
+        buttons = [
+            app.query_one(f"#{name}", Button) for name in ("lib-all", "lib-favorites", "lib-recent")
+        ]
         assert all(button.region.height == 2 for button in buttons)
         assert min(button.region.y for button in buttons) >= tags.region.y + tags.region.height
 
@@ -1190,7 +1231,9 @@ async def test_toggle_history_and_scope(monkeypatch: MonkeyPatch) -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
-async def test_quit_wipes_in_memory_and_persisted_session(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+async def test_quit_wipes_in_memory_and_persisted_session(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     session_file = tmp_path / "session.json"
     session_file.write_text("{}", encoding="utf-8")
     monkeypatch.setattr("ambrosia.tui.app.SESSION_FILE", session_file)
@@ -1423,6 +1466,29 @@ async def _open_workflow(pilot: object, app: AmbrosiaApp) -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
+async def test_leaving_workflow_with_left_restores_explorer_focus() -> None:
+    command = Command(id="wf.back", name="Echo", description="", shell="printf back", inputs=[])
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.back"]})
+    app = _app(commands=[command], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        assert app.focused is not None and app.focused.id == "workflow-commands"
+
+        await pilot.press("left")
+        await asyncio.sleep(0.15)
+        await pilot.pause()
+
+        assert app.workflow_visible is False
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+        await pilot.press("down")
+        await pilot.pause()
+        # Arrow keys work again on the result list.
+        assert app.focused is not None and app.focused.id == "preset-explorer"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
 async def test_results_sidebar_is_workflow_only_and_docked_right() -> None:
     workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.a"]})
     command = Command(id="wf.a", name="Echo A", description="", shell="printf A", inputs=[])
@@ -1501,6 +1567,30 @@ async def test_workflow_x_with_missing_input_opens_form() -> None:
         await pilot.press("x")
         await pilot.pause()
         assert type(app.screen).__name__ == "InputFormModal"
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
+async def test_ctrl_x_clears_workflow_results() -> None:
+    command = Command(
+        id="wf.clear", name="Echo", description="", shell="printf CLEAR_ME", inputs=[]
+    )
+    workflow = Workflow(name="Chain", id="chain", phases={"one": ["wf.clear"]})
+    app = _app(commands=[command], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        await _open_workflow(pilot, app)
+        log = app.query_one("#workflow-results-log", RichLog)
+
+        await pilot.press("x")
+        await asyncio.sleep(0.4)
+        await pilot.pause()
+        assert log.lines
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        assert not log.lines
+        assert app.workflow_visible is True
 
 
 @pytest.mark.tui

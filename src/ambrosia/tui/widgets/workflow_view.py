@@ -89,6 +89,8 @@ class WorkflowView(Widget):
         hint.append("quick run   ")
         hint.append("c ", style="bold")
         hint.append("copy   ")
+        hint.append("^x ", style="bold")
+        hint.append("clear   ")
         hint.append("Esc ", style="bold")
         hint.append("back to search")
         self._hint = Static(hint, id="workflow-hint")
@@ -103,7 +105,11 @@ class WorkflowView(Widget):
         yield self._hint
 
     async def set_workflow(
-        self, workflow: Workflow, available: dict[str, Command], phase_index: int, command_index: int
+        self,
+        workflow: Workflow,
+        available: dict[str, Command],
+        phase_index: int,
+        command_index: int,
     ) -> None:
         """Render ``phase_index`` of ``workflow`` and highlight ``command_index``."""
         self._workflow = workflow

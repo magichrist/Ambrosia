@@ -308,9 +308,7 @@ async def test_dotted_ids_and_tags_do_not_break_widget_ids() -> None:
 @pytest.mark.tui
 @pytest.mark.asyncio
 async def test_quick_run_shows_minimal_result_in_inspector() -> None:
-    commands = [
-        Command(id="c1", name="echo", description="print", shell="printf hello", inputs=[])
-    ]
+    commands = [Command(id="c1", name="echo", description="print", shell="printf hello", inputs=[])]
     app = AmbrosiaApp(commands=commands, workflows=[])
     async with app.run_test(size=(140, 45)) as pilot:
         await _settled(pilot)
@@ -511,7 +509,9 @@ def _workflow_commands() -> list[Command]:
     return [
         Command(id="cmd.one", name="Echo one", description="one", shell="printf one", inputs=[]),
         Command(id="cmd.two", name="Echo two", description="two", shell="printf two", inputs=[]),
-        Command(id="cmd.three", name="Echo three", description="three", shell="printf three", inputs=[]),
+        Command(
+            id="cmd.three", name="Echo three", description="three", shell="printf three", inputs=[]
+        ),
     ]
 
 

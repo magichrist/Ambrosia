@@ -27,7 +27,9 @@ class WorkflowResults(Vertical):
         self._log = RichLog(id="workflow-results-log", min_width=0, auto_scroll=True)
 
     def compose(self) -> ComposeResult:
-        yield Static(Text("RESULTS · x to run", style=f"bold {PHOSPHOR}"), id="workflow-results-header")
+        yield Static(
+            Text("RESULTS · x to run", style=f"bold {PHOSPHOR}"), id="workflow-results-header"
+        )
         yield self._log
 
     def start_command(self, command_name: str, argv: list[str]) -> None:
@@ -54,6 +56,10 @@ class WorkflowResults(Vertical):
     def write_message(self, text: str) -> None:
         """Append an informational line (copy, scope block, error)."""
         self._log.write(text)
+
+    def clear(self) -> None:
+        """Erase all accumulated results (ctrl+x in the workflow view)."""
+        self._log.clear()
 
 
 __all__ = ["WorkflowResults"]

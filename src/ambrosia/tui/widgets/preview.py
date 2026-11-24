@@ -130,8 +130,7 @@ class PresetInspector(Widget):
             text.append(f"\n\n{workflow.description}", style=TEXT_MUTED)
 
         text.append(
-            f"\n\nphases ({len(workflow.phase_names())}) · "
-            f"{workflow.command_count()} commands",
+            f"\n\nphases ({len(workflow.phase_names())}) · {workflow.command_count()} commands",
             style="bold",
         )
         if not workflow.phase_names():

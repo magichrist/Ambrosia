@@ -172,6 +172,7 @@ def _build_inputs(
             result.append(base)
     return result
 
+
 # Shared styling for small, centered popup dialogs.
 MODAL_CSS = f"""
 Screen {{
@@ -457,6 +458,7 @@ class AmbrosiaApp(App[None]):
         Binding("r", "cycle_search_mode", "Mode", show=True),
         Binding("c", "copy_or_cancel", "Copy / cancel", show=True),
         Binding("x", "quick_run", "Quick run", show=True),
+        Binding("ctrl+x", "clear_workflow_results", "Clear results", show=False),
         Binding("g", "run_again", "Run again", show=True),
         Binding("s", "save_session", "Save session", show=True),
         Binding("b", "go_back", "Back", show=True),
@@ -625,14 +627,14 @@ class AmbrosiaApp(App[None]):
         self._session_values = {}
         self._session_dirty = False
         self._auto_save_task = None
-        self.commands = list(self._startup_commands) if self._startup_commands is not None else load_commands()
+        self.commands = (
+            list(self._startup_commands) if self._startup_commands is not None else load_commands()
+        )
         if self._startup_workflows is not None:
             self.workflows = list(self._startup_workflows)
         else:
             default_dir = Path("inventory/workflow")
-            self.workflows = (
-                load_workflows_from_dir(default_dir) if default_dir.is_dir() else []
-            )
+            self.workflows = load_workflows_from_dir(default_dir) if default_dir.is_dir() else []
         for command in self.commands:
             secret_ids = {input_.id for input_ in command.inputs if input_.secret}
             if secret_ids:
@@ -705,7 +707,9 @@ class AmbrosiaApp(App[None]):
     def watch_workflow_visible(self, visible: bool) -> None:
         if not visible:
             self.active_workflow = None
-        self._apply_view_visibility()
+        # Returning to the workstation must restore focus to the result list,
+        # otherwise arrow keys and hover do nothing until the user clicks.
+        self._apply_view_visibility(focus_explorer=not visible)
 
     def _apply_view_visibility(self, *, focus_explorer: bool = False) -> None:
         """Show exactly one of: workflow runner, execution view, workstation."""
@@ -1315,7 +1319,11 @@ class AmbrosiaApp(App[None]):
 
     @staticmethod
     def _copy_to_clipboard(text: str) -> bool:
-        for cmd in (["pbcopy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]):
+        for cmd in (
+            ["pbcopy"],
+            ["xclip", "-selection", "clipboard"],
+            ["xsel", "--clipboard", "--input"],
+        ):
             if shutil.which(cmd[0]) is None:
                 continue
             try:
@@ -1365,6 +1373,13 @@ class AmbrosiaApp(App[None]):
             self.workflow_phase_index,
             self.workflow_command_index,
         )
+
+    def action_clear_workflow_results(self) -> None:
+        """Clear the shared results sidebar (only meaningful in a workflow)."""
+        if not self.workflow_visible:
+            return
+        self.query_one("#workflow-results", WorkflowResults).clear()
+        self.notify("results cleared")
 
     async def action_open_workflow(self, workflow: Workflow) -> None:
         """Open a workflow at phase 1 so the operator can pick a command."""
@@ -1485,7 +1500,9 @@ class AmbrosiaApp(App[None]):
             "inputs": _format_input_spec(command.inputs),
         }
         self.push_screen(
-            InputFormModal("Edit preset", fields, initial=initial, submit_label="Save", hints=hints),
+            InputFormModal(
+                "Edit preset", fields, initial=initial, submit_label="Save", hints=hints
+            ),
             lambda values: self._handle_edit_preset(values, command),
         )
 
@@ -1719,11 +1736,14 @@ class _HelpModal(ModalScreen[None]):
         super().__init__()
         self.styles.align = ("center", "middle")
 
-    CSS = MODAL_CSS + """
+    CSS = (
+        MODAL_CSS
+        + """
     .dialog {
         width: 78;
     }
     """
+    )
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(classes="dialog"):
@@ -1747,7 +1767,7 @@ class _HelpModal(ModalScreen[None]):
                 "  found with [b]type:workflow[/]. Enter opens the runner at phase 1.\n"
                 "  [b]up/down[/b] pick a command, [b]Enter[/b] runs it,\n"
                 "  [b]right[/b] next phase, [b]left[/b] previous (exits on phase 1),\n"
-                "  [b]Esc[/b] returns to search.\n"
+                "  [b]ctrl+x[/b] clear results sidebar, [b]Esc[/b] returns to search.\n"
                 "\n"
                 "[b]Presets[/]\n"
                 "  [b]n[/b] add   [b]e[/b] edit   [b]d[/b] delete   "

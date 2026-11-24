@@ -236,7 +236,9 @@ def match_command(command: Command, query: SearchQuery) -> SearchResult | None:
             command.description,
         ]
         for term in terms:
-            scores = [score for text in texts if (score := _matches(term, text, query.mode)) is not None]
+            scores = [
+                score for text in texts if (score := _matches(term, text, query.mode)) is not None
+            ]
             if not scores:
                 return None
             if "all" not in matched:
@@ -290,7 +292,9 @@ def match_workflow(workflow: Workflow, query: SearchQuery) -> SearchResult | Non
             " ".join(command_ids),
         ]
         for term in terms:
-            scores = [score for text in texts if (score := _matches(term, text, query.mode)) is not None]
+            scores = [
+                score for text in texts if (score := _matches(term, text, query.mode)) is not None
+            ]
             if not scores:
                 return None
             if "all" not in matched:
@@ -315,9 +319,7 @@ def _sort_results(results: list[SearchResult]) -> list[SearchResult]:
 def search_commands(commands: list[Command], query: SearchQuery) -> list[SearchResult]:
     """Return ranked preset matches for ``commands`` against ``query``."""
     results = [
-        result
-        for command in commands
-        if (result := match_command(command, query)) is not None
+        result for command in commands if (result := match_command(command, query)) is not None
     ]
     return _sort_results(results)
 
@@ -325,9 +327,7 @@ def search_commands(commands: list[Command], query: SearchQuery) -> list[SearchR
 def search_workflows(workflows: list[Workflow], query: SearchQuery) -> list[SearchResult]:
     """Return ranked workflow matches for ``workflows`` against ``query``."""
     results = [
-        result
-        for workflow in workflows
-        if (result := match_workflow(workflow, query)) is not None
+        result for workflow in workflows if (result := match_workflow(workflow, query)) is not None
     ]
     return _sort_results(results)
 
