@@ -66,6 +66,14 @@ class WorkflowView(Widget):
     #workflow-commands {{
         height: 1fr;
     }}
+    #workflow-commands ListItem {{
+        height: auto;
+        padding: 0 1;
+    }}
+    #workflow-commands ListItem > Static {{
+        height: auto;
+        width: 100%;
+    }}
     #workflow-hint {{
         height: 1;
         padding: 0 1;
@@ -97,6 +105,7 @@ class WorkflowView(Widget):
         self._workflow: Workflow | None = None
         self._phase_index = 0
         self._available: dict[str, Command] = {}
+        self._command_ids: list[str] = []
 
     def compose(self) -> ComposeResult:
         yield self._header
@@ -124,6 +133,7 @@ class WorkflowView(Widget):
         )
         if not names:
             self._phase.update("no phases defined")
+            self._command_ids = []
             await self._commands.clear()
             self._commands.index = None
             return
@@ -132,22 +142,42 @@ class WorkflowView(Widget):
         command_ids = workflow.command_ids(phase_name)
         self._phase.update(f"phase {phase_index + 1}: {phase_name}  ({len(command_ids)} commands)")
 
-        rows: list[ListItem] = []
-        for command_id in command_ids:
-            label = Text()
-            command = available.get(command_id)
-            if command is None:
-                label.append(f"{command_id} ", style=f"bold {TEXT_MUTED}")
-                label.append("(preset not found)", style=f"italic {GUMMY_PINK}")
-            else:
-                label.append(f"{command.name} ", style=f"bold {PHOSPHOR}")
-                label.append(command_id, style=TEXT_MUTED)
-            rows.append(ListItem(Static(label), id=f"wf_cmd_{len(rows)}"))
+        self._command_ids = list(command_ids)
+        rows = [
+            ListItem(Static(self._row_text(command_id)), id=f"wf_cmd_{index}")
+            for index, command_id in enumerate(command_ids)
+        ]
 
         await self._commands.clear()
         for row in rows:
             await self._commands.append(row)
         self._commands.index = min(command_index, len(rows) - 1) if rows else None
+
+    def _row_text(self, command_id: str) -> Text:
+        """Render a row as a name with an indented, dimmed command line below it."""
+        label = Text()
+        command = self._available.get(command_id)
+        if command is None:
+            label.append(f"{command_id} ", style=f"bold {TEXT_MUTED}")
+            label.append("(preset not found)", style=f"italic {GUMMY_PINK}")
+            return label
+        label.append(f"{command.name} ", style=f"bold {PHOSPHOR}")
+        label.append(command_id, style=TEXT_MUTED)
+        label.append("\n")
+        label.append(f"\t{command.shell}", style=f"dim {TEXT_MUTED}")
+        return label
+
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        """Re-fetch the command whenever a different phase row is highlighted."""
+        if event.item is None or event.item.id is None:
+            return
+        try:
+            index = int(event.item.id.removeprefix("wf_cmd_"))
+        except ValueError:
+            return
+        if not 0 <= index < len(self._command_ids):
+            return
+        event.item.query_one(Static).update(self._row_text(self._command_ids[index]))
 
     def selected_command_id(self) -> str | None:
         """Return the command id highlighted in the current phase."""

@@ -976,6 +976,31 @@ async def test_workflow_view_renders_phase_rows_and_missing_presets() -> None:
 
 @pytest.mark.tui
 @pytest.mark.asyncio
+async def test_workflow_rows_show_indented_command_and_refresh_on_highlight() -> None:
+    first = Command(id="c1", name="Echo A", description="", shell="printf A", inputs=[])
+    second = Command(id="c2", name="Echo B", description="", shell="printf B", inputs=[])
+    workflow = Workflow(name="W", id="w", phases={"p1": ["c1", "c2"]})
+    app = _app(commands=[first, second], workflows=[workflow])
+    async with app.run_test(size=(140, 45)) as pilot:
+        await _settled(pilot)
+        view = app.query_one("#workflow-view", WorkflowView)
+        await view.set_workflow(workflow, {"c1": first, "c2": second}, 0, 0)
+
+        rows = view._commands.children
+        assert "Echo A c1\n\tprintf A" in str(rows[0].query_one(Static).renderable)
+        assert "Echo B c2\n\tprintf B" in str(rows[1].query_one(Static).renderable)
+
+        view.focus_list()
+        await pilot.press("down")
+        await pilot.pause()
+        assert view.selected_command_id() == "c2"
+        highlighted = view._commands.highlighted_child
+        assert highlighted is not None
+        assert "printf B" in str(highlighted.query_one(Static).renderable)
+
+
+@pytest.mark.tui
+@pytest.mark.asyncio
 async def test_workflow_view_handles_no_phases() -> None:
     app = _app()
     async with app.run_test(size=(140, 45)) as pilot:
