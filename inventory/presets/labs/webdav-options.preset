@@ -1,0 +1,11 @@
+name: WebDAV OPTIONS Methods Check
+description: List HTTP methods supported by a WebDAV upload directory.
+tags: [labs, webdav, http]
+shell: "curl -i -X OPTIONS {{url}}/"
+inputs:
+  - id: url
+    prompt: "Upload directory URL"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "full directory URL without a trailing slash, e.g. http://host/upload"

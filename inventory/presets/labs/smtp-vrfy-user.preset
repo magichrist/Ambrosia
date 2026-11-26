@@ -1,0 +1,17 @@
+name: SMTP VRFY User Check
+description: Test one username against an SMTP server with the VRFY command.
+tags: [labs, enumeration, smtp]
+shell: "smtp-user-enum -M VRFY -u {{username}} -t {{host}}"
+inputs:
+  - id: host
+    prompt: "SMTP server IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "IP or hostname of the SMTP server"
+  - id: username
+    prompt: "Username to verify"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "single username, e.g. admin, test, or administrator"

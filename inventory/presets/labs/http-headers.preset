@@ -1,0 +1,11 @@
+name: HTTP Response Headers Check
+description: Fetch HTTP response headers from a URL, including any custom header fields.
+tags: [labs, enumeration, http]
+shell: "curl -i {{url}}"
+inputs:
+  - id: url
+    prompt: "URL to fetch"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "full URL including port if non-standard"

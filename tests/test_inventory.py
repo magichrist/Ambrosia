@@ -23,15 +23,15 @@ def test_every_preset_file_loads() -> None:
         assert load_preset_file(path), f"preset failed to load: {path}"
 
 
-def test_preset_ids_are_unique_and_os_prefixed() -> None:
+def test_preset_ids_are_unique_and_category_prefixed() -> None:
     commands = load_presets_from_dir(PRESETS_DIR)
     ids = [command.id for command in commands]
     assert len(ids) == len(set(ids)), "duplicate preset ids"
     for command in commands:
-        os_dir = command.id.split(".", 1)[0]
-        assert os_dir in {"linux", "windows"}, command.id
-        assert command.id.startswith(f"{os_dir}."), command.id
-        assert command.category == os_dir, command.id
+        category_dir = command.id.split(".", 1)[0]
+        assert category_dir in {"linux", "windows", "labs"}, command.id
+        assert command.id.startswith(f"{category_dir}."), command.id
+        assert command.category == category_dir, command.id
 
 
 def test_no_duplicate_preset_commands() -> None:

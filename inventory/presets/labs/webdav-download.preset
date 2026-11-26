@@ -1,0 +1,11 @@
+name: WebDAV File Download
+description: Fetch a file from a WebDAV directory to read its contents.
+tags: [labs, webdav, http]
+shell: "curl {{url}}/flag.txt"
+inputs:
+  - id: url
+    prompt: "WebDAV directory URL"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "directory URL without a trailing slash"

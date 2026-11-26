@@ -1,0 +1,17 @@
+name: WebDAV PUT File Upload
+description: PUT content into a WebDAV directory without a local file or shell redirection.
+tags: [labs, webdav, http]
+shell: "curl -i -X PUT --data-binary {{content}} {{url}}/flag.txt"
+inputs:
+  - id: url
+    prompt: "Upload directory URL"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "directory URL without a trailing slash"
+  - id: content
+    prompt: "File content to upload"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "no spaces; use an underscore or URL encoding if needed"

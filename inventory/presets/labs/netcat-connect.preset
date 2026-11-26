@@ -1,0 +1,17 @@
+name: Netcat TCP Connect
+description: Connect to a TCP service with netcat to read its banner or response.
+tags: [labs, enumeration, netcat]
+shell: "nc -nv {{host}} {{port}}"
+inputs:
+  - id: host
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "IP or hostname of the service"
+  - id: port
+    prompt: "Service port"
+    type: integer
+    required: true
+    secret: false
+    validation_hint: "port from the scan, e.g. 23, 25, or 31337"

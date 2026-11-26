@@ -1,0 +1,17 @@
+name: Slow TCP Scan Over Port Range
+description: Slow TCP connect scan over a port range for firewall-sensitive hosts.
+tags: [labs, discovery, nmap]
+shell: "nmap -Pn -p {{ports}} -sT -T2 --scan-delay 1s {{host}}"
+inputs:
+  - id: host
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "IP or hostname; confirm authorization before scanning"
+  - id: ports
+    prompt: "Port range"
+    type: string
+    required: true
+    secret: false
+    validation_hint: "Nmap port spec, e.g. 8000-8200"

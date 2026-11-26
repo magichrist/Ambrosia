@@ -1,0 +1,11 @@
+name: Full TCP Port Scan with Scripts
+description: Scan all TCP ports with default scripts and version detection.
+tags: [labs, discovery, nmap]
+shell: "nmap -sC -sV -p- -T4 {{host}}"
+inputs:
+  - id: host
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "IP or hostname; confirm authorization before scanning"

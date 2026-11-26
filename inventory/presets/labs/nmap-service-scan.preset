@@ -1,0 +1,11 @@
+name: Full TCP Service Version Scan
+description: Scan all TCP ports with scripts and version detection to fingerprint services.
+tags: [labs, discovery, nmap]
+shell: "nmap -sV -sC -p- {{host}}"
+inputs:
+  - id: host
+    prompt: "Target IP or hostname"
+    type: host
+    required: true
+    secret: false
+    validation_hint: "IP or hostname; confirm authorization before scanning"
